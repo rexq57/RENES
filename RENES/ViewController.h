@@ -1,0 +1,15 @@
+//
+//  ViewController.h
+//  RENES
+//
+//  Created by rexq on 2017/6/25.
+//  Copyright © 2017年 com.rexq. All rights reserved.
+//
+
+#import <Cocoa/Cocoa.h>
+
+@interface ViewController : NSViewController
+
+
+@end
+
