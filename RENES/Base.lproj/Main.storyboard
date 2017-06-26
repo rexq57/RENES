@@ -697,7 +697,7 @@
                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                             <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
                                             <size key="minSize" width="478" height="256"/>
-                                            <size key="maxSize" width="478" height="10000000"/>
+                                            <size key="maxSize" width="480" height="10000000"/>
                                             <color key="insertionPointColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                         </textView>
                                     </subviews>
@@ -726,7 +726,7 @@
                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                             <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
                                             <size key="minSize" width="478" height="318"/>
-                                            <size key="maxSize" width="478" height="10000000"/>
+                                            <size key="maxSize" width="480" height="10000000"/>
                                             <color key="insertionPointColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                         </textView>
                                     </subviews>
@@ -766,9 +766,20 @@
                                     <action selector="next:" target="XfG-lQ-9wD" id="kjJ-1n-ZhE"/>
                                 </connections>
                             </button>
+                            <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="k5N-kg-0gb">
+                                <rect key="frame" x="563" y="262" width="57" height="17"/>
+                                <buttonCell key="cell" type="roundRect" title="next keep" bezelStyle="roundedRect" alignment="center" controlSize="mini" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="gX2-qc-n1e">
+                                    <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                    <font key="font" metaFont="miniSystem"/>
+                                </buttonCell>
+                                <connections>
+                                    <action selector="nextKeep:" target="XfG-lQ-9wD" id="ME0-Wy-2sH"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <constraints>
                             <constraint firstItem="dum-Wx-ZIB" firstAttribute="leading" secondItem="m2S-Jp-Qdl" secondAttribute="leading" constant="20" id="7hy-NB-etR"/>
+                            <constraint firstItem="k5N-kg-0gb" firstAttribute="centerY" secondItem="9CY-2j-WiT" secondAttribute="centerY" id="8MW-zQ-S91"/>
                             <constraint firstItem="dum-Wx-ZIB" firstAttribute="trailing" secondItem="P0c-41-dWp" secondAttribute="trailing" id="Mer-A4-srN"/>
                             <constraint firstItem="9CY-2j-WiT" firstAttribute="top" secondItem="my7-70-8J6" secondAttribute="bottom" constant="20" id="YPi-U9-fXt"/>
                             <constraint firstItem="my7-70-8J6" firstAttribute="leading" secondItem="P0c-41-dWp" secondAttribute="trailing" constant="20" id="YYr-U1-bBK"/>
@@ -777,11 +788,13 @@
                             <constraint firstItem="dum-Wx-ZIB" firstAttribute="top" secondItem="P0c-41-dWp" secondAttribute="bottom" constant="20" id="nEz-Wa-Thc"/>
                             <constraint firstItem="9CY-2j-WiT" firstAttribute="leading" secondItem="dum-Wx-ZIB" secondAttribute="trailing" constant="20" id="nhK-ah-rzF"/>
                             <constraint firstAttribute="bottom" secondItem="dum-Wx-ZIB" secondAttribute="bottom" constant="20" id="oXf-cS-KEx"/>
+                            <constraint firstItem="k5N-kg-0gb" firstAttribute="leading" secondItem="9CY-2j-WiT" secondAttribute="trailing" constant="10" id="syt-gl-pMW"/>
                             <constraint firstItem="my7-70-8J6" firstAttribute="top" secondItem="m2S-Jp-Qdl" secondAttribute="top" constant="20" id="ynz-iM-N3g"/>
                             <constraint firstItem="P0c-41-dWp" firstAttribute="leading" secondItem="m2S-Jp-Qdl" secondAttribute="leading" constant="20" id="zyh-Nz-Lms"/>
                         </constraints>
                     </view>
                     <connections>
+                        <outlet property="logView" destination="IfE-Sp-Ecj" id="Oyo-G5-BO2"/>
                         <outlet property="memView" destination="Ejr-rM-gwe" id="Pbd-gE-jtv"/>
                         <outlet property="registersView" destination="my7-70-8J6" id="aT9-Af-lcO"/>
                     </connections>

@@ -2,6 +2,7 @@
 #include "cpu.hpp"
 #include <functional>
 #include <stdio.h>
+#include "type.hpp"
 
 namespace ReNes {
     
@@ -20,7 +21,9 @@ namespace ReNes {
             bit8 b8_6 = *(bit8*)&rom[6];
             bit8 b8_7 = *(bit8*)&rom[7];
             
-            printf("[4] 16kB ROM: %d\n\
+            log("文件长度 %d\n", length);
+            
+            log("[4] 16kB ROM: %d\n\
 [5] 8kB VROM: %d\n\
 [6] D0: %d D1: %d D2: %d D3: %d D4: %d D5: %d D6: %d D7: %d\n\
 [7] 保留0: %d %d %d %d ROM Mapper高4位: %d %d %d %d\n\
@@ -60,9 +63,20 @@ namespace ReNes {
                 _cpu.exec();
                 
                 // for Test
-                printf("sleep 1...\n");
+//                log("sleep 1...\n");
                 
-            }while(callback());
+            }while(callback() && !_cpu.error);
+            
+            if (_cpu.error)
+            {
+                log("模拟器因故障退出!\n");
+            }
+            else
+            {
+                log("模拟器正常退出!\n");
+            }
+
+            
         }
 
         const CPU* cpu() const

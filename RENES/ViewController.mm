@@ -15,19 +15,40 @@
     ReNes::Nes _nes;
     
     dispatch_semaphore_t _nextSem;
+    
+    BOOL _keepNext;
 }
 
 @property (nonatomic) IBOutlet NSTextView* memView;
+@property (nonatomic) IBOutlet NSTextView* logView;
 @property (nonatomic) IBOutlet NSTextField* registersView;
 
 @end
 
 @implementation ViewController
 
+- (void) log:(NSString*) buffer
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        
+        std::string str = std::string([_logView.string UTF8String]) + std::string([buffer UTF8String]);
+        
+        _logView.string = [NSString stringWithUTF8String:str.c_str()];
+    });
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
 
     // Do any additional setup after loading the view.
+    
+//    ReNes::setLogCallback([self](const char* buffer){
+//        
+//        NSString* sbuffer = [NSString stringWithUTF8String:buffer];
+//        
+//        [self log:sbuffer];
+//    });
+    
     
     _nextSem = dispatch_semaphore_create(0);
     
@@ -36,12 +57,12 @@
         
         NSString* filePath = [[NSBundle mainBundle] pathForResource:@"OUR.NES" ofType:@""];
         NSData* data = [NSData dataWithContentsOfFile:filePath];
-        printf("文件长度 %d\n", data.length);
         
         _nes.callback = [self](){
             [self updateView];
             
-            dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
+            if (!_keepNext)
+                dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
             
             return true;
         };
@@ -133,6 +154,13 @@ A:%d X:%d Y:%d", regs.PC, regs.SP,
 
 - (IBAction) next:(id)sender
 {
+    dispatch_semaphore_signal(_nextSem);
+}
+
+- (IBAction) nextKeep:(id)sender
+{
+    _keepNext = !_keepNext;
+    
     dispatch_semaphore_signal(_nextSem);
 }
 
