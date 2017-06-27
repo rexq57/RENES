@@ -69,9 +69,6 @@
         _nes.loadRom((const uint8_t*)[data bytes], [data length]);
         
         _nes.run();
-        
-        
-        
     });
 }
 

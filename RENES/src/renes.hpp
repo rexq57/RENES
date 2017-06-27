@@ -63,6 +63,7 @@ namespace ReNes {
                 _cpu.exec();
                 
                 // for Test
+                usleep(1000 * 10);
 //                log("sleep 1...\n");
                 
             }while(callback() && !_cpu.error);

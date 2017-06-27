@@ -151,6 +151,7 @@ namespace ReNes {
                 int cyles;
             };
             
+            // 定义指令长度、CPU周期
             const static std::map<uint8_t, CmdInfo> CMD_LIST = {
                 {0xA9, {2, 2}},
                 {0x8D, {3, 4}},
@@ -159,7 +160,8 @@ namespace ReNes {
                 {0xE8, {1, 2}},
                 {0xE0, {2, 2}},
                 {0xD0, {2, 2}},
-                {0xAD, {3, 4}}
+                {0xAD, {3, 4}},
+                {0x10, {2, 2}},
             };
             
             int jmpOffset = 0;
@@ -213,6 +215,13 @@ namespace ReNes {
                 case 0xAD: // LDA oper
                 {
                     LD(&regs.A, ABSOLUTE_16bit);
+                    break;
+                }
+                case 0x10: // BPL oper
+                {
+                    // N = 0，非负数跳转，>=0 即可
+                    jmpOffset = B(__registers::N, 0, IMMIDIATE_ABSOLUTE_8bit);
+                    
                     break;
                 }
                 default:
@@ -422,11 +431,11 @@ namespace ReNes {
             
             if (dataAddr == addr)
             {
-                log("直接寻址 %X 值 %d\n", addr, *data);
+                log("直接寻址 %X 值 %d\n", addr, (int)*data);
             }
             else
             {
-                log("间接寻址 %X 值 %d\n", addr, *data);
+                log("间接寻址 %X 值 %d\n", addr, (int)*data);
             }
             
             return data;
@@ -437,16 +446,6 @@ namespace ReNes {
             CALCODE_IN,
             CALCODE_CP,
         };
-        
-//        void INC(AddressingMode mode)
-//        {
-//            uint8_t& data = *addressing(mode);
-//            if (data == 0xff)
-//            {
-//                regs.P.set(__registers::N, 1); // 255越界，产生负数标记
-//            }
-//            data ++;
-//        }
         
         template< typename T >
         std::string int_to_hex( T i )
@@ -466,7 +465,7 @@ namespace ReNes {
         
         std::string dstCode(uint8_t* dst)
         {
-            std::map<uint8_t*, std::string> regsNames = {
+            const std::map<uint8_t*, std::string> regsNames = {
                 {&regs.A, "A"},
                 {&regs.X, "X"},
                 {&regs.Y, "Y"},
@@ -478,27 +477,6 @@ namespace ReNes {
             }
             return "C";
         }
-        
-//        std::string PCode(uint8_t p)
-//        {
-//            std::map<uint8_t, std::string> regsNames = {
-//                {__registers::C, "C"},
-//                {__registers::Z, "Z"},
-//                {__registers::I, "I"},
-//                {__registers::D, "D"},
-//                {__registers::B, "B"},
-//                {__registers::_, "_"},
-//                {__registers::V, "V"},
-//                {__registers::N, "N"},
-//            };
-//            if (SET_FIND(regsNames, p))
-//            {
-//                return regsNames.at(p);
-//            }
-//            return "?";
-//        }
-
-        
         
         std::string operCode(AddressingMode mode)
         {
@@ -581,14 +559,19 @@ namespace ReNes {
             {
                 log("BNE\n");
             }
+            else if (p == __registers::N && value == 0)
+            {
+                log("BPL\n");
+            }
+            
             
             log("%d\n", regs.P.get(p));
             
             if (regs.P.get(p) == value)
             {
-                jmpOffset = *addressing(mode);
-                if (regs.P.get(__registers::N) == 1)
-                    jmpOffset = (int8_t)jmpOffset;
+                jmpOffset = (int8_t)*addressing(mode);
+//                if (regs.P.get(__registers::N) == 1)
+//                jmpOffset = (int8_t)jmpOffset;
             }
             
             log("%X == %X 则跳转到 %d\n", regs.P.get(p), value, jmpOffset);
@@ -596,6 +579,14 @@ namespace ReNes {
             return jmpOffset;
         }
         
+        
+        /**
+         计算函数，对内存进行数值操作
+
+         @param dst 目标内存地址
+         @param op 操作符
+         @param value 值
+         */
         void cal(uint8_t* dst, CALCODE op, int8_t value)
         {
             uint8_t old_value = *dst;
