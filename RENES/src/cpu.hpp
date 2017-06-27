@@ -69,6 +69,7 @@ namespace ReNes {
         return ret;
     }
 
+    // 2A03
     struct CPU {
         
         struct __registers {
@@ -102,22 +103,25 @@ namespace ReNes {
         
         bool error; // 错误标记
         
+        
+        
         CPU()
         {
             // 初始化置0
-            memset(this, 0, sizeof(CPU));
+            memset(&regs, 0, sizeof(__registers));
             
             // 检查数据尺寸
             assert(1 == sizeof(regs.P));
+            
         }
         
         // 初始化，映射内存
-        void init(Mem* mem, uint16_t addr)
+        void init(Memory* mem)
         {
             _mem = mem;
             
-            // 映射内存
-            regs.PC = addr;
+            // 寄存器初始化
+            regs.PC = 0;
             regs.SP = 0;
             
             error = false;
@@ -136,107 +140,79 @@ namespace ReNes {
             InterruptType interruptsType = InterruptTypeNone;
             
             // 从内存里面取出一条8bit指令，将PC移动到下一个内存地址
-//            uint16_t pc = regs.PC;
             uint8_t cmd = _mem->read8bitData(regs.PC);
-//            uint8_t cmd = readMem8bit();
             
             log("[%04X] cmd: %x => ", regs.PC, cmd);
             
-//            regs.PC++;
+            int cmdOffset = 0;
             
-            // 执行指令
-            struct CmdInfo {
-                
-                int bytes;
-                int cyles;
-            };
-            
-            // 定义指令长度、CPU周期
-            const static std::map<uint8_t, CmdInfo> CMD_LIST = {
-                {0xA9, {2, 2}},
-                {0x8D, {3, 4}},
-                {0xA2, {2, 2}},
-                {0xBD, {3, 4}},
-                {0xE8, {1, 2}},
-                {0xE0, {2, 2}},
-                {0xD0, {2, 2}},
-                {0xAD, {3, 4}},
-                {0x10, {2, 2}},
-            };
-            
-            int jmpOffset = 0;
-            
-            switch (cmd)
+            if (CMD_LIST.size() == 0)
             {
-//                case 0x40: // RTI
-//                {
-//                    // 恢复现场
-//                    restoreStatus();
-//                    
-//                    break;
-//                }
-                case 0xA9: // LDA #oper
+                CMD_LIST = {
+                    {0xA9, {CF_LD, (long)&regs.A, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+                    {0x8D, {CF_ST, (long)&regs.A, ABSOLUTE_16bit, 3, 4}},
+                    {0xA2, {CF_LD, (long)&regs.X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+                    {0xBD, {CF_LD, (long)&regs.A, ABSOLUTE_16bit_X, 3, 4}},
+                    {0xE8, {CF_IN, (long)&regs.X, NO_ADDRESSING, 1, 2}},
+                    {0xE0, {CF_CP, (long)&regs.X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+                    {0xD0, {CF_B, (long)__registers::Z, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+                    {0xAD, {CF_LD, (long)&regs.A, ABSOLUTE_16bit, 3, 4}},
+                    {0x10, {CF_B, (long)__registers::N, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+                };
+            }
+
+            auto& info = CMD_LIST[cmd];
+            {
+                uint8_t* dst = (uint8_t*)info.dst;
+                AddressingMode mode = info.mode;
+                
+                logCmd(CF_NAME.at(info.cf), info.dst, mode);
+                
+                switch(info.cf)
                 {
-                    LD(&regs.A, IMMIDIATE_ABSOLUTE_8bit);
-                    break;
+                    case CF_LD:
+                        cal(dst, CALCODE_SET, *addressing(mode));
+                        break;
+                    case CF_ST:
+                        cal(addressing(mode), CALCODE_SET, *dst);
+                        break;
+                    case CF_IN:
+                        cal(dst, CALCODE_IN, 1);
+                        break;
+                    case CF_CP:
+                        cal(dst, CALCODE_CP, *addressing(mode));
+                        break;
+                    case CF_B:
+                    {
+                        long p = info.dst;
+                        
+                        int value = 0;
+                        int offset = 0;
+
+                        if (regs.P.get(p) == value)
+                        {
+                            offset = (int8_t)*addressing(mode);
+                        }
+                        
+                        log("%X == %X 则跳转到 %d\n", regs.P.get(p), value, offset);
+                        
+                        cmdOffset = offset;
+                        break;
+                    }
+                    default:
+                        log("未知的指令！");
+                        error = true;
+                        break;
+                        
                 }
-                case 0x8D: // STA oper
-                {
-                    ST(&regs.A, ABSOLUTE_16bit);
-                    break;
-                }
-                case 0xA2: // LDX #oper
-                {
-                    LD(&regs.X, IMMIDIATE_ABSOLUTE_8bit);
-                    break;
-                }
-                case 0xBD: // LDA oper,X
-                {
-                    LD(&regs.A, ABSOLUTE_16bit_X);
-                    break;
-                }
-                case 0xE8: // INX
-                {
-                    IN(&regs.X, NO_ADDRESSING);
-                    break;
-                }
-                case 0xE0: // CPX #oper
-                {
-                    CP(&regs.X, IMMIDIATE_ABSOLUTE_8bit);
-                    break;
-                }
-                case 0xD0: // BNE oper（貌似这个是错的，必须是直接8bit寻址才对）
-                {
-                    // Z == 0 时发生跳转，Z 是上次计算结果，结果为0，则 Z == 1，Z == 0，结果不为0
-                    // 所以这里是 不等于0时跳转
-                    jmpOffset = B(__registers::Z, 0, IMMIDIATE_ABSOLUTE_8bit);
-                    break;
-                }
-                case 0xAD: // LDA oper
-                {
-                    LD(&regs.A, ABSOLUTE_16bit);
-                    break;
-                }
-                case 0x10: // BPL oper
-                {
-                    // N = 0，非负数跳转，>=0 即可
-                    jmpOffset = B(__registers::N, 0, IMMIDIATE_ABSOLUTE_8bit);
-                    
-                    break;
-                }
-                default:
-                    log("未知指令！\n");
-                    error = true;
-                    return;
-                    break;
             }
             
             // 移动PC指针到下一条指令位置
-            regs.PC += CMD_LIST.at(cmd).bytes;
+            regs.PC += info.bytes;
             
             // 执行跳转
-            regs.PC += jmpOffset;
-            if (jmpOffset != 0)
+            regs.PC += cmdOffset;
+            if (cmdOffset != 0)
             {
                 log("jmp %X\n", regs.PC);
             }
@@ -283,6 +259,42 @@ namespace ReNes {
         }
         
     private:
+        
+        enum CF{
+            CF_LD,
+            CF_ST,
+            CF_IN,
+            CF_CP,
+            CF_B,
+        };
+        
+        const std::map<CF, std::string> CF_NAME = {
+            {CF_LD, "LD"},
+            {CF_ST, "ST"},
+            {CF_IN, "IN"},
+            {CF_CP, "CP"},
+            {CF_B, "B"},
+        };
+        
+        const std::map<uint8_t*, std::string> REGS_NAME = {
+            {&regs.A, "A"},
+            {&regs.X, "X"},
+            {&regs.Y, "Y"},
+        };
+        
+        // 执行指令
+        struct CmdInfo {
+            
+            CF cf;
+            long dst;
+            AddressingMode mode;
+            int bytes;
+            int cyles;
+        };
+
+        
+        // 定义指令长度、CPU周期
+        std::map<uint8_t, CmdInfo> CMD_LIST;
         
         enum InterruptType{
             InterruptTypeNone,
@@ -339,19 +351,6 @@ namespace ReNes {
             }
         }
         
-//        uint8_t readMem8bit()
-//        {
-//            return _mem->read8bitData(regs.PC++);
-//        }
-        
-//        uint16_t readMem16bit()
-//        {
-//            uint16_t data = _mem->read16bitData(regs.PC);
-//            regs.PC += 2;
-//            return data;
-//
-//        }
-        
         void interrupts()
         {
             
@@ -383,7 +382,7 @@ namespace ReNes {
             _currentInterruptType = InterruptTypeNone;
         }
         
-        Mem* _mem;
+        Memory* _mem;
         
         
         int _interruptCount; // 中断发生计数器
@@ -463,121 +462,79 @@ namespace ReNes {
         
         
         
-        std::string dstCode(uint8_t* dst)
-        {
-            const std::map<uint8_t*, std::string> regsNames = {
-                {&regs.A, "A"},
-                {&regs.X, "X"},
-                {&regs.Y, "Y"},
-            };
-            
-            if (SET_FIND(regsNames, dst))
-            {
-                return regsNames.at(dst);
-            }
-            return "C";
-        }
-        
-        std::string operCode(AddressingMode mode)
-        {
-            uint16_t dataAddr = regs.PC + 1; // 操作数位置 = PC + 1
-            std::string res;
-            
-            switch (mode)
-            {
-                case IMMIDIATE_ABSOLUTE_8bit:
-                {
-                    res = std::string("#") + int_to_hex(_mem->read8bitData(dataAddr));
-                    break;
-                }
-//                case ABSOLUTE_8bit:
-//                {
-//                    res = int_to_hex(_mem->read8bitData(dataAddr));
-//                    break;
-//                }
-                case ABSOLUTE_16bit:
-                {
-                    res = int_to_hex(_mem->read16bitData(dataAddr));
-                    //                    addr = readMem16bit();
-                    break;
-                }
-                case ABSOLUTE_16bit_X:
-                {
-                    res = int_to_hex(_mem->read16bitData(dataAddr)) + ",X";
-                    break;
-                }
-                case NO_ADDRESSING:
-                {
-                    break;
-                }
-                default:
-                    assert(!"error!");
-                    break;
-            }
-            return res;
-        }
-        
-        void logCmd(const char* cmd, uint8_t* dst, AddressingMode mode)
-        {
-            log("%s%s %s\n", cmd, dstCode(dst).c_str(), operCode(mode).c_str());
-        }
-        
-        
-        void LD(uint8_t* dst, AddressingMode mode)
-        {
-            logCmd("LD", dst, mode);
-            
-            cal(dst, CALCODE_SET, *addressing(mode));
-        }
-        
-        void ST(uint8_t* dst, AddressingMode mode)
-        {
-            logCmd("ST", dst, mode);
-            
-            cal(addressing(mode), CALCODE_SET, *dst);
-        }
-        
-        void IN(uint8_t* dst, AddressingMode mode)
-        {
-            logCmd("IN", dst, mode);
-            
-            cal(dst, CALCODE_IN, 1);
-        }
-        
-        void CP(uint8_t* dst, AddressingMode mode)
-        {
-            logCmd("CP", dst, mode);
-            
-            cal(dst, CALCODE_CP, *addressing(mode));
-        }
-        
-        int B(uint8_t p, int value, AddressingMode mode)
-        {
-            int jmpOffset = 0;
 
-            if (p == __registers::Z && value == 0)
+        
+        /**
+         根据目标打印指令日志
+
+         @param cmd 指令
+         @param dst 目标
+         @param mode 寻址模式
+         */
+        void logCmd(const std::string& cmd, long dst, AddressingMode mode)
+        {
+            if (cmd == "B")
             {
-                log("BNE\n");
+                if (dst == __registers::Z)
+                {
+                    log("BNE %d\n", regs.P.get(dst));
+                }
+                else if (dst == __registers::N)
+                {
+                    log("BPL %d\n", regs.P.get(dst));
+                }
             }
-            else if (p == __registers::N && value == 0)
+            else
             {
-                log("BPL\n");
+                std::function<std::string(uint8_t*)> dstCode = [this](uint8_t* dst){
+                    if (SET_FIND(REGS_NAME, dst))
+                    {
+                        return REGS_NAME.at(dst);
+                    }
+                    return std::string("C");
+                };
+                
+                
+                std::function<std::string(AddressingMode)> operCode = [this](AddressingMode mode)
+                {
+                    uint16_t dataAddr = regs.PC + 1; // 操作数位置 = PC + 1
+                    std::string res;
+                    
+                    switch (mode)
+                    {
+                        case IMMIDIATE_ABSOLUTE_8bit:
+                        {
+                            res = std::string("#") + int_to_hex(_mem->read8bitData(dataAddr));
+                            break;
+                        }
+                        case ABSOLUTE_16bit:
+                        {
+                            res = int_to_hex(_mem->read16bitData(dataAddr));
+                            //                    addr = readMem16bit();
+                            break;
+                        }
+                        case ABSOLUTE_16bit_X:
+                        {
+                            res = int_to_hex(_mem->read16bitData(dataAddr)) + ",X";
+                            break;
+                        }
+                        case NO_ADDRESSING:
+                        {
+                            break;
+                        }
+                        default:
+                            assert(!"error!");
+                            break;
+                    }
+                    return res;
+                };
+                
+                
+                log("%s%s %s\n", cmd.c_str(), dstCode((uint8_t*)dst).c_str(), operCode(mode).c_str());
             }
-            
-            
-            log("%d\n", regs.P.get(p));
-            
-            if (regs.P.get(p) == value)
-            {
-                jmpOffset = (int8_t)*addressing(mode);
-//                if (regs.P.get(__registers::N) == 1)
-//                jmpOffset = (int8_t)jmpOffset;
-            }
-            
-            log("%X == %X 则跳转到 %d\n", regs.P.get(p), value, jmpOffset);
-            
-            return jmpOffset;
         }
+        
+        
         
         
         /**
@@ -637,15 +594,5 @@ namespace ReNes {
             }
         }
         
-//        void INX()
-//        {
-//            if (regs.X == 0xFF)
-//            {
-//                regs.P.set(__registers::N, 1);
-//            }
-//            
-//            regs.X ++;
-//            
-//        }
     };
 }

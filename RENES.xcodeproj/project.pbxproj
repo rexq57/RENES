@@ -274,6 +274,7 @@
 				INFOPLIST_FILE = RENES/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				OTHER_CFLAGS = "-pedantic-errors";
+				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.rexq.RENES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -289,6 +290,7 @@
 				INFOPLIST_FILE = RENES/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				OTHER_CFLAGS = "-pedantic-errors";
+				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.rexq.RENES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};

@@ -1,16 +1,19 @@
 
+#pragma once
+
+
 namespace ReNes {
 
-    struct Mem{
+    struct Memory{
 
-        Mem()
+        Memory(size_t bytes)
         {
             // 申请 64kb 内存
-            _data = (uint8_t*)malloc(0x10000);
-            memset(_data, 0, 0x10000);
+            _data = (uint8_t*)malloc(bytes);
+            memset(_data, 0, bytes);
         }
         
-        ~Mem()
+        ~Memory()
         {
             if (_data)
                 free(_data);

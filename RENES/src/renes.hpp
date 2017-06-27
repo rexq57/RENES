@@ -1,16 +1,54 @@
 
 #include "cpu.hpp"
+#include "ppu.hpp"
 #include <functional>
 #include <stdio.h>
 #include "type.hpp"
+#include <thread>
 
 namespace ReNes {
+    
+    
+    // 多线程
+    void cpu_working(CPU* cpu, std::function<bool()> callback)
+    {
+        // 主循环
+        do {
+            
+            // 执行指令
+            cpu->exec();
+            
+            // for Test
+            usleep(1000 * 10);
+            //                log("sleep 1...\n");
+            
+        }while(callback() && !cpu->error);
+    }
+    
+    void ppu_working(PPU* ppu, std::function<bool()> callback)
+    {
+        // 主循环
+        do {
+            printf("ppu\n");
+            // 执行绘图
+            
+            // 绘图完成，向
+            
+            usleep(1000 * 100);
+            
+        }while(callback());
+    }
     
     
     
     class Nes {
         
     public:
+        
+        Nes():_mem(0x10000)
+        {
+            
+        }
         
         // 加载rom
         void loadRom(const uint8_t* rom, size_t length)
@@ -46,27 +84,26 @@ namespace ReNes {
                     _mem.writeData(PRG_ROM_UPPER_BANK_OFFSET, romAddr, 1024*16);
                 }
             }
-            
-            
         }
         
         // 执行当前指令
         void run() {
             
             // 初始化cpu
-            _cpu.init(&_mem, PRG_ROM_LOWER_BANK_OFFSET);
-
-            // 主循环
-            do {
-                
-                // 执行指令
-                _cpu.exec();
-                
-                // for Test
-                usleep(1000 * 10);
-//                log("sleep 1...\n");
-                
-            }while(callback() && !_cpu.error);
+            _cpu.init(&_mem);
+            
+            std::thread cpu_thread(cpu_working, &_cpu, [this](){
+                return callback();
+            });
+            
+            std::thread ppu_thread(ppu_working, &_ppu, [this](){
+                return true;
+            });
+            
+            cpu_thread.join();
+            ppu_thread.join();
+            
+            
             
             if (_cpu.error)
             {
@@ -85,7 +122,7 @@ namespace ReNes {
             return &_cpu;
         }
         
-        const Mem* mem() const
+        const Memory* mem() const
         {
             return &_mem;
         }
@@ -95,6 +132,9 @@ namespace ReNes {
     private:
         
         CPU _cpu;
-        Mem _mem;
+        PPU _ppu;
+        Memory _mem;
     };
+    
+    
 }
