@@ -19,7 +19,7 @@ namespace ReNes {
             cpu->exec();
             
             // for Test
-            usleep(1);
+            usleep(1000 * 100);
             //                log("sleep 1...\n");
             
         }while(callback() && !cpu->error);
@@ -31,8 +31,7 @@ namespace ReNes {
         do {
 //            printf("ppu\n");
             // 执行绘图
-            
-            // 绘图完成，向
+            ppu->draw();
             
             usleep(1000 * 100);
             
@@ -98,6 +97,10 @@ namespace ReNes {
             });
             
             std::thread ppu_thread(ppu_working, &_ppu, [this](){
+                
+                // 绘图完成，发送NMI中断
+//                _cpu.interrupts(ReNes::CPU::InterruptTypeNMI);
+                
                 return true;
             });
             
@@ -118,12 +121,12 @@ namespace ReNes {
             
         }
 
-        const CPU* cpu() const
+        CPU* cpu()
         {
             return &_cpu;
         }
         
-        const Memory* mem() const
+         Memory* mem() 
         {
             return &_mem;
         }

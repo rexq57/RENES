@@ -161,6 +161,11 @@ A:%d X:%d Y:%d", regs.PC, regs.SP,
     dispatch_semaphore_signal(_nextSem);
 }
 
+- (IBAction) MNI:(id) sender
+{
+    _nes.cpu()->interrupts(ReNes::CPU::InterruptTypeNMI);
+}
+
 - (void)setRepresentedObject:(id)representedObject {
     [super setRepresentedObject:representedObject];
 
