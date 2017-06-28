@@ -9,7 +9,7 @@ namespace ReNes {
         
     public:
         
-//        uint8_t* io_regs; // I/O 寄存器, 8 x 8bit
+        bit8* io_regs; // I/O 寄存器, 8 x 8bit
         
         struct {
             
@@ -28,7 +28,7 @@ namespace ReNes {
         
         void init(Memory* mem)
         {
-//            io_regs = mem->getRealAddr(0x2000);
+            io_regs = (bit8*)mem->getIORegsAddr();
             
             std::function<void(uint16_t)> writtingObserver = [](uint16_t addr){
                 
@@ -46,9 +46,14 @@ namespace ReNes {
         {
             // 等待数据准备好才开始绘图
 //            _sem.wait();
-            
+            for (int i=0; i<100; i++)
+            {
+                
+                
+            }
             
             // 绘制完成，等于发生了 VBlank，需要设置 2002 第7位
+            io_regs[2].set(7, 1);
         }
         
 

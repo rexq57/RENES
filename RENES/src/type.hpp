@@ -32,4 +32,23 @@ namespace ReNes {
     {
         g_callback = callback;
     }
+    
+    struct bit8 {
+        
+        void set(uint8_t offset, int value)
+        {
+            assert(value == 0 || value == 1);
+            
+            _data &= ~(0x1 << offset); // set 0
+            _data |= ((value % 2) << offset);
+        }
+        
+        uint8_t get(uint8_t offset) const
+        {
+            return (_data >> offset) & 0x1;
+        }
+        
+    private:
+        uint8_t _data; // 8bit
+    };
 }

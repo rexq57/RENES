@@ -18,24 +18,7 @@ namespace ReNes {
     
     #define STACK_ADDR_OFFSET 0x0100
     
-    struct bit8 {
-        
-        void set(uint8_t offset, int value)
-        {
-            assert(value == 0 || value == 1);
-            
-            _data &= ~(0x1 << offset); // set 0
-            _data |= ((value % 2) << offset);
-        }
-        
-        uint8_t get(uint8_t offset) const
-        {
-            return (_data >> offset) & 0x1;
-        }
-        
-    private:
-        uint8_t _data; // 8bit
-    };
+    
     
     
     enum AddressingMode {
@@ -80,7 +63,7 @@ namespace ReNes {
             uint8_t SP;  // 由8bit表示[0,255]的栈空间
             
             // 数据下标
-            enum {
+            enum __P{
                 C = 0,
                 Z,I,D,B,_,V,N
                 
@@ -154,7 +137,8 @@ namespace ReNes {
                         case InterruptTypeNMI:
                         {
                             // NMI中断可以被0x2000的第7位屏蔽，== 0 就是屏蔽
-                            if ((_mem->read8bitData(0x2000) & 0x8) == 0)
+//                            if ((_mem->read8bitData(0x2000) & 0x8) == 0)
+                            if ((_mem->masterData()[0x2000] & 0x80) == 1)
                             {
                                 break;
                             }
@@ -249,18 +233,31 @@ namespace ReNes {
             if (CMD_LIST.size() == 0)
             {
                 CMD_LIST = {
-                    /* BRK */ {0x00, {CF_BRK, (long)0, NO_ADDRESSING, 1, 7}},
-                    /* LDA #oper */ {0xA9, {CF_LD, (long)&regs.A, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
-                    /* STA oper  */ {0x8D, {CF_ST, (long)&regs.A, ABSOLUTE_16bit, 3, 4}},
-                    /* LDX #oper */ {0xA2, {CF_LD, (long)&regs.X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
-                    /* LDA oper,X*/ {0xBD, {CF_LD, (long)&regs.A, ABSOLUTE_16bit_X, 3, 4}},
-                    /* INX */      {0xE8, {CF_IN, (long)&regs.X, NO_ADDRESSING, 1, 2}},
-                    /* CPX #oper */ {0xE0, {CF_CP, (long)&regs.X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
-                    /* BNE oper */  {0xD0, {CF_B, (long)__registers::Z, IMMIDIATE_ABSOLUTE_8bit, 2, 2}}, // 这里的操作数是8bit，很奇怪
-                    /* LDA oper */  {0xAD, {CF_LD, (long)&regs.A, ABSOLUTE_16bit, 3, 4}},
-                    /* BPL oper */  {0x10, {CF_B, (long)__registers::N, IMMIDIATE_ABSOLUTE_8bit, 2, 2}}, // 这里的操作数是8bit，很奇怪
-                    /* INC oper */  {0xEE, {CF_IN, (long)0, ABSOLUTE_16bit, 3, 6}},
-                    /* RTI */      {0x40, {CF_RTI, (long)0, NO_ADDRESSING, 1, 6}},
+//                    /* BRK */ {0x00, {CF_BRK, (long)0, NO_ADDRESSING, 1, 7}},
+//                    /* LDA #oper */ {0xA9, {CF_LD, (long)&regs.A, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+//                    /* STA oper  */ {0x8D, {CF_ST, (long)&regs.A, ABSOLUTE_16bit, 3, 4}},
+//                    /* LDX #oper */ {0xA2, {CF_LD, (long)&regs.X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+//                    /* LDA oper,X*/ {0xBD, {CF_LD, (long)&regs.A, ABSOLUTE_16bit_X, 3, 4}},
+//                    /* INX */      {0xE8, {CF_IN, (long)&regs.X, NO_ADDRESSING, 1, 2}},
+//                    /* CPX #oper */ {0xE0, {CF_CP, (long)&regs.X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+//                    /* BNE oper */  {0xD0, {CF_B, (long)__registers::Z, IMMIDIATE_ABSOLUTE_8bit, 2, 2}}, // 这里的操作数是8bit，很奇怪
+//                    /* LDA oper */  {0xAD, {CF_LD, (long)&regs.A, ABSOLUTE_16bit, 3, 4}},
+//                    /* BPL oper */  {0x10, {CF_B, (long)__registers::N, IMMIDIATE_ABSOLUTE_8bit, 2, 2}}, // 这里的操作数是8bit，很奇怪
+//                    /* INC oper */  {0xEE, {CF_IN, (long)0, ABSOLUTE_16bit, 3, 6}},
+//                    /* RTI */      {0x40, {CF_RTI, (long)0, NO_ADDRESSING, 1, 6}},
+                    /* BRK */ {0x00, {CF_BRK, DST_NONE, NO_ADDRESSING, 1, 7}},
+                    /* LDA #oper */ {0xA9, {CF_LD, DST_REGS_A, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+                    /* STA oper  */ {0x8D, {CF_ST, DST_REGS_A, ABSOLUTE_16bit, 3, 4}},
+                    /* LDX #oper */ {0xA2, {CF_LD, DST_REGS_X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+                    /* LDA oper,X*/ {0xBD, {CF_LD, DST_REGS_A, ABSOLUTE_16bit_X, 3, 4}},
+                    /* INX */      {0xE8, {CF_IN, DST_REGS_X, NO_ADDRESSING, 1, 2}},
+                    /* CPX #oper */ {0xE0, {CF_CP, DST_REGS_X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+                    /* BNE oper */  {0xD0, {CF_B, DST_REGS_P_Z, IMMIDIATE_ABSOLUTE_8bit, 2, 2}}, // 这里的操作数是8bit，很奇怪
+                    /* LDA oper */  {0xAD, {CF_LD, DST_REGS_A, ABSOLUTE_16bit, 3, 4}},
+                    /* BPL oper */  {0x10, {CF_B, DST_REGS_P_N, IMMIDIATE_ABSOLUTE_8bit, 2, 2}}, // 这里的操作数是8bit，很奇怪
+                    /* INC oper */  {0xEE, {CF_IN, DST_M, ABSOLUTE_16bit, 3, 6}},
+                    /* RTI */      {0x40, {CF_RTI, DST_NONE, NO_ADDRESSING, 1, 6}},
+
                 };
             }
 
@@ -273,84 +270,45 @@ namespace ReNes {
             
             auto info = CMD_LIST.at(cmd);
             {
-                uint8_t* dst = (uint8_t*)info.dst;
+                auto dst = info.dst;
                 AddressingMode mode = info.mode;
+                auto cf = info.cf;
+                
                 
                 logCmd(CF_NAME.at(info.cf), info.dst, mode);
                 
                 {
                     ////////////////////////////////
                     // 寻址
-                    enum AddressingOp{
-                        READ,
-                        WRITE
-                    };
                     
-                    std::function<uint8_t*(AddressingMode, AddressingOp)> addressing = [this](AddressingMode mode, AddressingOp op){
+
+                    std::function<void(DST, CALCODE, int)> calFunc = [this, &mode, cf](DST dst, CALCODE code, int val){
                         
-                        uint16_t dataAddr = regs.PC + 1; // 操作数位置 = PC + 1
+                        uint8_t dst_value;
                         
-                        uint16_t addr;
-                        uint8_t* data;
-                        switch (mode)
+                        if (cf != CF_ST) // set 函数不需要获取原来的值
                         {
-                                //                case ZERO_PAGE_8bit:
-                                //                {
-                                //                    addr = _mem->read8bitData(dataAddr);
-                                //                }
-                            case IMMIDIATE_ABSOLUTE_8bit:
-                            {
-                                addr = dataAddr;
-                                break;
-                            }
-                                //                case ABSOLUTE_8bit:
-                                //                {
-                                //                    addr = _mem->read8bitData(dataAddr);
-                                //                    break;
-                                //                }
-                            case ABSOLUTE_16bit:
-                            {
-                                addr = _mem->read16bitData(dataAddr);
-                                break;
-                            }
-                            case ABSOLUTE_16bit_X:
-                            {
-                                addr = _mem->read16bitData(dataAddr) + regs.X;
-                                break;
-                            }
-                            default:
-                                assert(!"error!");
-                                break;
+                            dst_value = valueFromDST(dst, mode);
                         }
                         
-                        // 非法读取
-                        if (op == READ && (addr == 0x2000 || addr == 0x2001))
-                        {
-                            log("该内存只能写!\n");
-                            error = true;
-                            return (uint8_t*)0;
-                        }
+                        cal(&dst_value, code, val);
                         
-                        data = _mem->getRealAddr(addr);
-                        
-                        if (dataAddr == addr)
-                        {
-                            log("直接寻址 %X 值 %d\n", addr, (int)*data);
-                        }
-                        else
-                        {
-                            log("间接寻址 %X 值 %d\n", addr, (int)*data);
-                        }
-                        
-                        return data;
+                        valueToDST(dst, dst_value, mode);
                     };
                     
                     
-                    // 如果地址为0，表示目标为当前内存地址
-                    if (dst == 0 && mode != NO_ADDRESSING)
-                    {
-                        dst = addressing(mode, WRITE);
-                    }
+//                case CF_LD:
+//                    calFunc(realDstAddr, CALCODE_SET, mode, addressing(mode));
+//                    break;
+//                case CF_ST:
+//                    cal(addressing(mode, WRITE), CALCODE_SET, *dst);
+//                    break;
+//                case CF_IN:
+//                    cal(realDstAddr, CALCODE_IN, 1);
+//                    break;
+//                case CF_CP:
+//                    cal(realDstAddr, CALCODE_CP, *addressing(mode, READ));
+//                    break;
                     
                     switch(info.cf)
                     {
@@ -359,30 +317,35 @@ namespace ReNes {
                             interrupts(InterruptTypeIRQs);
                             break;
                         case CF_LD:
-                            cal(dst, CALCODE_SET, *addressing(mode, READ));
+                            calFunc(dst, CALCODE_SET, addressingValue(mode));
                             break;
                         case CF_ST:
-                            cal(addressing(mode, WRITE), CALCODE_SET, *dst);
+                            calFunc(DST_M, CALCODE_SET, valueFromDST(dst, mode));
+//                            calFunc(addressing(), CALCODE_SET, addressing());
                             break;
                         case CF_IN:
-                            cal(dst, CALCODE_IN, 1);
+                            calFunc(dst, CALCODE_IN, 1);
+//                            cal(realDstAddr, CALCODE_IN, 1);
                             break;
                         case CF_CP:
-                            cal(dst, CALCODE_CP, *addressing(mode, READ));
+                            calFunc(dst, CALCODE_CP, addressingValue(mode));
+//                            cal(realDstAddr, CALCODE_CP, *addressing(mode, READ));
                             break;
                         case CF_B:
                         {
-                            long p = info.dst;
+//                            auto p = info.dst;
                             
                             int value = 0;
                             int offset = 0;
                             
-                            if (regs.P.get(p) == value)
+//                            if (regs.P.get(p) == value)
+                            if (valueFromDST(dst, mode) == value)
                             {
-                                offset = (int8_t)*addressing(mode, READ);
+//                                offset = (int8_t)*addressing(mode, READ);
+                                offset = (int8_t)addressingValue(mode);
                             }
                             
-                            log("%X == %X 则跳转到 %d\n", regs.P.get(p), value, offset);
+                            log("%X == %X 则跳转到 %d\n", valueFromDST(dst, mode), value, offset);
                             
                             cmdOffset = offset;
                             break;
@@ -396,8 +359,17 @@ namespace ReNes {
                             break;
                             
                     }
+                    
+                    // 处理内存读取
+//                    if (addressingOp == READ && addressingAddr == 2002)
+//                    {
+//                        
+//                    }
                 }
             }
+            
+            // 检查内存错误
+            error = _mem->error;
             
             if (info.cf != CF_RTI)
             {
@@ -435,17 +407,147 @@ namespace ReNes {
             {CF_RTI, "RTI"},
         };
         
-        const std::map<uint8_t*, std::string> REGS_NAME = {
-            {&regs.A, "A"},
-            {&regs.X, "X"},
-            {&regs.Y, "Y"},
+        enum DST{
+            
+            DST_NONE,
+            
+            DST_REGS_A,
+            DST_REGS_X,
+            DST_REGS_Y,
+            
+            DST_REGS_P_Z,
+            DST_REGS_P_N,
+            
+            
+            DST_M,
         };
+        
+        const std::map<DST, std::string> REGS_NAME = {
+            {DST_REGS_A, "A"},
+            {DST_REGS_X, "X"},
+            {DST_REGS_Y, "Y"},
+        };
+        
+        
+        
+//        std::function<uint8_t(DST)> valueFromDST = [this](DST dst) {
+        
+        uint8_t valueFromDST(DST dst, AddressingMode mode) {
+        
+            uint8_t dst_value;
+            switch (dst)
+            {
+                case DST_REGS_A:
+                    dst_value = regs.A;
+                    break;
+                case DST_REGS_X:
+                    dst_value = regs.X;
+                    break;
+                case DST_REGS_Y:
+                    dst_value = regs.Y;
+                    break;
+                case DST_REGS_P_Z:
+                    dst_value = regs.P.get(__registers::__P::Z);
+                    break;
+                case DST_REGS_P_N:
+                    dst_value = regs.P.get(__registers::__P::N);
+                    break;
+                case DST_M:
+                    dst_value = addressingValue(mode);
+                    break;
+                default:
+                    assert(!"error!");
+                    break;
+            }
+            
+            return dst_value;
+        };
+        
+        void valueToDST(DST dst, uint8_t value, AddressingMode mode)
+        {
+            switch (dst)
+            {
+                case DST_REGS_A:
+                    regs.A = value;
+                    break;
+                case DST_REGS_X:
+                    regs.X = value;
+                    break;
+                case DST_REGS_Y:
+                    regs.Y = value;
+                    break;
+                case DST_M:
+                    // 如果写入目标是一个内存地址，就需要进行寻址
+                    _mem->write8bitData(addressingOnly(mode), value);
+                    break;
+                default:
+                    assert(!"error!");
+                    break;
+            }
+        }
+        
+//        std::function<uint8_t()> addressing = [this, &mode](){
+        
+        uint16_t addressingOnly(AddressingMode mode)
+        {
+            uint16_t dataAddr = regs.PC + 1; // 操作数位置 = PC + 1
+            
+            uint16_t addr;
+            //                        uint8_t* data;
+            switch (mode)
+            {
+                    //                case ZERO_PAGE_8bit:
+                    //                {
+                    //                    addr = _mem->read8bitData(dataAddr);
+                    //                }
+                case IMMIDIATE_ABSOLUTE_8bit:
+                {
+                    addr = dataAddr;
+                    break;
+                }
+                    //                case ABSOLUTE_8bit:
+                    //                {
+                    //                    addr = _mem->read8bitData(dataAddr);
+                    //                    break;
+                    //                }
+                case ABSOLUTE_16bit:
+                {
+                    addr = _mem->read16bitData(dataAddr);
+                    break;
+                }
+                case ABSOLUTE_16bit_X:
+                {
+                    addr = _mem->read16bitData(dataAddr) + regs.X;
+                    break;
+                }
+                default:
+                    assert(!"error!");
+                    break;
+            }
+            
+            if (dataAddr == addr)
+            {
+                log("直接寻址 %X 值 %d\n", addr, (int)_mem->masterData()[addr]);
+            }
+            else
+            {
+                log("间接寻址 %X 值 %d\n", addr, (int)_mem->masterData()[addr]);
+            }
+            
+            return addr;
+        }
+        
+        uint8_t addressingValue(AddressingMode mode)
+        {
+            return _mem->read8bitData(addressingOnly(mode));
+        };
+        
         
         // 执行指令
         struct CmdInfo {
             
             CF cf;
-            long dst; // 寄存器目标
+            DST dst; // 寄存器目标
             AddressingMode mode;
             int bytes;
             int cyles;
@@ -544,22 +646,22 @@ namespace ReNes {
          @param dst 目标
          @param mode 寻址模式
          */
-        void logCmd(const std::string& cmd, long dst, AddressingMode mode)
+        void logCmd(const std::string& cmd, DST dst, AddressingMode mode)
         {
             if (cmd == "B")
             {
-                if (dst == __registers::Z)
+                if (dst == DST_REGS_P_Z)
                 {
                     log("BNE %d\n", regs.P.get(dst));
                 }
-                else if (dst == __registers::N)
+                else if (dst == DST_REGS_P_N)
                 {
                     log("BPL %d\n", regs.P.get(dst));
                 }
             }
             else
             {
-                std::function<std::string(uint8_t*)> dstCode = [this](uint8_t* dst){
+                std::function<std::string(DST)> dstCode = [this](DST dst){
                     if (SET_FIND(REGS_NAME, dst))
                     {
                         return REGS_NAME.at(dst);
@@ -604,7 +706,7 @@ namespace ReNes {
                 
                 std::string dst_code;
                 if (mode != NO_ADDRESSING)
-                    dst_code = dstCode((uint8_t*)dst);
+                    dst_code = dstCode(dst);
                 
                 log("%s%s %s\n", cmd.c_str(), dst_code.c_str(), operCode(mode).c_str());
             }
@@ -622,7 +724,6 @@ namespace ReNes {
          */
         void cal(uint8_t* dst, CALCODE op, int8_t value)
         {
-            
             uint8_t old_value = *dst;
             int8_t new_value;
             
@@ -666,7 +767,6 @@ namespace ReNes {
                 case CALCODE_IN:
                 {
                     *dst = new_value;
-                    uint8_t a = _mem->read8bitData(0);
                     break;
                 }
                 default:

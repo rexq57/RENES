@@ -98,7 +98,7 @@
                 printLineNum = false;
             }
             
-            uint8_t data = _nes.mem()->read8bitData(i);
+            uint8_t data = _nes.mem()->masterData()[i];
             
             sprintf(buffer, "%02X", data);
             

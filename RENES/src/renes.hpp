@@ -19,7 +19,7 @@ namespace ReNes {
             cpu->exec();
             
             // for Test
-            usleep(1000 * 100);
+            usleep(1000 * 10);
             //                log("sleep 1...\n");
             
         }while(callback() && !cpu->error);
@@ -93,6 +93,7 @@ namespace ReNes {
             _ppu.init(&_mem);
             
             std::thread cpu_thread(cpu_working, &_cpu, [this](){
+                
                 return callback();
             });
             
