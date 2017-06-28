@@ -8,6 +8,7 @@
 
 #include <sstream>
 #include <iomanip>
+#include <iostream>
 
 namespace ReNes {
     
@@ -126,20 +127,28 @@ namespace ReNes {
             
             error = false;
             
-            _currentInterruptType = InterruptTypeReset; // 复位中断
+//            _currentInterruptType = InterruptTypeReset; // 复位中断
+            
+            interrupts(InterruptTypeReset);
         }
         
-        void exec()
+        enum InterruptType{
+            InterruptTypeNone,
+            InterruptTypeIRQs,
+            InterruptTypeNMI,
+            InterruptTypeReset
+        };
+        
+        std::mutex _mutex;
+        
+        void interrupts(InterruptType type)
         {
-            if (error)
-                return;
-            
-            // 检查中断和处理中断
+            _mutex.lock();
             {
                 bool hasInterrupts = false;
                 {
                     // 检查中断是否允许被执行
-                    switch(_currentInterruptType)
+                    switch(type)
                     {
                         case InterruptTypeNMI:
                         case InterruptTypeReset:
@@ -158,13 +167,31 @@ namespace ReNes {
                     }
                 }
                 
-                // 处理中断
                 if (hasInterrupts)
+                    _currentInterruptType = type;
+            }
+            _mutex.unlock();
+        }
+        
+        void exec()
+        {
+            if (error)
+                return;
+            
+            // 检查中断和处理中断
+            _mutex.lock();
+            {
+                // 处理中断
+                if (_currentInterruptType != InterruptTypeNone)
                 {
+                    // Reset 不需要保存现场
                     if (_currentInterruptType != InterruptTypeReset)
                     {
                         saveStatus(); // 保存现场
                     }
+                    
+                    // 设置中断屏蔽标志(I)防止新的中断进来
+                    regs.P.set(__registers::I, 1);
                     
                     // 处理中断
                     {
@@ -201,7 +228,7 @@ namespace ReNes {
                     _currentInterruptType = InterruptTypeNone;
                 }
             }
-            
+            _mutex.unlock();
             
             
             
@@ -393,12 +420,7 @@ namespace ReNes {
         // 定义指令长度、CPU周期
         std::map<uint8_t, CmdInfo> CMD_LIST;
         
-        enum InterruptType{
-            InterruptTypeNone,
-            InterruptTypeIRQs,
-            InterruptTypeNMI,
-            InterruptTypeReset
-        };
+        
         
         // 入栈
         void push(const uint8_t* addr, size_t length)
