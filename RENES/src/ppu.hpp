@@ -8,13 +8,44 @@ namespace ReNes {
         
     public:
         
-        PPU():_vram(1024*16)
+        uint8_t* io_regs; // I/O 寄存器, 8 x 8bit
+        
+        struct {
+            
+            
+            
+        private:
+            uint8_t _data[1024*16]; // 16kb
+            
+        }VRAM;
+        
+        
+        PPU()
         {
             
         }
         
+        void init(Memory* mem)
+        {
+            io_regs = mem->getRealAddr(0x2000);
+            
+            std::function<void(uint16_t)> writtingObserver = [](uint16_t addr){
+                
+                
+            };
+            
+            
+            
+            mem->addWritingObserver(0x4014, writtingObserver);
+        }
+        
+        
+        
     private:
         
-        Memory _vram; // 16kb
+        
+        uint8_t _sprram[256]; // 精灵内存
+        
+        
     };
 }

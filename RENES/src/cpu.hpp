@@ -126,8 +126,7 @@ namespace ReNes {
             
             error = false;
             
-            _currentInterruptType = InterruptTypeReset; // 默认是复位
-            interrupts(); // 中断
+            _currentInterruptType = InterruptTypeReset; // 复位中断
         }
         
         void exec()
@@ -135,9 +134,77 @@ namespace ReNes {
             if (error)
                 return;
             
-            bool hasInterrupts = false;
+            // 检查中断和处理中断
+            {
+                bool hasInterrupts = false;
+                {
+                    // 检查中断是否允许被执行
+                    switch(_currentInterruptType)
+                    {
+                        case InterruptTypeNMI:
+                        case InterruptTypeReset:
+                            // 不可屏蔽中断
+                            hasInterrupts = true;
+                            break;
+                        case InterruptTypeIRQs:
+                        {
+                            // 如果中断禁止标记为0，才可继续此中断
+                            if (regs.P.get(__registers::I) == 0)
+                                hasInterrupts = true;
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+                }
+                
+                // 处理中断
+                if (hasInterrupts)
+                {
+                    if (_currentInterruptType != InterruptTypeReset)
+                    {
+                        saveStatus(); // 保存现场
+                    }
+                    
+                    // 处理中断
+                    {
+                        // 获取中断处理函数地址
+                        uint16_t interruptHandlerAddr;
+                        {
+                            // 函数地址是一个16bit数值，分别存储在两个8bit的内存上，这里定义一个结构体表示内存地址偏移
+                            struct ADDR2{
+                                uint16_t low;
+                                uint16_t high;
+                            };
+                            
+                            std::map<int, ADDR2> handler = {
+                                {InterruptTypeNMI, {0xFFFA, 0xFFFB}},
+                                {InterruptTypeReset, {0xFFFC, 0xFFFD}},
+                                {InterruptTypeIRQs, {0xFFFE, 0xFFFF}},
+                            };
+                            
+                            ADDR2 addr2 = handler[_currentInterruptType];
+                            interruptHandlerAddr = (_mem->read8bitData(addr2.high) << 8) + _mem->read8bitData(addr2.low);
+                        }
+                        
+                        log("中断函数地址: %04X\n", interruptHandlerAddr);
+                        
+                        // 跳转到中断向量指向的处理函数地址
+                        regs.PC = interruptHandlerAddr;
+                        
+                        // 取消中断标记
+                        _currentInterruptType = InterruptTypeNone;
+                    }
+                    
+                    // cpu周期 + 7
+                    
+                    _currentInterruptType = InterruptTypeNone;
+                }
+            }
             
-            InterruptType interruptsType = InterruptTypeNone;
+            
+            
+            
             
             // 从内存里面取出一条8bit指令，将PC移动到下一个内存地址
             uint8_t cmd = _mem->read8bitData(regs.PC);
@@ -149,15 +216,15 @@ namespace ReNes {
             if (CMD_LIST.size() == 0)
             {
                 CMD_LIST = {
-                    {0xA9, {CF_LD, (long)&regs.A, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
-                    {0x8D, {CF_ST, (long)&regs.A, ABSOLUTE_16bit, 3, 4}},
-                    {0xA2, {CF_LD, (long)&regs.X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
-                    {0xBD, {CF_LD, (long)&regs.A, ABSOLUTE_16bit_X, 3, 4}},
-                    {0xE8, {CF_IN, (long)&regs.X, NO_ADDRESSING, 1, 2}},
-                    {0xE0, {CF_CP, (long)&regs.X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
-                    {0xD0, {CF_B, (long)__registers::Z, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
-                    {0xAD, {CF_LD, (long)&regs.A, ABSOLUTE_16bit, 3, 4}},
-                    {0x10, {CF_B, (long)__registers::N, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+                    /* LDA #oper */ {0xA9, {CF_LD, (long)&regs.A, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+                    /* STA oper  */ {0x8D, {CF_ST, (long)&regs.A, ABSOLUTE_16bit, 3, 4}},
+                    /* LDX #oper */ {0xA2, {CF_LD, (long)&regs.X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+                    /* LDA oper,X*/ {0xBD, {CF_LD, (long)&regs.A, ABSOLUTE_16bit_X, 3, 4}},
+                    /* INX */      {0xE8, {CF_IN, (long)&regs.X, NO_ADDRESSING, 1, 2}},
+                    /* CPX #oper */ {0xE0, {CF_CP, (long)&regs.X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
+                    /* BNE oper */  {0xD0, {CF_B, (long)__registers::Z, IMMIDIATE_ABSOLUTE_8bit, 2, 2}}, // 这里的操作数是8bit，很奇怪
+                    /* LDA oper */  {0xAD, {CF_LD, (long)&regs.A, ABSOLUTE_16bit, 3, 4}},
+                    /* BPL oper */  {0x10, {CF_B, (long)__registers::N, IMMIDIATE_ABSOLUTE_8bit, 2, 2}}, // 这里的操作数是8bit，很奇怪
                 };
             }
 
@@ -168,42 +235,112 @@ namespace ReNes {
                 
                 logCmd(CF_NAME.at(info.cf), info.dst, mode);
                 
-                switch(info.cf)
+                
                 {
-                    case CF_LD:
-                        cal(dst, CALCODE_SET, *addressing(mode));
-                        break;
-                    case CF_ST:
-                        cal(addressing(mode), CALCODE_SET, *dst);
-                        break;
-                    case CF_IN:
-                        cal(dst, CALCODE_IN, 1);
-                        break;
-                    case CF_CP:
-                        cal(dst, CALCODE_CP, *addressing(mode));
-                        break;
-                    case CF_B:
-                    {
-                        long p = info.dst;
+                    ////////////////////////////////
+                    // 寻址
+                    enum AddressingOp{
+                        READ,
+                        WRITE
+                    };
+                    
+                    std::function<uint8_t*(AddressingMode, AddressingOp)> addressing = [this](AddressingMode mode, AddressingOp op){
                         
-                        int value = 0;
-                        int offset = 0;
-
-                        if (regs.P.get(p) == value)
+                        uint16_t dataAddr = regs.PC + 1; // 操作数位置 = PC + 1
+                        
+                        uint16_t addr;
+                        uint8_t* data;
+                        switch (mode)
                         {
-                            offset = (int8_t)*addressing(mode);
+                                //                case ZERO_PAGE_8bit:
+                                //                {
+                                //                    addr = _mem->read8bitData(dataAddr);
+                                //                }
+                            case IMMIDIATE_ABSOLUTE_8bit:
+                            {
+                                addr = dataAddr;
+                                break;
+                            }
+                                //                case ABSOLUTE_8bit:
+                                //                {
+                                //                    addr = _mem->read8bitData(dataAddr);
+                                //                    break;
+                                //                }
+                            case ABSOLUTE_16bit:
+                            {
+                                addr = _mem->read16bitData(dataAddr);
+                                break;
+                            }
+                            case ABSOLUTE_16bit_X:
+                            {
+                                addr = _mem->read16bitData(dataAddr) + regs.X;
+                                break;
+                            }
+                            default:
+                                assert(!"error!");
+                                break;
                         }
                         
-                        log("%X == %X 则跳转到 %d\n", regs.P.get(p), value, offset);
+                        // 非法读取
+                        if (op == READ && (addr == 0x2000 || addr == 0x2001))
+                        {
+                            log("该内存只能写!\n");
+                            error = true;
+                            return (uint8_t*)0;
+                        }
                         
-                        cmdOffset = offset;
-                        break;
+                        data = _mem->getRealAddr(addr);
+                        
+                        if (dataAddr == addr)
+                        {
+                            log("直接寻址 %X 值 %d\n", addr, (int)*data);
+                        }
+                        else
+                        {
+                            log("间接寻址 %X 值 %d\n", addr, (int)*data);
+                        }
+                        
+                        return data;
+                    };
+                    
+                    
+                    switch(info.cf)
+                    {
+                        case CF_LD:
+                            cal(dst, CALCODE_SET, *addressing(mode, READ));
+                            break;
+                        case CF_ST:
+                            cal(addressing(mode, WRITE), CALCODE_SET, *dst);
+                            break;
+                        case CF_IN:
+                            cal(dst, CALCODE_IN, 1);
+                            break;
+                        case CF_CP:
+                            cal(dst, CALCODE_CP, *addressing(mode, READ));
+                            break;
+                        case CF_B:
+                        {
+                            long p = info.dst;
+                            
+                            int value = 0;
+                            int offset = 0;
+                            
+                            if (regs.P.get(p) == value)
+                            {
+                                offset = (int8_t)*addressing(mode, READ);
+                            }
+                            
+                            log("%X == %X 则跳转到 %d\n", regs.P.get(p), value, offset);
+                            
+                            cmdOffset = offset;
+                            break;
+                        }
+                        default:
+                            log("未知的指令！");
+                            error = true;
+                            break;
+                            
                     }
-                    default:
-                        log("未知的指令！");
-                        error = true;
-                        break;
-                        
                 }
             }
             
@@ -216,46 +353,6 @@ namespace ReNes {
             {
                 log("jmp %X\n", regs.PC);
             }
-            
-            
-            // 检查中断
-            switch(interruptsType)
-            {
-                case InterruptTypeNMI:
-                case InterruptTypeReset:
-                    // 不可屏蔽中断
-                    hasInterrupts = true;
-                    break;
-                case InterruptTypeIRQs:
-                {
-                    // 如果中断禁止标记为0，才可继续此中断
-                    if (regs.P.get(__registers::I) == 0)
-                        hasInterrupts = true;
-                    break;
-                }
-                default:
-                    break;
-            }
-            
-            // 处理中断
-            if (hasInterrupts || _currentInterruptType != InterruptTypeNone)
-            {
-                // 设置当前中断
-                if (interruptsType > _currentInterruptType)
-                {
-                    _currentInterruptType = interruptsType;
-                    _interruptCount = 0;
-                }
-                
-                // 当中断出现后，运行了7个cpu周期，则触发中断
-                if (_interruptCount++ == 7)
-                {
-                    saveStatus(); // 保存现场
-                    interrupts();
-                }
-            }
-            
-            
         }
         
     private:
@@ -351,94 +448,13 @@ namespace ReNes {
             }
         }
         
-        void interrupts()
-        {
-            
-            // 获取中断处理函数地址
-            uint16_t interruptHandlerAddr;
-            {
-                // 函数地址是一个16bit数值，分别存储在两个8bit的内存上，这里定义一个结构体表示内存地址偏移
-                struct ADDR2{
-                    uint16_t low;
-                    uint16_t high;
-                };
-                
-                std::map<int, ADDR2> handler = {
-                    {InterruptTypeNMI, {0xFFFA, 0xFFFB}},
-                    {InterruptTypeReset, {0xFFFC, 0xFFFD}},
-                    {InterruptTypeIRQs, {0xFFFE, 0xFFFF}},
-                };
-                
-                ADDR2 addr2 = handler[_currentInterruptType];
-                interruptHandlerAddr = (_mem->read8bitData(addr2.high) << 8) + _mem->read8bitData(addr2.low);
-            }
-            
-            log("中断函数地址: %04X\n", interruptHandlerAddr);
-            
-            // 跳转到中断向量指向的处理函数地址
-            regs.PC = interruptHandlerAddr;
-            
-            // 取消中断标记
-            _currentInterruptType = InterruptTypeNone;
-        }
         
         Memory* _mem;
         
         
-        int _interruptCount; // 中断发生计数器
         InterruptType _currentInterruptType;
         
-        ////////////////////////////////
-        // 寻址
-        uint8_t* addressing(AddressingMode mode)
-        {
-            uint16_t dataAddr = regs.PC + 1; // 操作数位置 = PC + 1
-            
-            uint16_t addr;
-            uint8_t* data;
-            switch (mode)
-            {
-//                case ZERO_PAGE_8bit:
-//                {
-//                    addr = _mem->read8bitData(dataAddr);
-//                }
-                case IMMIDIATE_ABSOLUTE_8bit:
-                {
-                    addr = dataAddr;
-                    break;
-                }
-//                case ABSOLUTE_8bit:
-//                {
-//                    addr = _mem->read8bitData(dataAddr);
-//                    break;
-//                }
-                case ABSOLUTE_16bit:
-                {
-                    addr = _mem->read16bitData(dataAddr);
-                    break;
-                }
-                case ABSOLUTE_16bit_X:
-                {
-                    addr = _mem->read16bitData(dataAddr) + regs.X;
-                    break;
-                }
-                default:
-                    assert(!"error!");
-                    break;
-            }
-            data = _mem->getAddr(addr);
-            
-            if (dataAddr == addr)
-            {
-                log("直接寻址 %X 值 %d\n", addr, (int)*data);
-            }
-            else
-            {
-                log("间接寻址 %X 值 %d\n", addr, (int)*data);
-            }
-            
-            return data;
-        }
+        
         
         enum CALCODE{
             CALCODE_SET,

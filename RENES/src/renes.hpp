@@ -19,7 +19,7 @@ namespace ReNes {
             cpu->exec();
             
             // for Test
-            usleep(1000 * 10);
+            usleep(1);
             //                log("sleep 1...\n");
             
         }while(callback() && !cpu->error);
@@ -29,7 +29,7 @@ namespace ReNes {
     {
         // 主循环
         do {
-            printf("ppu\n");
+//            printf("ppu\n");
             // 执行绘图
             
             // 绘图完成，向
@@ -45,7 +45,7 @@ namespace ReNes {
         
     public:
         
-        Nes():_mem(0x10000)
+        Nes()
         {
             
         }
@@ -91,6 +91,7 @@ namespace ReNes {
             
             // 初始化cpu
             _cpu.init(&_mem);
+            _ppu.init(&_mem);
             
             std::thread cpu_thread(cpu_working, &_cpu, [this](){
                 return callback();
