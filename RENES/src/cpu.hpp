@@ -20,16 +20,19 @@ namespace ReNes {
     
     
     
-    
+
+    // 寻址模式
+    // IMMIDIATE = 立即，INDEXED = 间接，跳转时 RELATIVE = 相对8bit，ABSOLUTE = 16bit
     enum AddressingMode {
         
-        NO_ADDRESSING,
+        ACCUMULATOR,
         
 //        ZERO_PAGE_8bit, // 零页寻址
 //        ABSOLUTE_8bit,
-        ABSOLUTE_16bit,
-        IMMIDIATE_ABSOLUTE_8bit, // 立即数寻址
-        ABSOLUTE_16bit_X,
+        INDEXED_ABSOLUTE_8bit, // 间接绝对寻址，8bit数据
+        IMMIDIATE_8bit,     // 立即数寻址，8bit数据
+        IMMIDIATE_16bit,    // 立即数绝对值寻址，16bit数据
+        INDEXED_ABSOLUTE_X_8bit, // 间接绝对寻址，8bit数据
     };
     
     static
@@ -228,36 +231,27 @@ namespace ReNes {
             
             log("[%04X] cmd: %x => ", regs.PC, cmd);
             
-            int cmdOffset = 0;
+            int jumpPC = 0;
             
             if (CMD_LIST.size() == 0)
             {
                 CMD_LIST = {
-//                    /* BRK */ {0x00, {CF_BRK, (long)0, NO_ADDRESSING, 1, 7}},
-//                    /* LDA #oper */ {0xA9, {CF_LD, (long)&regs.A, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
-//                    /* STA oper  */ {0x8D, {CF_ST, (long)&regs.A, ABSOLUTE_16bit, 3, 4}},
-//                    /* LDX #oper */ {0xA2, {CF_LD, (long)&regs.X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
-//                    /* LDA oper,X*/ {0xBD, {CF_LD, (long)&regs.A, ABSOLUTE_16bit_X, 3, 4}},
-//                    /* INX */      {0xE8, {CF_IN, (long)&regs.X, NO_ADDRESSING, 1, 2}},
-//                    /* CPX #oper */ {0xE0, {CF_CP, (long)&regs.X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
-//                    /* BNE oper */  {0xD0, {CF_B, (long)__registers::Z, IMMIDIATE_ABSOLUTE_8bit, 2, 2}}, // 这里的操作数是8bit，很奇怪
-//                    /* LDA oper */  {0xAD, {CF_LD, (long)&regs.A, ABSOLUTE_16bit, 3, 4}},
-//                    /* BPL oper */  {0x10, {CF_B, (long)__registers::N, IMMIDIATE_ABSOLUTE_8bit, 2, 2}}, // 这里的操作数是8bit，很奇怪
-//                    /* INC oper */  {0xEE, {CF_IN, (long)0, ABSOLUTE_16bit, 3, 6}},
-//                    /* RTI */      {0x40, {CF_RTI, (long)0, NO_ADDRESSING, 1, 6}},
-                    /* BRK */ {0x00, {CF_BRK, DST_NONE, NO_ADDRESSING, 1, 7}},
-                    /* LDA #oper */ {0xA9, {CF_LD, DST_REGS_A, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
-                    /* STA oper  */ {0x8D, {CF_ST, DST_REGS_A, ABSOLUTE_16bit, 3, 4}},
-                    /* LDX #oper */ {0xA2, {CF_LD, DST_REGS_X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
-                    /* LDA oper,X*/ {0xBD, {CF_LD, DST_REGS_A, ABSOLUTE_16bit_X, 3, 4}},
-                    /* INX */      {0xE8, {CF_IN, DST_REGS_X, NO_ADDRESSING, 1, 2}},
-                    /* CPX #oper */ {0xE0, {CF_CP, DST_REGS_X, IMMIDIATE_ABSOLUTE_8bit, 2, 2}},
-                    /* BNE oper */  {0xD0, {CF_B, DST_REGS_P_Z, IMMIDIATE_ABSOLUTE_8bit, 2, 2}}, // 这里的操作数是8bit，很奇怪
-                    /* LDA oper */  {0xAD, {CF_LD, DST_REGS_A, ABSOLUTE_16bit, 3, 4}},
-                    /* BPL oper */  {0x10, {CF_B, DST_REGS_P_N, IMMIDIATE_ABSOLUTE_8bit, 2, 2}}, // 这里的操作数是8bit，很奇怪
-                    /* INC oper */  {0xEE, {CF_IN, DST_M, ABSOLUTE_16bit, 3, 6}},
-                    /* RTI */      {0x40, {CF_RTI, DST_NONE, NO_ADDRESSING, 1, 6}},
-
+                    /* BRK */ {0x00, {CF_BRK, DST_NONE, ACCUMULATOR, 1, 7}},
+                    /* LDA #oper */ {0xA9, {CF_LD, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
+                    /* STA oper  */ {0x8D, {CF_ST, DST_REGS_A, INDEXED_ABSOLUTE_8bit, 3, 4}},
+                    /* LDX #oper */ {0xA2, {CF_LD, DST_REGS_X, IMMIDIATE_8bit, 2, 2}},
+                    /* LDA oper,X*/ {0xBD, {CF_LD, DST_REGS_A, INDEXED_ABSOLUTE_X_8bit, 3, 4}},
+                    /* INX */      {0xE8, {CF_IN, DST_REGS_X, ACCUMULATOR, 1, 2}},
+                    /* CPX #oper */ {0xE0, {CF_CP, DST_REGS_X, IMMIDIATE_8bit, 2, 2}},
+                    /* BNE oper */  {0xD0, {CF_B, DST_REGS_P_Z, IMMIDIATE_8bit, 2, 2}},
+                    /* LDA oper */  {0xAD, {CF_LD, DST_REGS_A, INDEXED_ABSOLUTE_8bit, 3, 4}},
+                    /* BPL oper */  {0x10, {CF_B, DST_REGS_P_N, IMMIDIATE_8bit, 2, 2}},
+                    /* INC oper */  {0xEE, {CF_IN, DST_M, INDEXED_ABSOLUTE_8bit, 3, 6}},
+                    /* RTI */      {0x40, {CF_RTI, DST_NONE, ACCUMULATOR, 1, 6}},
+                    /* JSR oper */  {0x20, {CF_JSR, DST_NONE, IMMIDIATE_16bit, 3, 6}},
+                    /* RTS */      {0x60, {CF_RTS, DST_NONE, ACCUMULATOR, 1, 6}},
+                    /* AND #oper */ {0x29, {CF_AND, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
+                    /* JMP oper */ {0x4C, {CF_JMP, DST_NONE, IMMIDIATE_16bit, 3, 3}},
                 };
             }
 
@@ -267,6 +261,8 @@ namespace ReNes {
                 error = true;
                 return;
             }
+            
+            bool pushPC = false;
             
             auto info = CMD_LIST.at(cmd);
             {
@@ -313,7 +309,7 @@ namespace ReNes {
                     switch(info.cf)
                     {
                         case CF_BRK:
-                            // BRK 执行执行时，产生产生BRK中断
+                            // BRK 执行时，产生BRK中断
                             interrupts(InterruptTypeIRQs);
                             break;
                         case CF_LD:
@@ -321,33 +317,62 @@ namespace ReNes {
                             break;
                         case CF_ST:
                             calFunc(DST_M, CALCODE_SET, valueFromDST(dst, mode));
-//                            calFunc(addressing(), CALCODE_SET, addressing());
                             break;
                         case CF_IN:
                             calFunc(dst, CALCODE_IN, 1);
-//                            cal(realDstAddr, CALCODE_IN, 1);
                             break;
                         case CF_CP:
                             calFunc(dst, CALCODE_CP, addressingValue(mode));
-//                            cal(realDstAddr, CALCODE_CP, *addressing(mode, READ));
                             break;
+                        case CF_JSR:
+                        {
+                            pushPC = true;
+                        }
+                        case CF_JMP:
+                        {
+                            int offset = addressingValue(mode);
+                            
+                            log("跳转到 %04X\n", offset);
+                            
+                            jumpPC = offset;
+                            break;
+                        }
+                        case CF_RTS:
+                        {
+                            if (regs.SP >= 2)
+                            {
+                                uint8_t PC_high = pop();
+                                uint8_t PC_low = pop();
+                                regs.PC = (PC_high << 8) + PC_low;
+                            }
+                            else
+                            {
+                                assert(!"error!");
+                            }
+                            break;
+                        }
+                        case CF_AND:
+                        {
+                            calFunc(dst, CALCODE_AND, addressingValue(mode));
+                            break;
+                        }
                         case CF_B:
                         {
 //                            auto p = info.dst;
                             
                             int value = 0;
-                            int offset = 0;
+                            int8_t offset = 0;
                             
 //                            if (regs.P.get(p) == value)
                             if (valueFromDST(dst, mode) == value)
                             {
 //                                offset = (int8_t)*addressing(mode, READ);
-                                offset = (int8_t)addressingValue(mode);
+                                offset = addressingValue(mode);
                             }
                             
                             log("%X == %X 则跳转到 %d\n", valueFromDST(dst, mode), value, offset);
                             
-                            cmdOffset = offset;
+                            jumpPC = offset;
                             break;
                         }
                         case CF_RTI:
@@ -371,15 +396,36 @@ namespace ReNes {
             // 检查内存错误
             error = _mem->error;
             
-            if (info.cf != CF_RTI)
+            if (info.cf != CF_RTI && info.cf != CF_RTS)
             {
                 // 移动PC指针到下一条指令位置
                 regs.PC += info.bytes;
                 
-                // 执行跳转
-                regs.PC += cmdOffset;
-                if (cmdOffset != 0)
+                // push PC
+                if (pushPC)
                 {
+                    push((const uint8_t*)&regs.PC, 2); // 移动到下一句指令才存储
+                }
+
+                if (jumpPC != 0)
+                {
+                    // 检查调整类型：相对，绝对
+                    switch (info.mode)
+                    {
+                        case IMMIDIATE_8bit:
+                            // 相对跳转
+                            regs.PC += jumpPC;
+                            break;
+                        case IMMIDIATE_16bit:
+                            // 绝对跳转
+                            regs.PC = jumpPC;
+                            break;
+                        default:
+                            log("未知的指令！");
+                            error = true;
+                            break;
+                    }
+                    
                     log("jmp %X\n", regs.PC);
                 }
             }
@@ -395,6 +441,10 @@ namespace ReNes {
             CF_CP,
             CF_B,
             CF_RTI,
+            CF_JSR,
+            CF_RTS,
+            CF_AND,
+            CF_JMP
         };
         
         const std::map<CF, std::string> CF_NAME = {
@@ -405,6 +455,10 @@ namespace ReNes {
             {CF_CP, "CP"},
             {CF_B, "B"},
             {CF_RTI, "RTI"},
+            {CF_JSR, "JSR"},
+            {CF_RTS, "RTS"},
+            {CF_AND, "AND"},
+            {CF_JMP, "JMP"},
         };
         
         enum DST{
@@ -493,6 +547,8 @@ namespace ReNes {
             uint16_t dataAddr = regs.PC + 1; // 操作数位置 = PC + 1
             
             uint16_t addr;
+            bool data16bit = false;
+            
             //                        uint8_t* data;
             switch (mode)
             {
@@ -500,22 +556,23 @@ namespace ReNes {
                     //                {
                     //                    addr = _mem->read8bitData(dataAddr);
                     //                }
-                case IMMIDIATE_ABSOLUTE_8bit:
+                case IMMIDIATE_8bit:
                 {
                     addr = dataAddr;
                     break;
                 }
-                    //                case ABSOLUTE_8bit:
-                    //                {
-                    //                    addr = _mem->read8bitData(dataAddr);
-                    //                    break;
-                    //                }
-                case ABSOLUTE_16bit:
+                case IMMIDIATE_16bit:
+                {
+                    addr = dataAddr;
+                    data16bit = true;
+                    break;
+                }
+                case INDEXED_ABSOLUTE_8bit:
                 {
                     addr = _mem->read16bitData(dataAddr);
                     break;
                 }
-                case ABSOLUTE_16bit_X:
+                case INDEXED_ABSOLUTE_X_8bit:
                 {
                     addr = _mem->read16bitData(dataAddr) + regs.X;
                     break;
@@ -527,7 +584,18 @@ namespace ReNes {
             
             if (dataAddr == addr)
             {
-                log("直接寻址 %X 值 %d\n", addr, (int)_mem->masterData()[addr]);
+                uint8_t* d = &_mem->masterData()[addr];
+                int dd;
+                if (data16bit)
+                {
+                    dd = (int)*((uint16_t*)d);
+                }
+                else
+                {
+                    dd = (int)*d;
+                }
+                
+                log("立即数 %X 值 %d\n", addr, dd);
             }
             else
             {
@@ -537,9 +605,21 @@ namespace ReNes {
             return addr;
         }
         
-        uint8_t addressingValue(AddressingMode mode)
+//        uint8_t addressingValue(AddressingMode mode)
+//        {
+//            return _mem->read8bitData(addressingOnly(mode));
+//        };
+        
+        int addressingValue(AddressingMode mode)
         {
-            return _mem->read8bitData(addressingOnly(mode));
+            if (mode == IMMIDIATE_16bit)
+            {
+                return _mem->read16bitData(addressingOnly(mode));
+            }
+            else
+            {
+                return (int8_t)_mem->read8bitData(addressingOnly(mode));
+            }
         };
         
         
@@ -619,6 +699,7 @@ namespace ReNes {
             CALCODE_SET,
             CALCODE_IN,
             CALCODE_CP,
+            CALCODE_AND,
         };
         
         template< typename T >
@@ -677,23 +758,28 @@ namespace ReNes {
                     
                     switch (mode)
                     {
-                        case IMMIDIATE_ABSOLUTE_8bit:
+                        case IMMIDIATE_8bit:
                         {
                             res = std::string("#") + int_to_hex(_mem->read8bitData(dataAddr));
                             break;
                         }
-                        case ABSOLUTE_16bit:
+                        case IMMIDIATE_16bit:
+                        {
+                            res = std::string("#") + int_to_hex(_mem->read16bitData(dataAddr));
+                            break;
+                        }
+                        case INDEXED_ABSOLUTE_8bit:
                         {
                             res = int_to_hex(_mem->read16bitData(dataAddr));
                             //                    addr = readMem16bit();
                             break;
                         }
-                        case ABSOLUTE_16bit_X:
+                        case INDEXED_ABSOLUTE_X_8bit:
                         {
                             res = int_to_hex(_mem->read16bitData(dataAddr)) + ",X";
                             break;
                         }
-                        case NO_ADDRESSING:
+                        case ACCUMULATOR:
                         {
                             break;
                         }
@@ -705,8 +791,10 @@ namespace ReNes {
                 };
                 
                 std::string dst_code;
-                if (mode != NO_ADDRESSING)
+                if (mode != ACCUMULATOR && cmd != "JSR" && cmd != "JMP")
+                {
                     dst_code = dstCode(dst);
+                }
                 
                 log("%s%s %s\n", cmd.c_str(), dst_code.c_str(), operCode(mode).c_str());
             }
@@ -731,24 +819,30 @@ namespace ReNes {
             {
                 case CALCODE_SET:
                 {
-                    log("0x%X = 0x%X\n", old_value, value);
+                    log("%d = %d\n", old_value, value);
                     new_value = value;
                     break;
                 }
                 case CALCODE_IN:
                 {
-                    log("0x%X + 0x%X\n", old_value, value);
+                    log("%d + %d\n", old_value, value);
                     new_value = old_value + value;
                     break;
                 }
                 case CALCODE_CP:
                 {
-                    log("0x%X 比较 0x%X\n", old_value, value);
+                    log("%d 比较 %d\n", old_value, value);
                     new_value = old_value - value;
                     
                     // 减操作，检查借位
                     regs.P.set(__registers::C, (int8_t)new_value < 0);
                     
+                    break;
+                }
+                case CALCODE_AND:
+                {
+                    log("%d AND %d\n", old_value, value);
+                    new_value = old_value & value;
                     break;
                 }
                 default:

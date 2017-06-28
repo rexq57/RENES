@@ -49,7 +49,8 @@ namespace ReNes {
         
         uint16_t read16bitData(uint16_t addr) 
         {
-            return *(uint16_t*)getRealAddr(addr, READ);
+            uint16_t data = *(uint16_t*)getRealAddr(addr, READ);
+            return data;
         }
         
         // 写入数据
