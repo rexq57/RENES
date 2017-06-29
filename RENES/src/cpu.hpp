@@ -276,8 +276,6 @@ namespace ReNes {
                 {
                     ////////////////////////////////
                     // 寻址
-                    
-
                     std::function<void(DST, CALCODE, int)> calFunc = [this, &mode, cf](DST dst, CALCODE code, int val){
                         
                         uint8_t dst_value;
@@ -291,20 +289,6 @@ namespace ReNes {
                         
                         valueToDST(dst, dst_value, mode);
                     };
-                    
-                    
-//                case CF_LD:
-//                    calFunc(realDstAddr, CALCODE_SET, mode, addressing(mode));
-//                    break;
-//                case CF_ST:
-//                    cal(addressing(mode, WRITE), CALCODE_SET, *dst);
-//                    break;
-//                case CF_IN:
-//                    cal(realDstAddr, CALCODE_IN, 1);
-//                    break;
-//                case CF_CP:
-//                    cal(realDstAddr, CALCODE_CP, *addressing(mode, READ));
-//                    break;
                     
                     switch(info.cf)
                     {
@@ -337,20 +321,6 @@ namespace ReNes {
                             jumpPC = offset;
                             break;
                         }
-                        case CF_RTS:
-                        {
-                            if (regs.SP >= 2)
-                            {
-                                uint8_t PC_high = pop();
-                                uint8_t PC_low = pop();
-                                regs.PC = (PC_high << 8) + PC_low;
-                            }
-                            else
-                            {
-                                assert(!"error!");
-                            }
-                            break;
-                        }
                         case CF_AND:
                         {
                             calFunc(dst, CALCODE_AND, addressingValue(mode));
@@ -375,21 +345,31 @@ namespace ReNes {
                             jumpPC = offset;
                             break;
                         }
+                        case CF_RTS:
+                        {
+                            if (regs.SP >= 2)
+                            {
+                                uint8_t PC_high = pop();
+                                uint8_t PC_low = pop();
+                                regs.PC = (PC_high << 8) + PC_low;
+                            }
+                            else
+                            {
+                                assert(!"error!");
+                            }
+                            break;
+                        }
                         case CF_RTI:
+                        {
                             restoreStatus();
                             break;
+                        }
                         default:
                             log("未知的指令！");
                             error = true;
                             break;
                             
                     }
-                    
-                    // 处理内存读取
-//                    if (addressingOp == READ && addressingAddr == 2002)
-//                    {
-//                        
-//                    }
                 }
             }
             
@@ -647,7 +627,7 @@ namespace ReNes {
             {
                 uint16_t stack_addr = STACK_ADDR_OFFSET + regs.SP;
                 
-                _mem->writeData(stack_addr, addr+i, 1);
+                _mem->write8bitData(stack_addr, *(addr+i));
                 
                 regs.SP ++;
             }
@@ -671,7 +651,7 @@ namespace ReNes {
         // 恢复现场()
         void restoreStatus()
         {
-            if (regs.SP >= 2)
+            if (regs.SP >= 3)
             {
                 uint8_t data = pop();
                 regs.P = *(bit8*)&data;

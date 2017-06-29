@@ -14,6 +14,7 @@
 		2156BFC31EFF5976001B3025 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2156BFC21EFF5976001B3025 /* Assets.xcassets */; };
 		2156BFC61EFF5976001B3025 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2156BFC41EFF5976001B3025 /* Main.storyboard */; };
 		2156BFCE1EFF5998001B3025 /* src in Resources */ = {isa = PBXBuildFile; fileRef = 2156BFCD1EFF5998001B3025 /* src */; };
+		2167AF7D1F05117C000E6D99 /* MyOpenGLView.m in Sources */ = {isa = PBXBuildFile; fileRef = 2167AF7C1F05117C000E6D99 /* MyOpenGLView.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,8 @@
 		2156BFC51EFF5976001B3025 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		2156BFC71EFF5976001B3025 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		2156BFCD1EFF5998001B3025 /* src */ = {isa = PBXFileReference; lastKnownFileType = folder; path = src; sourceTree = "<group>"; };
+		2167AF7B1F05117C000E6D99 /* MyOpenGLView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MyOpenGLView.h; sourceTree = "<group>"; };
+		2167AF7C1F05117C000E6D99 /* MyOpenGLView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MyOpenGLView.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +68,8 @@
 				2156BFBA1EFF5976001B3025 /* AppDelegate.m */,
 				2156BFBF1EFF5976001B3025 /* ViewController.h */,
 				2156BFC01EFF5976001B3025 /* ViewController.mm */,
+				2167AF7B1F05117C000E6D99 /* MyOpenGLView.h */,
+				2167AF7C1F05117C000E6D99 /* MyOpenGLView.m */,
 				214C3C891F002C4F0069C001 /* OUR.NES */,
 				2156BFC21EFF5976001B3025 /* Assets.xcassets */,
 				2156BFC41EFF5976001B3025 /* Main.storyboard */,
@@ -158,6 +163,7 @@
 				2156BFC11EFF5976001B3025 /* ViewController.mm in Sources */,
 				2156BFBE1EFF5976001B3025 /* main.m in Sources */,
 				2156BFBB1EFF5976001B3025 /* AppDelegate.m in Sources */,
+				2167AF7D1F05117C000E6D99 /* MyOpenGLView.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -9,6 +9,7 @@
 #import "ViewController.h"
 #include "src/renes.hpp"
 #include <string>
+#import "MyOpenGLView.h"
 
 @interface ViewController()
 {
@@ -19,7 +20,12 @@
     BOOL _keepNext;
 }
 
+@property (nonatomic) IBOutlet MyOpenGLView* displayView;
+@property (nonatomic) IBOutlet NSTabView* memTabView;
 @property (nonatomic) IBOutlet NSTextView* memView;
+@property (nonatomic) IBOutlet NSTextView* vramView;
+
+
 @property (nonatomic) IBOutlet NSTextView* logView;
 @property (nonatomic) IBOutlet NSTextField* registersView;
 
@@ -31,9 +37,10 @@
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         
-        std::string str = std::string([_logView.string UTF8String]) + std::string([buffer UTF8String]);
+//        std::string str = std::string([_logView.string UTF8String]) + std::string([buffer UTF8String]);
         
-        _logView.string = [NSString stringWithUTF8String:str.c_str()];
+//        _logView.string = [NSString stringWithUTF8String:str.c_str()];
+        [[_logView textStorage] appendAttributedString:[[NSAttributedString alloc] initWithString:buffer]];
     });
 }
 
@@ -42,12 +49,12 @@
 
     // Do any additional setup after loading the view.
     
-//    ReNes::setLogCallback([self](const char* buffer){
-//        
-//        NSString* sbuffer = [NSString stringWithUTF8String:buffer];
-//        
-//        [self log:sbuffer];
-//    });
+    ReNes::setLogCallback([self](const char* buffer){
+        
+        NSString* sbuffer = [NSString stringWithUTF8String:buffer];
+        
+        [self log:sbuffer];
+    });
     
     
     _nextSem = dispatch_semaphore_create(0);
@@ -58,7 +65,7 @@
         NSString* filePath = [[NSBundle mainBundle] pathForResource:@"OUR.NES" ofType:@""];
         NSData* data = [NSData dataWithContentsOfFile:filePath];
         
-        _nes.callback = [self](){
+        _nes.cpu_callback = [self](){
             [self updateView];
             
             if (!_keepNext)
@@ -66,6 +73,68 @@
             
             return true;
         };
+        
+        _nes.ppu_callback = [self](){
+            
+            // 显示图片
+            int width  = _nes.ppu()->width();
+            int height = _nes.ppu()->height();
+            uint8_t* srcBuffer = _nes.ppu()->buffer();
+            
+            [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+            
+//            uint8_t* buffer = new uint8_t[width*height*4];
+//            {
+//                int pixels = width*height;
+//                for (int i=0; i<pixels; i++)
+//                {
+//                    buffer[i*4] = srcBuffer[i*3];
+//                    buffer[i*4+1] = srcBuffer[i*3+1];
+//                    buffer[i*4+2] = srcBuffer[i*3+2];
+//                    buffer[i*4+3] = 255;
+//                }
+//            }
+//
+//            
+//            size_t bufferLength = width * height * 4;
+//            CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, buffer, bufferLength, NULL);
+//            size_t bitsPerComponent = 8;
+//            size_t bitsPerPixel = 32;
+//            size_t bytesPerRow = 4 * width;
+//            CGColorSpaceRef colorSpaceRef = CGColorSpaceCreateDeviceRGB();
+//            CGBitmapInfo bitmapInfo = kCGBitmapByteOrderDefault | kCGImageAlphaPremultipliedLast;
+//            CGColorRenderingIntent renderingIntent = kCGRenderingIntentDefault;
+//            
+//            CGImageRef iref = CGImageCreate(width,
+//                                            height,
+//                                            bitsPerComponent,
+//                                            bitsPerPixel,
+//                                            bytesPerRow,
+//                                            colorSpaceRef,
+//                                            bitmapInfo,
+//                                            provider,   // data provider
+//                                            NULL,       // decode
+//                                            YES,        // should interpolate
+//                                            renderingIntent);
+//            
+//            NSImage * image = [[NSImage alloc] initWithCGImage:iref size:NSMakeSize(width, height)];
+//
+//            CGDataProviderRelease(provider);
+//            CGColorSpaceRelease(colorSpaceRef);
+//            CGImageRelease(iref);
+//            delete[] buffer;
+//            
+//            dispatch_async(dispatch_get_main_queue(), ^{
+//                
+////                self.displayView.image = image;
+//                
+//                
+//                
+//            });
+            
+            return true;
+        };
+        
         _nes.loadRom((const uint8_t*)[data bytes], [data length]);
         
         _nes.run();
@@ -77,7 +146,22 @@
     dispatch_async(dispatch_get_main_queue(), ^{
         
         std::string str;
-        int count = 0x10000;
+        int count;
+        NSTextView* dstView;
+        uint8_t* srcData;
+        if ([[_memTabView.selectedTabViewItem identifier] integerValue] == 1)
+        {
+            dstView = _memView;
+            count = 0x10000;
+            srcData = _nes.mem()->masterData();
+        }
+        else
+        {
+            dstView = _vramView;
+            count = 1024*16;
+            srcData = _nes.ppu()->VRAM;
+        }
+        
         
         bool printLineNum = true;
         
@@ -98,7 +182,7 @@
                 printLineNum = false;
             }
             
-            uint8_t data = _nes.mem()->masterData()[i];
+            uint8_t data = srcData[i];
             
             sprintf(buffer, "%02X", data);
             
@@ -110,11 +194,9 @@
                 {
                     str += " ";
                 }
-                
-                
             }
         }
-        _memView.string = [NSString stringWithUTF8String:str.c_str()];
+        dstView.string = [NSString stringWithUTF8String:str.c_str()];
     });
 }
 

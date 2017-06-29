@@ -94,15 +94,12 @@ namespace ReNes {
             
             std::thread cpu_thread(cpu_working, &_cpu, [this](){
                 
-                return callback();
+                return cpu_callback();
             });
             
             std::thread ppu_thread(ppu_working, &_ppu, [this](){
                 
-                // 绘图完成，发送NMI中断
-//                _cpu.interrupts(ReNes::CPU::InterruptTypeNMI);
-                
-                return true;
+                return ppu_callback();
             });
             
             cpu_thread.join();
@@ -127,12 +124,18 @@ namespace ReNes {
             return &_cpu;
         }
         
+        PPU* ppu()
+        {
+            return &_ppu;
+        }
+        
          Memory* mem() 
         {
             return &_mem;
         }
         
-        std::function<bool()> callback;
+        std::function<bool()> cpu_callback;
+        std::function<bool()> ppu_callback;
         
     private:
         
