@@ -2,8 +2,8 @@
 //  MyOpenGLView.m
 //  RENES
 //
-//  Created by Viktor Pih on 2017/6/29.
-//  Copyright © 2017年 com.rexq. All rights reserved.
+//  Created by rexq57 on 2017/6/29.
+//  Copyright © 2017年 com.rexq57. All rights reserved.
 //
 
 #import "MyOpenGLView.h"
@@ -54,6 +54,7 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
 
 @property (copy) void(^updateData)();
 
+
 @end
 
 @implementation MyOpenGLView
@@ -85,7 +86,7 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
 {
     if ((self = [super initWithCoder:coder]))
     {
-        
+
     }
     return self;
 }
@@ -180,11 +181,6 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
     }
     
     const GLfloat vertex[] = {
-//        0.0f, 1.0f,
-//        1.0f, 1.0f,
-//        0.0f, 0.0f,
-//        1.0f, 0.0f,
-        
         -1.0f, 1.0f,
         1.0f, 1.0f,
         -1.0f, -1.0f,
@@ -192,14 +188,11 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
     };
     
     const GLfloat textureCoordinate[] = {
-//        -1.0f, 1.0f,
-//        1.0f, 1.0f,
-//        -1.0f, -1.0f,
-//        1.0f, -1.0f,
-                0.0f, 1.0f,
-                1.0f, 1.0f,
-                0.0f, 0.0f,
-                1.0f, 0.0f,
+
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        0.0f, 1.0f,
+        1.0f, 1.0f
     };
     
     glVertexAttribPointer(_attribPosition, 2, GL_FLOAT, 0, 0, vertex);
@@ -249,8 +242,15 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
             [unsafe_self _updateRGBData:(uint8_t*)[dt bytes] size:size];
         };
     }
+//    [[self openGLContext] flushBuffer];
+//    [self update];
+//    self.needsDisplay = YES;
     
-    [self setNeedsDisplay:YES];
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+//        [self setNeedsDisplay:YES];
+        [self display];
+    });
 
 }
 

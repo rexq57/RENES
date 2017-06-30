@@ -9,9 +9,13 @@ namespace ReNes {
     static char g_buffer[1024];
     
     static std::function<void(const char*)> g_callback;
+    static bool g_logEnabled = false;
     
     void log(const char* format, ...)
     {
+        if (!g_logEnabled)
+            return;
+        
         va_list args;
         va_start(args, format);
         vsprintf(g_buffer, format, args);
@@ -31,6 +35,11 @@ namespace ReNes {
     void setLogCallback(std::function<void(const char*)> callback)
     {
         g_callback = callback;
+    }
+    
+    void setLogEnabled(bool enabled)
+    {
+        g_logEnabled = enabled;
     }
     
     struct bit8 {

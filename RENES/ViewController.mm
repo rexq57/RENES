@@ -2,14 +2,15 @@
 //  ViewController.m
 //  RENES
 //
-//  Created by rexq on 2017/6/25.
-//  Copyright © 2017年 com.rexq. All rights reserved.
+//  Created by rexq57 on 2017/6/25.
+//  Copyright © 2017年 com.rexq57. All rights reserved.
 //
 
 #import "ViewController.h"
 #include "src/renes.hpp"
 #include <string>
 #import "MyOpenGLView.h"
+#import <BlocksKit/BlocksKit.h>
 
 @interface ViewController()
 {
@@ -18,6 +19,8 @@
     dispatch_semaphore_t _nextSem;
     
     BOOL _keepNext;
+    
+    std::string _logStringCache;
 }
 
 @property (nonatomic) IBOutlet MyOpenGLView* displayView;
@@ -41,6 +44,8 @@
         
 //        _logView.string = [NSString stringWithUTF8String:str.c_str()];
         [[_logView textStorage] appendAttributedString:[[NSAttributedString alloc] initWithString:buffer]];
+        
+        [_logView scrollRangeToVisible: NSMakeRange(_logView.string.length, 0)];
     });
 }
 
@@ -49,11 +54,14 @@
 
     // Do any additional setup after loading the view.
     
+    
+    
     ReNes::setLogCallback([self](const char* buffer){
         
-        NSString* sbuffer = [NSString stringWithUTF8String:buffer];
-        
-        [self log:sbuffer];
+        // 收集debug字符串
+        @synchronized (self) {
+            _logStringCache += buffer;
+        }
     });
     
     
@@ -66,7 +74,7 @@
         NSData* data = [NSData dataWithContentsOfFile:filePath];
         
         _nes.cpu_callback = [self](){
-            [self updateView];
+//            [self updateView]; // 不能在回调里执行
             
             if (!_keepNext)
                 dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
@@ -83,55 +91,6 @@
             
             [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
             
-//            uint8_t* buffer = new uint8_t[width*height*4];
-//            {
-//                int pixels = width*height;
-//                for (int i=0; i<pixels; i++)
-//                {
-//                    buffer[i*4] = srcBuffer[i*3];
-//                    buffer[i*4+1] = srcBuffer[i*3+1];
-//                    buffer[i*4+2] = srcBuffer[i*3+2];
-//                    buffer[i*4+3] = 255;
-//                }
-//            }
-//
-//            
-//            size_t bufferLength = width * height * 4;
-//            CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, buffer, bufferLength, NULL);
-//            size_t bitsPerComponent = 8;
-//            size_t bitsPerPixel = 32;
-//            size_t bytesPerRow = 4 * width;
-//            CGColorSpaceRef colorSpaceRef = CGColorSpaceCreateDeviceRGB();
-//            CGBitmapInfo bitmapInfo = kCGBitmapByteOrderDefault | kCGImageAlphaPremultipliedLast;
-//            CGColorRenderingIntent renderingIntent = kCGRenderingIntentDefault;
-//            
-//            CGImageRef iref = CGImageCreate(width,
-//                                            height,
-//                                            bitsPerComponent,
-//                                            bitsPerPixel,
-//                                            bytesPerRow,
-//                                            colorSpaceRef,
-//                                            bitmapInfo,
-//                                            provider,   // data provider
-//                                            NULL,       // decode
-//                                            YES,        // should interpolate
-//                                            renderingIntent);
-//            
-//            NSImage * image = [[NSImage alloc] initWithCGImage:iref size:NSMakeSize(width, height)];
-//
-//            CGDataProviderRelease(provider);
-//            CGColorSpaceRelease(colorSpaceRef);
-//            CGImageRelease(iref);
-//            delete[] buffer;
-//            
-//            dispatch_async(dispatch_get_main_queue(), ^{
-//                
-////                self.displayView.image = image;
-//                
-//                
-//                
-//            });
-            
             return true;
         };
         
@@ -139,6 +98,9 @@
         
         _nes.run();
     });
+    
+    NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self selector:@selector(updateView) userInfo:nil repeats:YES];
+    [[NSRunLoop currentRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
 }
 
 - (void) dumpMemToView
@@ -159,7 +121,7 @@
         {
             dstView = _vramView;
             count = 1024*16;
-            srcData = _nes.ppu()->VRAM;
+            srcData = _nes.ppu()->vram.masterData();
         }
         
         
@@ -206,6 +168,14 @@
     
     // 打印内存
     [self dumpMemToView];
+    
+    // 输出log
+    @synchronized (self) {
+        NSString* sbuffer = [NSString stringWithUTF8String:_logStringCache.c_str()];
+        [self log:sbuffer];
+        
+        _logStringCache = "";
+    }
 }
 
 - (void) updateRegisters
@@ -246,6 +216,12 @@ A:%d X:%d Y:%d", regs.PC, regs.SP,
 - (IBAction) MNI:(id) sender
 {
     _nes.cpu()->interrupts(ReNes::CPU::InterruptTypeNMI);
+}
+
+- (IBAction) debug:(NSButton*) sender
+{
+    _nes.setDebug(!_nes.debug);
+    _nes.cmd_interval = 0.001;
 }
 
 - (void)setRepresentedObject:(id)representedObject {

@@ -761,12 +761,24 @@
                                             <action selector="nextKeep:" target="XfG-lQ-9wD" id="ME0-Wy-2sH"/>
                                         </connections>
                                     </button>
+                                    <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="fSW-01-Cg2">
+                                        <rect key="frame" x="20" y="61" width="42" height="17"/>
+                                        <buttonCell key="cell" type="roundRect" title="debug" bezelStyle="roundedRect" alignment="center" controlSize="mini" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="fdb-90-lJN">
+                                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                            <font key="font" metaFont="miniSystem"/>
+                                        </buttonCell>
+                                        <connections>
+                                            <action selector="debug:" target="XfG-lQ-9wD" id="ukr-6Z-KjT"/>
+                                        </connections>
+                                    </button>
                                 </subviews>
                                 <constraints>
                                     <constraint firstItem="5pg-2O-Rfc" firstAttribute="leading" secondItem="k5N-kg-0gb" secondAttribute="trailing" constant="20" id="GTh-UX-JVk"/>
                                     <constraint firstAttribute="bottom" secondItem="9CY-2j-WiT" secondAttribute="bottom" constant="20" id="I74-g9-L7K"/>
                                     <constraint firstItem="k5N-kg-0gb" firstAttribute="leading" secondItem="9CY-2j-WiT" secondAttribute="trailing" constant="20" id="Las-gX-vtd"/>
                                     <constraint firstItem="k5N-kg-0gb" firstAttribute="centerY" secondItem="9CY-2j-WiT" secondAttribute="centerY" id="bOi-lo-KYq"/>
+                                    <constraint firstItem="fSW-01-Cg2" firstAttribute="top" secondItem="hsI-oI-CmB" secondAttribute="top" constant="20" id="cyd-yO-ha4"/>
+                                    <constraint firstItem="fSW-01-Cg2" firstAttribute="leading" secondItem="hsI-oI-CmB" secondAttribute="leading" constant="20" id="hWb-qv-0Wl"/>
                                     <constraint firstItem="9CY-2j-WiT" firstAttribute="leading" secondItem="hsI-oI-CmB" secondAttribute="leading" constant="20" id="sAN-lt-n7D"/>
                                     <constraint firstItem="5pg-2O-Rfc" firstAttribute="centerY" secondItem="9CY-2j-WiT" secondAttribute="centerY" id="tKA-vU-2d5"/>
                                 </constraints>

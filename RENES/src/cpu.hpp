@@ -168,10 +168,10 @@ namespace ReNes {
             _mutex.unlock();
         }
         
-        void exec()
+        int exec()
         {
             if (error)
-                return;
+                return 0;
             
             // 检查中断和处理中断
             _mutex.lock();
@@ -259,7 +259,7 @@ namespace ReNes {
             {
                 log("未知的指令！");
                 error = true;
-                return;
+                return 0;
             }
             
             bool pushPC = false;
@@ -409,6 +409,8 @@ namespace ReNes {
                     log("jmp %X\n", regs.PC);
                 }
             }
+            
+            return info.cyles;
         }
         
     private:

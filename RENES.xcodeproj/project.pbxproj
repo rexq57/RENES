@@ -15,9 +15,11 @@
 		2156BFC61EFF5976001B3025 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2156BFC41EFF5976001B3025 /* Main.storyboard */; };
 		2156BFCE1EFF5998001B3025 /* src in Resources */ = {isa = PBXBuildFile; fileRef = 2156BFCD1EFF5998001B3025 /* src */; };
 		2167AF7D1F05117C000E6D99 /* MyOpenGLView.m in Sources */ = {isa = PBXBuildFile; fileRef = 2167AF7C1F05117C000E6D99 /* MyOpenGLView.m */; };
+		5361784537461CD508990EF3 /* libPods-RENES.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 19CA15BACCD628EEE57098FB /* libPods-RENES.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		19CA15BACCD628EEE57098FB /* libPods-RENES.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-RENES.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		214C3C891F002C4F0069C001 /* OUR.NES */ = {isa = PBXFileReference; lastKnownFileType = file; path = OUR.NES; sourceTree = "<group>"; };
 		2156BFB61EFF5976001B3025 /* RENES.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RENES.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2156BFB91EFF5976001B3025 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -31,6 +33,8 @@
 		2156BFCD1EFF5998001B3025 /* src */ = {isa = PBXFileReference; lastKnownFileType = folder; path = src; sourceTree = "<group>"; };
 		2167AF7B1F05117C000E6D99 /* MyOpenGLView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MyOpenGLView.h; sourceTree = "<group>"; };
 		2167AF7C1F05117C000E6D99 /* MyOpenGLView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MyOpenGLView.m; sourceTree = "<group>"; };
+		4C25B443B70C274C6EE6C6B4 /* Pods-RENES.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RENES.release.xcconfig"; path = "Pods/Target Support Files/Pods-RENES/Pods-RENES.release.xcconfig"; sourceTree = "<group>"; };
+		AF5E50CB06E583697C246F1A /* Pods-RENES.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RENES.debug.xcconfig"; path = "Pods/Target Support Files/Pods-RENES/Pods-RENES.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -38,6 +42,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5361784537461CD508990EF3 /* libPods-RENES.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -49,6 +54,8 @@
 			children = (
 				2156BFB81EFF5976001B3025 /* RENES */,
 				2156BFB71EFF5976001B3025 /* Products */,
+				DE48FFCB3F5C3557BD75CB67 /* Pods */,
+				6C19B03C8BDE5502EAC6209D /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -87,6 +94,23 @@
 			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
+		6C19B03C8BDE5502EAC6209D /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				19CA15BACCD628EEE57098FB /* libPods-RENES.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		DE48FFCB3F5C3557BD75CB67 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				AF5E50CB06E583697C246F1A /* Pods-RENES.debug.xcconfig */,
+				4C25B443B70C274C6EE6C6B4 /* Pods-RENES.release.xcconfig */,
+			);
+			name = Pods;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -94,9 +118,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2156BFCA1EFF5976001B3025 /* Build configuration list for PBXNativeTarget "RENES" */;
 			buildPhases = (
+				5E38099E972A1F03D9175C25 /* [CP] Check Pods Manifest.lock */,
 				2156BFB21EFF5976001B3025 /* Sources */,
 				2156BFB31EFF5976001B3025 /* Frameworks */,
 				2156BFB41EFF5976001B3025 /* Resources */,
+				5DC50C99B15FEA5272A7BBA2 /* [CP] Embed Pods Frameworks */,
+				2F1448A4EA17A9397194ABD5 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -154,6 +181,54 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		2F1448A4EA17A9397194ABD5 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "[CP] Copy Pods Resources";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-RENES/Pods-RENES-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		5DC50C99B15FEA5272A7BBA2 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-RENES/Pods-RENES-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		5E38099E972A1F03D9175C25 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		2156BFB21EFF5976001B3025 /* Sources */ = {
@@ -272,6 +347,7 @@
 		};
 		2156BFCB1EFF5976001B3025 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AF5E50CB06E583697C246F1A /* Pods-RENES.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -288,6 +364,7 @@
 		};
 		2156BFCC1EFF5976001B3025 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 4C25B443B70C274C6EE6C6B4 /* Pods-RENES.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;

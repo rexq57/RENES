@@ -38,12 +38,16 @@ namespace ReNes {
         {
             auto data = *getRealAddr(addr, READ);
             
-            // 处理2002读取，每次读取之后重置第7位
-            if (addr == 0x2002)
+            // 处理2002,2005,2006读取，每次读取之后重置bit7
+            switch (addr)
             {
-                ((bit8*)&_data[0x2002])->set(7, 0);
+                case 0x2002:
+                case 0x2005:
+                case 0x2006:
+                    ((bit8*)&_data[addr])->set(7, 0);
             }
             
+
             return data;
         }
         
@@ -54,16 +58,16 @@ namespace ReNes {
         }
         
         // 写入数据
-        void writeData(uint16_t addr, const uint8_t* data_addr, size_t length)
-        {
-            memcpy(_data + addr, data_addr, length);
-            
-            // 检查地址监听
-            if (SET_FIND(addrObserver, addr))
-            {
-                addrObserver.at(addr)(addr);
-            }
-        }
+//        void writeData(uint16_t addr, const uint8_t* data_addr, size_t length)
+//        {
+//            memcpy(_data + addr, data_addr, length);
+//            
+//            // 检查地址监听
+//            if (SET_FIND(addrObserver, addr))
+//            {
+//                addrObserver.at(addr)(addr, value);
+//            }
+//        }
         
         void write8bitData(uint16_t addr, uint8_t value)
         {
@@ -72,12 +76,12 @@ namespace ReNes {
             // 检查地址监听
             if (SET_FIND(addrObserver, addr))
             {
-                addrObserver.at(addr)(addr);
+                addrObserver.at(addr)(addr, value);
             }
         }
         
         // 添加写入监听者
-        void addWritingObserver(uint16_t addr, std::function<void(uint16_t)> callback)
+        void addWritingObserver(uint16_t addr, std::function<void(uint16_t, uint8_t)> callback)
         {
             addrObserver[addr] = callback;
         }
@@ -96,11 +100,12 @@ namespace ReNes {
         {
             uint16_t fixedAddr = addr;
             
-            // 处理镜像
+            // 处理I/O寄存器镜像
             if (addr >= 0x2008 && addr <= 0x3FFF)
             {
                 fixedAddr = 0x2000 + (addr % 8);
             }
+            
             
             // 2000 2001 只写
             // 2002 只读
@@ -128,6 +133,6 @@ namespace ReNes {
         uint8_t* _data = 0;
         
         
-        std::map<uint16_t, std::function<void(uint16_t)>> addrObserver;
+        std::map<uint16_t, std::function<void(uint16_t, uint8_t)>> addrObserver;
     };
 }
