@@ -150,50 +150,66 @@ namespace ReNes {
                 });
             }
             
-            
-            
-            
             const static int f = 1024*1000*1.79; // 1.79Mhz
             const static double t = 1.0/f; // 时钟周期 0.000000545565642
             const static double cpu_cyles = 1 * t; // 0.000000572067039 上面差不多
             
             const static double ns = 1.0 / pow(10, 9); // 0.000000001
-            //        double t = ns * 1000 / 1.79;
             
-            auto t0=std::chrono::system_clock::now();
+            // cpu线程
+            std::thread cpu_thread;
+            {
+                
+                //        double t = ns * 1000 / 1.79;
+                
+                auto t0=std::chrono::system_clock::now();
+                
+                cpu_thread = std::thread(cpu_working, &_cpu, [this, &t0](int cyles){
+                    
+                    double p_t = cyles * cpu_cyles;  // 执行指令所需要花费时间
+                    
+                    auto t1=std::chrono::system_clock::now();
+                    auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0); // 实际花费实际，纳秒
+                    double d_t = d.count() * ns;
+                    
+                    double dd = p_t - d_t; // 纳秒差
+                    
+                    //                            printf("实际时间差 %f\n", dd);
+                    _cmdTime = dd;
+                    if (this->debug)
+                    {
+                        dd = this->cmd_interval * 1000 * 1000 * 1000; // 将秒转换成纳秒个数
+                    }
+                    if (dd > 0)
+                    {
+                        usleep(dd / 1000);
+                    }
+                    
+                    t0 = t1; // 记录当前时间
+                    
+                    
+                    return cpu_callback(&_cpu) && !_stoped;
+                });
+            }
             
-            std::thread cpu_thread(cpu_working, &_cpu, [this, &t0](int cyles){
+            std::thread ppu_thread;
+            {
+                auto t0=std::chrono::system_clock::now();
                 
-                double p_t = cyles * cpu_cyles;  // 执行指令所需要花费时间
-                
-                auto t1=std::chrono::system_clock::now();
-                auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0); // 实际花费实际，纳秒
-                double d_t = d.count() * ns;
-                
-                double dd = p_t - d_t; // 纳秒差
-                
-//                            printf("实际时间差 %f\n", dd);
-                if (this->debug)
-                {
-                    dd = this->cmd_interval * 1000 * 1000 * 1000; // 将秒转换成纳秒个数
-                }
-                if (dd > 0)
-                {
-                    usleep(dd / 1000);
-                }
-                
-                t0 = t1; // 记录当前时间
-                
-                
-                return cpu_callback(&_cpu) && !_stoped;
-            });
-            
-            std::thread ppu_thread(ppu_working, &_ppu, [this](){
-                
-                _cpu.interrupts(CPU::InterruptTypeNMI); // 每次VBlank发生在最后一行，就是绘制完一帧的时候
-                
-                return ppu_callback(&_ppu) && !_stoped;
-            });
+                ppu_thread = std::thread(ppu_working, &_ppu, [this, &t0](){
+                    
+                    auto t1=std::chrono::system_clock::now();
+                    auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0); // 实际花费实际，纳秒
+                    double d_t = d.count() * ns;
+                    
+                    _renderTime = d_t;
+                    t0 = t1; // 记录当前时间
+                    
+                    _cpu.interrupts(CPU::InterruptTypeNMI); // 每次VBlank发生在最后一行，就是绘制完一帧的时候
+                    
+                    return ppu_callback(&_ppu) && !_stoped;
+                });
+            }
             
             cpu_thread.join();
             ppu_thread.join();
@@ -246,6 +262,16 @@ namespace ReNes {
             return &_ctr;
         }
         
+        double cmdTime()
+        {
+            return _cmdTime;
+        }
+        
+        double renderTime()
+        {
+            return _renderTime;
+        }
+        
         std::function<bool(CPU*)> cpu_callback;
         std::function<bool(PPU*)> ppu_callback;
         
@@ -256,6 +282,9 @@ namespace ReNes {
         PPU _ppu;
         Memory _mem;
         Control _ctr;
+        
+        double _cmdTime;
+        double _renderTime;
         
         bool _stoped;
         std::function<void()> _stopedCallback;

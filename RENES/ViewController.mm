@@ -248,7 +248,7 @@ using namespace ReNes;
         
         _registersView.stringValue = [NSString stringWithFormat:@"PC: 0x%04X SP: 0x%04X\n\
 C:%d Z:%d I:%d D:%d B:%d _:%d V:%d N:%d\n\
-A:%d X:%d Y:%d", regs.PC, regs.SP,
+A:%d X:%d Y:%d (%lf, %lf)", regs.PC, regs.SP,
                                       regs.P.get(CPU::__registers::C),
                                       regs.P.get(CPU::__registers::Z),
                                       regs.P.get(CPU::__registers::I),
@@ -257,7 +257,8 @@ A:%d X:%d Y:%d", regs.PC, regs.SP,
                                       regs.P.get(CPU::__registers::_),
                                       regs.P.get(CPU::__registers::V),
                                       regs.P.get(CPU::__registers::N),
-                                      regs.A,regs.X,regs.Y];
+                                      regs.A,regs.X,regs.Y,
+                                      _nes->cmdTime(), _nes->renderTime()];
         
         
     });

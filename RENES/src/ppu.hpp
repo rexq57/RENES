@@ -73,16 +73,18 @@ namespace ReNes {
                     case 0x2003:
                     {
                         dstAddrWriting(_dstWrite2003, _dstAddr2004);
+                        
+                        if (_dstWrite2003 == 1)
+                            _sprramWritingEnabled = true;
                         break;
                     }
                     case 0x2004:
                     {
-                        _sprram[_dstAddr2004++] = value;
-                        _dstWrite2003 = 1;
-                        
-                        // 激活写入的精灵
-                        if (_dstAddr2004 / 4 > _spriteCount)
-                            _spriteCount = _dstAddr2004 / 4;
+                        if (_sprramWritingEnabled)
+                        {
+                            _sprram[_dstAddr2004++] = value;
+                            _dstWrite2003 = 1;
+                        }
                         
                         break;
                     }
@@ -173,9 +175,11 @@ namespace ReNes {
             }
             
             // 绘制精灵
-            for (int i=0; i<_spriteCount; i++)
+            for (int i=0; i<64; i++)
             {
                 Sprite* spr = (Sprite*)&_sprram[i*4];
+                if (*(int*)spr == 0) // 没有精灵数据
+                    continue;
                 
                 // 目前只处理8x8的精灵
 //                for (int j=0; j<10; j++)
@@ -330,22 +334,21 @@ namespace ReNes {
         
         void reset()
         {
-            _spriteCount = 0;
             _dstWrite2003 = 1;
             _dstAddr2004 = 0;
+            _sprramWritingEnabled = false;
             _dstWrite2006 = 1;
             _dstAddr2007 = 0;
             
             memset(_sprram, 0, 256);
         }
         
-        int _spriteCount = 0; // 激活的精灵geshu
-        
         int _dstWrite2003 = 1;
-        uint16_t _dstAddr2004;
+        uint16_t _dstAddr2004 = 0;
+        bool _sprramWritingEnabled = false;
         
         int _dstWrite2006 = 1;
-        uint16_t _dstAddr2007;
+        uint16_t _dstAddr2007 = 0;
         
         uint8_t* _buffer = 0;
         

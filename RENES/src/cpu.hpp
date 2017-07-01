@@ -43,11 +43,15 @@ namespace ReNes {
         
         ZERO_PAGE_Y_8bit,
         
-        INDEXED_ABSOLUTE_8bit, // 间接绝对寻址，8bit数据
-        INDEXED_ABSOLUTE_X_8bit, // 间接绝对寻址，8bit数据
+        INDEXED_ABSOLUTE_8bit, // 索引绝对寻址，8bit数据
+        INDEXED_ABSOLUTE_X_8bit, // 索引绝对寻址，8bit数据
+        INDEXED_ABSOLUTE_Y_8bit, // 索引绝对寻址，8bit数据
         
         IMMIDIATE_8bit,     // 立即数，8bit数据
         IMMIDIATE_16bit,    // 立即数，16bit数据
+        
+        INDIRECT_ABSOLUTE_8bit, // 间接绝对寻址
+        INDIRECT_ABSOLUTE_Y_8bit, // 间接绝对寻址
         
         DATA_VALUE,
     };
@@ -126,7 +130,7 @@ namespace ReNes {
             
             // 寄存器初始化
             regs.PC = 0;
-            regs.SP = 0;
+            regs.SP = 0xFF; // 栈是自上而下增加
             
             error = false;
             
@@ -262,6 +266,8 @@ namespace ReNes {
                     /* STA oper  */ {0x85, {CF_ST, DST_REGS_A, ZERO_PAGE_8bit, 2, 3}},
                     /* STA oper,X  */ {0x95, {CF_ST, DST_REGS_A, ZERO_PAGE_X_8bit, 2, 4}},
                     /* STA oper  */ {0x8D, {CF_ST, DST_REGS_A, INDEXED_ABSOLUTE_8bit, 3, 4}},
+                    /* STA oper,Y  */ {0x99, {CF_ST, DST_REGS_A, INDEXED_ABSOLUTE_Y_8bit, 3, 5}},
+                    /* STA (oper),Y  */ {0x91, {CF_ST, DST_REGS_A, INDIRECT_ABSOLUTE_Y_8bit, 2, 6}},
                     
                     /* STX oper  */ {0x86, {CF_ST, DST_REGS_X, ZERO_PAGE_8bit, 2, 3}},
                     /* STX oper,X  */ {0x96, {CF_ST, DST_REGS_X, ZERO_PAGE_Y_8bit, 2, 4}},
@@ -271,6 +277,9 @@ namespace ReNes {
                     /* LDX #oper */ {0xA2, {CF_LD, DST_REGS_X, IMMIDIATE_8bit, 2, 2}},
                     /* LDA oper,X*/ {0xBD, {CF_LD, DST_REGS_A, INDEXED_ABSOLUTE_X_8bit, 3, 4}},
                     /* INX */      {0xE8, {CF_IN, DST_REGS_X, ACCUMULATOR, 1, 2}},
+                    /* INY */      {0xC8, {CF_IN, DST_REGS_Y, ACCUMULATOR, 1, 2}},
+                    /* INC oper */  {0xEE, {CF_IN, DST_M, INDEXED_ABSOLUTE_8bit, 3, 6}},
+                    
                     /* DEX */      {0xCA, {CF_DE, DST_REGS_X, ACCUMULATOR, 1, 2}},
                     /* DEY */      {0x88, {CF_DE, DST_REGS_Y, ACCUMULATOR, 1, 2}},
                     /* SBC */      {0xE9, {CF_SBC, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
@@ -284,7 +293,7 @@ namespace ReNes {
                     /* BPL oper */  {0x10, {CF_B, DST_REGS_P_N, IMMIDIATE_8bit_AND_CMP_0, 2, 2}},
                     /* BCS oper */  {0xB0, {CF_B, DST_REGS_P_C, IMMIDIATE_8bit_AND_CMP_1, 2, 2}},
                     
-                    /* INC oper */  {0xEE, {CF_IN, DST_M, INDEXED_ABSOLUTE_8bit, 3, 6}},
+                    
                     /* RTI */      {0x40, {CF_RTI, DST_NONE, ACCUMULATOR, 1, 6}},
                     /* JSR oper */  {0x20, {CF_JSR, DST_NONE, IMMIDIATE_16bit, 3, 6}},
                     /* RTS */      {0x60, {CF_RTS, DST_NONE, ACCUMULATOR, 1, 6}},
@@ -301,7 +310,9 @@ namespace ReNes {
                     /* TXS */ {0x9A, {CF_TX, DST_REGS_SP, ACCUMULATOR, 1, 2}},
                     /* TXA */ {0x8A, {CF_TX, DST_REGS_A, ACCUMULATOR, 1, 2}},
                     
+                    /* BIT oper */ {0x2C, {CF_BIT, DST_REGS_P_Z, IMMIDIATE_8bit, 3, 4}},
                     
+                    /* ORA #oper */ {0x09, {CF_OR, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
                 };
             }
 
@@ -396,12 +407,21 @@ namespace ReNes {
                         }
                         case CF_SBC:
                         {
-                            calFunc(dst, CALCODE_AD, -addressingValue(mode)-valueFromRegs(DST_REGS_P_C));
+                            calFunc(dst, CALCODE_AD, -(addressingValue(mode)+valueFromRegs(DST_REGS_P_C)));
                             break;
                         }
                         case CF_ADC:
                         {
                             calFunc(dst, CALCODE_AD, addressingValue(mode)+valueFromRegs(DST_REGS_P_C));
+                            break;
+                        }
+                        case CF_BIT:
+                        {
+//                            calFunc(DST_REGS_P_Z, CALCODE_BIT, addressingValue(mode));
+                            
+                            uint8_t dst_value = valueFromRegs(dst);
+                            cal(&dst_value, CALCODE_BIT, addressingValue(mode));
+                            
                             break;
                         }
                         case CF_B:
@@ -419,9 +439,15 @@ namespace ReNes {
                             jumpPC = offset;
                             break;
                         }
+                        case CF_OR:
+                        {
+                            calFunc(dst, CALCODE_OR, addressingValue(mode));
+                            break;
+                        }
                         case CF_RTS:
                         {
-                            if (regs.SP >= 2)
+//                            if (regs.SP >= 2)
+                            if (regs.SP <= 0xFD)
                             {
                                 uint8_t PC_high = pop();
                                 uint8_t PC_low = pop();
@@ -467,6 +493,7 @@ namespace ReNes {
                     switch (info.mode)
                     {
                         case IMMIDIATE_8bit_AND_CMP_0:
+                        case IMMIDIATE_8bit_AND_CMP_1:
                         case IMMIDIATE_8bit:
                             // 相对跳转
                             regs.PC += jumpPC;
@@ -510,6 +537,10 @@ namespace ReNes {
             CF_DE,
             CF_SBC,
             CF_ADC,
+            
+            CF_BIT,
+            
+            CF_OR,
         };
         
         const std::map<CF, std::string> CF_NAME = {
@@ -532,6 +563,10 @@ namespace ReNes {
             {CF_DE, "DE"},
             {CF_SBC, "SBC"},
             {CF_ADC, "ADC"},
+            
+            {CF_BIT, "BIT"},
+            
+            {CF_OR, "OR"},
         };
         
         enum DST{
@@ -711,6 +746,16 @@ namespace ReNes {
                     addr = _mem->read16bitData(dataAddr) + regs.X;
                     break;
                 }
+                case INDEXED_ABSOLUTE_Y_8bit:
+                {
+                    addr = _mem->read16bitData(dataAddr) + regs.Y;
+                    break;
+                }
+                case INDIRECT_ABSOLUTE_Y_8bit:
+                {
+                    addr = _mem->read16bitData(_mem->read16bitData(dataAddr)) + regs.Y;
+                    break;
+                }
                 default:
                     assert(!"error!");
                     break;
@@ -784,14 +829,16 @@ namespace ReNes {
                 
                 _mem->write8bitData(stack_addr, *(addr+i));
                 
-                regs.SP ++;
+//                regs.SP ++;
+                regs.SP --;
             }
         }
         
         // 出栈
         uint8_t pop()
         {
-            regs.SP --;
+//            regs.SP --;
+            regs.SP ++;
             return _mem->read8bitData(STACK_ADDR_OFFSET + regs.SP);
         }
         
@@ -836,6 +883,9 @@ namespace ReNes {
             CALCODE_AD,
             CALCODE_CP,
             CALCODE_AND,
+            
+            CALCODE_BIT,
+            CALCODE_OR
         };
         
         template< typename T >
@@ -919,6 +969,15 @@ namespace ReNes {
                         res = int_to_hex(_mem->read16bitData(dataAddr)) + ",X";
                         break;
                     }
+                    case INDEXED_ABSOLUTE_Y_8bit:
+                    {
+                        res = int_to_hex(_mem->read16bitData(dataAddr)) + ",Y";
+                        break;
+                    }
+                    case INDIRECT_ABSOLUTE_Y_8bit:
+                    {
+                        res = int_to_hex(_mem->read16bitData(_mem->read16bitData(dataAddr))) + ",Y";
+                    }
                     case ACCUMULATOR:
                     {
                         break;
@@ -939,7 +998,8 @@ namespace ReNes {
                 {
                     const std::map<int, std::string> dstNames = {
                         {DST_REGS_P_Z, "NE"},
-                        {DST_REGS_P_N, "PL"}
+                        {DST_REGS_P_N, "PL"},
+                        {DST_REGS_P_C, "CS"}
                     };
                     
                     dst_code = dstNames.at(dst);
@@ -1034,6 +1094,27 @@ namespace ReNes {
                     new_value = old_value & value;
                     checkFLAG[__registers::N] = true;
                     checkFLAG[__registers::Z] = true;
+                    applyToDST = true;
+                    break;
+                }
+                case CALCODE_BIT:
+                {
+                    // Z = A AND M
+                    new_value = regs.A & value;
+                    checkFLAG[__registers::Z] = true;
+                    
+                    // P(b,7) = M(6,7)
+                    regs.P.set(__registers::N, ((bit8*)&value)->get(__registers::N));
+                    regs.P.set(__registers::V, ((bit8*)&value)->get(__registers::V));
+                    break;
+                }
+                case CALCODE_OR:
+                {
+                    log("%d OR %d\n", old_value, value);
+                    new_value = old_value | value;
+                    checkFLAG[__registers::N] = true;
+                    checkFLAG[__registers::Z] = true;
+                    applyToDST = true;
                     break;
                 }
                 default:
