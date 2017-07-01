@@ -771,11 +771,33 @@
                                             <action selector="debug:" target="XfG-lQ-9wD" id="ukr-6Z-KjT"/>
                                         </connections>
                                     </button>
+                                    <textField verticalHuggingPriority="750" ambiguous="YES" allowsCharacterPickerTouchBarItem="NO" translatesAutoresizingMaskIntoConstraints="NO" id="i9o-DB-KkO">
+                                        <rect key="frame" x="73" y="61" width="57" height="16"/>
+                                        <textFieldCell key="cell" controlSize="mini" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" drawsBackground="YES" id="kxD-uO-iJJ">
+                                            <font key="font" metaFont="miniSystem"/>
+                                            <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                            <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                        </textFieldCell>
+                                    </textField>
+                                    <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="KzD-1P-ebo">
+                                        <rect key="frame" x="238" y="18" width="37" height="17"/>
+                                        <buttonCell key="cell" type="roundRect" title="reset" bezelStyle="roundedRect" alignment="center" controlSize="mini" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="vbK-T1-3Ef">
+                                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                            <font key="font" metaFont="miniSystem"/>
+                                        </buttonCell>
+                                        <connections>
+                                            <action selector="resetButton:" target="XfG-lQ-9wD" id="uqi-h3-0PM"/>
+                                        </connections>
+                                    </button>
                                 </subviews>
                                 <constraints>
                                     <constraint firstItem="5pg-2O-Rfc" firstAttribute="leading" secondItem="k5N-kg-0gb" secondAttribute="trailing" constant="20" id="GTh-UX-JVk"/>
                                     <constraint firstAttribute="bottom" secondItem="9CY-2j-WiT" secondAttribute="bottom" constant="20" id="I74-g9-L7K"/>
+                                    <constraint firstItem="i9o-DB-KkO" firstAttribute="leading" secondItem="fSW-01-Cg2" secondAttribute="trailing" constant="10" id="Jhr-jm-3ge"/>
                                     <constraint firstItem="k5N-kg-0gb" firstAttribute="leading" secondItem="9CY-2j-WiT" secondAttribute="trailing" constant="20" id="Las-gX-vtd"/>
+                                    <constraint firstAttribute="bottom" secondItem="KzD-1P-ebo" secondAttribute="bottom" constant="20" id="SzO-4O-je2"/>
+                                    <constraint firstItem="KzD-1P-ebo" firstAttribute="leading" secondItem="5pg-2O-Rfc" secondAttribute="trailing" constant="20" id="Yzf-Mf-qop"/>
+                                    <constraint firstItem="i9o-DB-KkO" firstAttribute="top" secondItem="hsI-oI-CmB" secondAttribute="top" constant="20" id="aVw-fD-v6Y"/>
                                     <constraint firstItem="k5N-kg-0gb" firstAttribute="centerY" secondItem="9CY-2j-WiT" secondAttribute="centerY" id="bOi-lo-KYq"/>
                                     <constraint firstItem="fSW-01-Cg2" firstAttribute="top" secondItem="hsI-oI-CmB" secondAttribute="top" constant="20" id="cyd-yO-ha4"/>
                                     <constraint firstItem="fSW-01-Cg2" firstAttribute="leading" secondItem="hsI-oI-CmB" secondAttribute="leading" constant="20" id="hWb-qv-0Wl"/>
@@ -787,7 +809,7 @@
                                 <rect key="frame" x="433" y="14" width="414" height="268"/>
                                 <font key="font" metaFont="system"/>
                                 <tabViewItems>
-                                    <tabViewItem label="内存" identifier="1" id="kZq-Z6-BpL">
+                                    <tabViewItem label="内存" identifier="0" id="kZq-Z6-BpL">
                                         <view key="view" id="Nf0-qg-rWV">
                                             <rect key="frame" x="10" y="7" width="394" height="230"/>
                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -829,7 +851,7 @@
                                             </constraints>
                                         </view>
                                     </tabViewItem>
-                                    <tabViewItem label="VRAM" identifier="2" id="L6i-BY-0Rz">
+                                    <tabViewItem label="VRAM" identifier="1" id="L6i-BY-0Rz">
                                         <view key="view" id="kQ6-NF-xUc">
                                             <rect key="frame" x="10" y="7" width="394" height="230"/>
                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -838,7 +860,7 @@
                                                     <rect key="frame" x="0.0" y="0.0" width="394" height="230"/>
                                                     <clipView key="contentView" id="T6Y-MZ-Nys">
                                                         <rect key="frame" x="1" y="1" width="392" height="228"/>
-                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <subviews>
                                                             <textView importsGraphics="NO" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="HTT-tX-tqy">
                                                                 <rect key="frame" x="0.0" y="0.0" width="392" height="228"/>
@@ -866,6 +888,46 @@
                                                 <constraint firstItem="v8s-Eg-2Ho" firstAttribute="top" secondItem="kQ6-NF-xUc" secondAttribute="top" id="T1p-PZ-2DK"/>
                                                 <constraint firstItem="v8s-Eg-2Ho" firstAttribute="leading" secondItem="kQ6-NF-xUc" secondAttribute="leading" id="kub-6V-vlV"/>
                                                 <constraint firstAttribute="trailing" secondItem="v8s-Eg-2Ho" secondAttribute="trailing" id="nd0-1P-0Rb"/>
+                                            </constraints>
+                                        </view>
+                                    </tabViewItem>
+                                    <tabViewItem label="SPRRAM" identifier="2" id="ula-fo-pzx">
+                                        <view key="view" id="RAR-dq-DaE">
+                                            <rect key="frame" x="10" y="7" width="394" height="230"/>
+                                            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                            <subviews>
+                                                <scrollView wantsLayer="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" hasHorizontalScroller="NO" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="tYD-dw-kW2">
+                                                    <rect key="frame" x="0.0" y="0.0" width="394" height="230"/>
+                                                    <clipView key="contentView" id="MiV-rl-rsX">
+                                                        <rect key="frame" x="1" y="1" width="392" height="228"/>
+                                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                        <subviews>
+                                                            <textView importsGraphics="NO" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="aix-nH-EPa">
+                                                                <rect key="frame" x="0.0" y="0.0" width="392" height="228"/>
+                                                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                                <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                                                                <size key="minSize" width="392" height="228"/>
+                                                                <size key="maxSize" width="463" height="10000000"/>
+                                                                <color key="insertionPointColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                            </textView>
+                                                        </subviews>
+                                                        <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                                                    </clipView>
+                                                    <scroller key="horizontalScroller" hidden="YES" verticalHuggingPriority="750" doubleValue="1" horizontal="YES" id="Ltn-5a-Vp4">
+                                                        <rect key="frame" x="-100" y="-100" width="87" height="18"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                    </scroller>
+                                                    <scroller key="verticalScroller" verticalHuggingPriority="750" doubleValue="1" horizontal="NO" id="4n1-eK-F3C">
+                                                        <rect key="frame" x="377" y="1" width="16" height="228"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
+                                                    </scroller>
+                                                </scrollView>
+                                            </subviews>
+                                            <constraints>
+                                                <constraint firstAttribute="bottom" secondItem="tYD-dw-kW2" secondAttribute="bottom" id="RWI-yc-MYC"/>
+                                                <constraint firstItem="tYD-dw-kW2" firstAttribute="top" secondItem="RAR-dq-DaE" secondAttribute="top" id="Uyb-ny-ARo"/>
+                                                <constraint firstAttribute="trailing" secondItem="tYD-dw-kW2" secondAttribute="trailing" id="vKf-3D-bHF"/>
+                                                <constraint firstItem="tYD-dw-kW2" firstAttribute="leading" secondItem="RAR-dq-DaE" secondAttribute="leading" id="vZW-vc-w4o"/>
                                             </constraints>
                                         </view>
                                     </tabViewItem>
@@ -904,6 +966,8 @@
                         <outlet property="memTabView" destination="oOV-Ln-XTL" id="zqX-aL-qTG"/>
                         <outlet property="memView" destination="Ejr-rM-gwe" id="Pbd-gE-jtv"/>
                         <outlet property="registersView" destination="my7-70-8J6" id="aT9-Af-lcO"/>
+                        <outlet property="sprramView" destination="aix-nH-EPa" id="bCW-Tp-hVW"/>
+                        <outlet property="stopedCmdAddrField" destination="i9o-DB-KkO" id="BRe-ss-Ghf"/>
                         <outlet property="vramView" destination="HTT-tX-tqy" id="QAh-MO-iO9"/>
                     </connections>
                 </viewController>

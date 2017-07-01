@@ -1,7 +1,7 @@
 
 #include "mem.hpp"
-#include "semaphore.hpp"
 #include "vram.hpp"
+#include "mem.hpp"
 
 namespace ReNes {
 
@@ -13,13 +13,23 @@ namespace ReNes {
         bit8* io_regs; // I/O 寄存器, 8 x 8bit
         
 //        uint8_t VRAM[1024*16]; // 16kb
-        VRAM vram;
         
+        uint8_t* sprram()
+        {
+            return _sprram;
+        }
         
-        PPU():_sem(0)
+        VRAM* vram()
+        {
+            return &_vram;
+        }
+        
+        PPU()
         {
             // RGB 数据缓冲区
             _buffer = (uint8_t*)malloc(width()*height() * bpp());
+            
+            reset();
         }
         
         ~PPU()
@@ -30,29 +40,47 @@ namespace ReNes {
         
         void init(Memory* mem)
         {
+            _mem = mem;
             io_regs = (bit8*)mem->getIORegsAddr(); // 直接映射地址，不走mem请求，因为mem读写请求模拟了内存访问限制，那部分是留给cpu访问的
             
             std::function<void(uint16_t, uint8_t)> writtingObserver = [this](uint16_t addr, uint8_t value){
                 
+                
+                std::function<void(int&,uint16_t&)> dstAddrWriting = [value](int& dstWrite, uint16_t& dstAddr){
+                    
+                    int writeBitIndex = dstWrite;
+                    dstWrite = (dstWrite+1) % 2;
+                    
+                    
+                    dstAddr &= (0xFF << dstWrite*8); // 清理高/低位
+                    dstAddr |= (value << writeBitIndex*8); // 设置对应位
+                };
+
+                
                 // 接收来自2007的数据
                 switch (addr) {
+                        
+                    case 0x2003:
+                    {
+                        dstAddrWriting(_dstWrite2003, _dstAddr2004);
+                        break;
+                    }
+                    case 0x2004:
+                    {
+//                        vram.write8bitData(_dstAddr2004++, value);
+                        _sprram[_dstAddr2004++] = value;
+                        _dstWrite2003 = 1;
+                        
+                        // 激活写入的精灵
+                        if (_dstAddr2004 / 4 > _spriteCount)
+                            _spriteCount = _dstAddr2004 / 4;
+                        
+                        break;
+                    }
+                    
                     case 0x2006:
                     {
-//                        int a7 = *(uint8_t*)&io_regs[6];
-                        
-//                        if (value == 0x20)
-//                            log("fuck");
-                        
-                        
-
-                        int writeBitIndex = _2006I;
-                        _2006I = (_2006I+1) % 2;
-                        
-                        
-                        _dstAddr2007 &= (0xFF << _2006I*8); // 清理高/低位
-                        _dstAddr2007 |= (value << writeBitIndex*8); // 设置对应位
-                        
-                        
+                        dstAddrWriting(_dstWrite2006, _dstAddr2007);
                         break;
                     }
                     case 0x2007:
@@ -62,13 +90,19 @@ namespace ReNes {
                         log("向 %X 写数据 %d!\n", _dstAddr2007, value);
                         
 //                        VRAM[_dstAddr2007] = value;
-                        vram.write8bitData(_dstAddr2007, value);
+                        _vram.write8bitData(_dstAddr2007, value);
                         
                         // 在每一次向$2007写数据后，地址会根据$2000的第二个bit位增加1或者32
                         _dstAddr2007 += io_regs[0].get(1) == 0 ? 1 : 32;
                         
-                        _2006I = 1; // 每次写入2007之后，移动2006写入高位地址（可能是这样，也有可能没有这么处理）
+                        _dstWrite2006 = 1; // 每次写入2007之后，移动2006写入高位地址（可能是这样，也有可能没有这么处理）
                         
+                        break;
+                    }
+                    case 0x4014:
+                    {
+                        memcpy(_sprram, &_mem->masterData()[value << 8], 256);
+//                        memcpy(vram.masterData(), &_mem->masterData()[value << 8], 256); // test
                         break;
                     }
                     default:
@@ -78,8 +112,14 @@ namespace ReNes {
             
             
             // 设置内存写入监听器
-            mem->addWritingObserver(0x2000, writtingObserver);
-            mem->addWritingObserver(0x2001, writtingObserver);
+//            mem->addWritingObserver(0x2000, writtingObserver);
+//            mem->addWritingObserver(0x2001, writtingObserver);
+            
+            // 精灵读写监听
+            mem->addWritingObserver(0x2003, writtingObserver);
+            mem->addWritingObserver(0x2004, writtingObserver);
+            
+            
             mem->addWritingObserver(0x2006, writtingObserver);
             mem->addWritingObserver(0x2007, writtingObserver);
             
@@ -94,14 +134,14 @@ namespace ReNes {
             // 绘制背景
             // 从名称表里取当前绘制的tile（1字节）
             int nameTableIndex = 0;
-            uint8_t* nameTableAddr = &vram.masterData()[0x2000 + nameTableIndex*0x0400];
-            uint8_t* attributeTableAddr = &vram.masterData()[0x23C0 + nameTableIndex*0x0400];
-            uint8_t* petternTableAddr = &vram.masterData()[0];
+            uint8_t* nameTableAddr = &_vram.masterData()[0x2000 + nameTableIndex*0x0400];
+            uint8_t* attributeTableAddr = &_vram.masterData()[0x23C0 + nameTableIndex*0x0400];
+            uint8_t* petternTableAddr = &_vram.masterData()[0];
             
-            uint8_t* paletteAddr = &vram.masterData()[0x3F00]; // 背景调色板地址
+            uint8_t* paletteAddr = &_vram.masterData()[0x3F00]; // 背景调色板地址
             
             
-            for (int y=1; y<29; y++) // 只显示 28/30 行tile，首尾两行不显示
+            for (int y=0; y<30; y++) // 只显示 30/30 行tile
             {
                 for (int x=0; x<32; x++)
                 {
@@ -128,9 +168,11 @@ namespace ReNes {
                         for (int tx=0; tx<8; tx++)
                         {
                             // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
-                            int low2 = ((bit8*)&tileAddr[ty])->get(tx) | ((bit8*)&tileAddr[ty+8])->get(tx);
+                            int low0 = ((bit8*)&tileAddr[ty])->get(tx);
+                            int low1 = ((bit8*)&tileAddr[ty+8])->get(tx);
+                            int low2 = low0 | (low1 << 1);
                             
-                            int paletteUnitIndex = (high2 << 2) + low2;
+                            int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
                             int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
                             
                             int pixelIndex = (y*8 + ty) * 32*8*3 + (x*8+tx) *3;
@@ -140,14 +182,23 @@ namespace ReNes {
                             *(RGB*)&_buffer[pixelIndex] = *rgb;
 //                            log("colorIndex %d\n", systemPaletteUnitIndex);
                         }
-                        
-                        // 根据当前
-                        
                     }
                 }
             }
             
-            
+            // 绘制精灵
+            uint8_t* vramData = _vram.masterData();
+            for (int i=0; i<_spriteCount; i++)
+            {
+//                int spr_y = vramData[i*4];
+//                int spr_i = vramData[i*4+1];
+//                bit8 spr_p = *(bit8*)&vramData[i*4+2];
+//                int spr_x = vramData[i*4+3];
+                
+                Sprite* spr = (Sprite*)&vramData[i*4];
+                
+                
+            }
             
 //            for (int y=0; y<height(); y++)
 //            {
@@ -160,6 +211,7 @@ namespace ReNes {
 //                }
 //            }
             
+
             // 绘制完成，等于发生了 VBlank，需要设置 2002 第7位
             io_regs[2].set(7, 1);
         }
@@ -186,6 +238,14 @@ namespace ReNes {
         
     private:
         
+        struct Sprite {
+            
+            int spr_y;
+            int spr_i;
+            bit8 spr_p;
+            int spr_x;
+        };
+        
         struct RGB {
             uint8_t r;
             uint8_t g;
@@ -210,7 +270,8 @@ namespace ReNes {
             0,64,0,
             0,60,0,
             0,50,60,
-            0,0,0,
+            0,0,0, 0,0,0, 0,0,0,
+            
             152,150,152,
             8,76,196,
             48,50,236,
@@ -224,7 +285,8 @@ namespace ReNes {
             8,124,0,
             0,118,40,
             0,102,120,
-            0,0,0,
+            0,0,0, 0,0,0, 0,0,0,
+            
             236,238,236,
             76,154,236,
             120,124,236,
@@ -238,7 +300,8 @@ namespace ReNes {
             76,208,32,
             56,204,108,
             56,180,204,
-            60,60,60,
+            60,60,60, 0,0,0, 0,0,0,
+            
             236,238,236,
             168,204,236,
             188,188,236,
@@ -252,17 +315,32 @@ namespace ReNes {
             168,226,144,
             152,226,180,
             160,214,228,
-            160,162,160
+            160,162,160, 0,0,0, 0,0,0,
         };
         
+        void reset()
+        {
+            _spriteCount = 0;
+            _dstWrite2003 = 1;
+            _dstAddr2004 = 0;
+            _dstWrite2006 = 1;
+            _dstAddr2007 = 0;
+            
+            memset(_sprram, 0, 256);
+        }
         
-        int _2006I = 1;
+        int _spriteCount = 0; // 激活的精灵geshu
+        
+        int _dstWrite2003 = 1;
+        uint16_t _dstAddr2004;
+        
+        int _dstWrite2006 = 1;
         uint16_t _dstAddr2007;
         
         uint8_t* _buffer = 0;
         
-        uint8_t _sprram[256]; // 精灵内存
-        Semaphore _sem;
-        
+        uint8_t _sprram[256]; // 精灵内存, 64 个，每个4字节
+        VRAM _vram;
+        Memory* _mem;
     };
 }

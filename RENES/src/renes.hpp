@@ -48,6 +48,12 @@ namespace ReNes {
             setDebug(false);
         }
         
+        void stop(std::function<void()> stopedCallback)
+        {
+            _stoped = true;
+            _stopedCallback = stopedCallback;
+        }
+        
         // 加载rom
         void loadRom(const uint8_t* rom, size_t length)
         {
@@ -92,12 +98,15 @@ namespace ReNes {
             {
                 const uint8_t* vromAddr = &rom[16]+1024*16*rom16kB_count;
                 
-                memcpy(_ppu.vram.masterData(), vromAddr, 1024*8);
+                memcpy(_ppu.vram()->masterData(), vromAddr, 1024*8);
             }
         }
+
         
         // 执行当前指令
         void run() {
+            
+            _stoped = false;
             
             // 初始化cpu
             _cpu.init(&_mem);
@@ -136,18 +145,16 @@ namespace ReNes {
                 
                 t0 = t1; // 记录当前时间
                 
-                return cpu_callback();
+                return cpu_callback(&_cpu) && !_stoped;
             });
             
             std::thread ppu_thread(ppu_working, &_ppu, [this](){
                 
-                return ppu_callback();
+                return ppu_callback(&_ppu) && !_stoped;
             });
             
             cpu_thread.join();
             ppu_thread.join();
-            
-            
             
             if (_cpu.error)
             {
@@ -156,6 +163,11 @@ namespace ReNes {
             else
             {
                 log("模拟器正常退出!\n");
+            }
+            
+            if (_stopedCallback != 0)
+            {
+                _stopedCallback();
             }
         }
         
@@ -182,13 +194,15 @@ namespace ReNes {
             return &_ppu;
         }
         
-         Memory* mem() 
+        Memory* mem()
         {
             return &_mem;
         }
         
-        std::function<bool()> cpu_callback;
-        std::function<bool()> ppu_callback;
+        
+        
+        std::function<bool(CPU*)> cpu_callback;
+        std::function<bool(PPU*)> ppu_callback;
         
     private:
         
@@ -196,7 +210,8 @@ namespace ReNes {
         PPU _ppu;
         Memory _mem;
         
-        
+        bool _stoped;
+        std::function<void()> _stopedCallback;
     };
     
     

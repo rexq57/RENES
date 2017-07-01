@@ -12,25 +12,35 @@
 #import "MyOpenGLView.h"
 #import <BlocksKit/BlocksKit.h>
 
+
+using namespace ReNes;
+
 @interface ViewController()
 {
-    ReNes::Nes _nes;
+    ReNes::Nes* _nes;
     
     dispatch_semaphore_t _nextSem;
     
     BOOL _keepNext;
     
     std::string _logStringCache;
+    
+    int _stopedCmdAddr;
 }
 
 @property (nonatomic) IBOutlet MyOpenGLView* displayView;
 @property (nonatomic) IBOutlet NSTabView* memTabView;
 @property (nonatomic) IBOutlet NSTextView* memView;
 @property (nonatomic) IBOutlet NSTextView* vramView;
+@property (nonatomic) IBOutlet NSTextView* sprramView;
+
+@property (nonatomic) IBOutlet NSTextField* stopedCmdAddrField;
 
 
 @property (nonatomic) IBOutlet NSTextView* logView;
 @property (nonatomic) IBOutlet NSTextField* registersView;
+
+
 
 @end
 
@@ -38,6 +48,9 @@
 
 - (void) log:(NSString*) buffer
 {
+    if (buffer == nil)
+        return;
+    
     dispatch_async(dispatch_get_main_queue(), ^{
         
 //        std::string str = std::string([_logView.string UTF8String]) + std::string([buffer UTF8String]);
@@ -49,6 +62,60 @@
     });
 }
 
+- (void) startNes
+{
+    // 异步
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        
+        NSString* filePath = [[NSBundle mainBundle] pathForResource:@"OUR.NES" ofType:@""];
+        NSData* data = [NSData dataWithContentsOfFile:filePath];
+        
+        if (_nes != 0)
+        {
+            delete _nes;
+        }
+        _nes = new ReNes::Nes();
+        
+        _nes->cpu_callback = [self](CPU* cpu){
+            
+            // 手动中断
+            //            @synchronized ((__bridge id)_nes)
+            {
+                if (cpu == _nes->cpu())
+                {
+                    if (!_keepNext || cpu->regs.PC == _stopedCmdAddr)
+                        dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
+                }
+            }
+            
+            
+            return true;
+        };
+        
+        _nes->ppu_callback = [self](PPU* ppu){
+            
+            //            @synchronized ((__bridge id)_nes)
+            {
+                if (ppu == _nes->ppu())
+                {
+                    // 显示图片
+                    int width  = ppu->width();
+                    int height = ppu->height();
+                    uint8_t* srcBuffer = ppu->buffer();
+                    
+                    [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+                }
+            }
+            return true;
+        };
+        
+        _nes->setDebug(true);
+        _nes->loadRom((const uint8_t*)[data bytes], [data length]);
+        
+        _nes->run();
+    });
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
 
@@ -56,48 +123,19 @@
     
     
     
-    ReNes::setLogCallback([self](const char* buffer){
-        
-        // 收集debug字符串
-        @synchronized (self) {
-            _logStringCache += buffer;
-        }
-    });
+//    ReNes::setLogCallback([self](const char* buffer){
+//        
+//        // 收集debug字符串
+//        @synchronized (self) {
+//            _logStringCache += buffer;
+//        }
+//    });
     
+    [self startNes];
     
     _nextSem = dispatch_semaphore_create(0);
     
-    // 异步
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        
-        NSString* filePath = [[NSBundle mainBundle] pathForResource:@"OUR.NES" ofType:@""];
-        NSData* data = [NSData dataWithContentsOfFile:filePath];
-        
-        _nes.cpu_callback = [self](){
-//            [self updateView]; // 不能在回调里执行
-            
-            if (!_keepNext)
-                dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
-            
-            return true;
-        };
-        
-        _nes.ppu_callback = [self](){
-            
-            // 显示图片
-            int width  = _nes.ppu()->width();
-            int height = _nes.ppu()->height();
-            uint8_t* srcBuffer = _nes.ppu()->buffer();
-            
-            [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
-            
-            return true;
-        };
-        
-        _nes.loadRom((const uint8_t*)[data bytes], [data length]);
-        
-        _nes.run();
-    });
+    
     
     NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self selector:@selector(updateView) userInfo:nil repeats:YES];
     [[NSRunLoop currentRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
@@ -111,17 +149,27 @@
         int count;
         NSTextView* dstView;
         uint8_t* srcData;
-        if ([[_memTabView.selectedTabViewItem identifier] integerValue] == 1)
-        {
-            dstView = _memView;
-            count = 0x10000;
-            srcData = _nes.mem()->masterData();
-        }
-        else
-        {
-            dstView = _vramView;
-            count = 1024*16;
-            srcData = _nes.ppu()->vram.masterData();
+
+        switch ([[_memTabView.selectedTabViewItem identifier] integerValue]) {
+            case 0:
+                dstView = _memView;
+                count = 0x10000;
+                srcData = _nes->mem()->masterData();
+                break;
+            case 1:
+                dstView = _vramView;
+                count = 1024*16;
+                srcData = _nes->ppu()->vram()->masterData();
+                break;
+            
+            case 2:
+                dstView = _sprramView;
+                count = 0x100;
+                srcData = _nes->ppu()->sprram();
+                break;
+            default:
+                assert(!"error!");
+                break;
         }
         
         
@@ -164,6 +212,7 @@
 
 - (void) updateView
 {
+    // 打印寄存器
     [self updateRegisters];
     
     // 打印内存
@@ -182,7 +231,7 @@
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         
-        const ReNes::CPU::__registers& regs = _nes.cpu()->regs;
+        const ReNes::CPU::__registers& regs = _nes->cpu()->regs;
         
         _registersView.stringValue = [NSString stringWithFormat:@"PC: 0x%04X SP: 0x%04X\n\
 C:%d Z:%d I:%d D:%d B:%d _:%d V:%d N:%d\n\
@@ -211,17 +260,30 @@ A:%d X:%d Y:%d", regs.PC, regs.SP,
     _keepNext = !_keepNext;
     
     dispatch_semaphore_signal(_nextSem);
+    
+    _stopedCmdAddr = [[_stopedCmdAddrField stringValue] intValue];
 }
 
 - (IBAction) MNI:(id) sender
 {
-    _nes.cpu()->interrupts(ReNes::CPU::InterruptTypeNMI);
+    _nes->cpu()->interrupts(ReNes::CPU::InterruptTypeNMI);
 }
 
 - (IBAction) debug:(NSButton*) sender
 {
-    _nes.setDebug(!_nes.debug);
-    _nes.cmd_interval = 0.001;
+    _nes->setDebug(!_nes->debug);
+    _nes->cmd_interval = 0.001;
+}
+
+- (IBAction) resetButton:(id)sender
+{
+    _nes->stop([self](){
+
+        [self startNes];
+    });
+
+    _keepNext = false; // 拦截在第一次cmd之后
+    dispatch_semaphore_signal(_nextSem); // 不拦截下一句指令，顺利让cpu进入stop判断
 }
 
 - (void)setRepresentedObject:(id)representedObject {
