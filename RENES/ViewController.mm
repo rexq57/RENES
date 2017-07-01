@@ -141,6 +141,19 @@ using namespace ReNes;
     [[NSRunLoop currentRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
 }
 
+- (void) viewDidAppear
+{
+    [super viewDidAppear];
+    
+    
+}
+
+- (void)setRepresentedObject:(id)representedObject {
+    [super setRepresentedObject:representedObject];
+    
+    // Update the view, if already loaded.
+}
+
 - (void) dumpMemToView
 {
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -290,11 +303,64 @@ A:%d X:%d Y:%d", regs.PC, regs.SP,
     dispatch_semaphore_signal(_nextSem); // 不拦截下一句指令，顺利让cpu进入stop判断
 }
 
-- (void)setRepresentedObject:(id)representedObject {
-    [super setRepresentedObject:representedObject];
 
-    // Update the view, if already loaded.
+
+
+
+- (void) keyDown:(NSEvent *)event
+{
+    switch ([event keyCode]) {
+        case 126:
+        {
+            _nes->ctr()->up(true);
+            break;
+        }
+        case 125:
+        {
+            _nes->ctr()->down(true);
+            break;
+        }
+        case 123:
+        {
+            _nes->ctr()->left(true);
+            break;
+        }
+        case 124:
+        {
+            _nes->ctr()->right(true);
+            break;
+        }
+        default:
+            break;
+    }
 }
 
+- (void) keyUp:(NSEvent *)event
+{
+    switch ([event keyCode]) {
+        case 126:
+        {
+            _nes->ctr()->up(false);
+            break;
+        }
+        case 125:
+        {
+            _nes->ctr()->down(false);
+            break;
+        }
+        case 123:
+        {
+            _nes->ctr()->left(false);
+            break;
+        }
+        case 124:
+        {
+            _nes->ctr()->right(false);
+            break;
+        }
+        default:
+            break;
+    }
+}
 
 @end

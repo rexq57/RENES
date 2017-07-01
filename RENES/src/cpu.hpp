@@ -19,7 +19,14 @@ namespace ReNes {
     
     #define STACK_ADDR_OFFSET 0x0100
     
-    
+    size_t highBit(uint32_t a) {
+        size_t bits=0;
+        while (a!=0) {
+            ++bits;
+            a>>=1;
+        };
+        return bits;
+    }
     
 
     // 寻址模式
@@ -266,8 +273,8 @@ namespace ReNes {
                     /* INX */      {0xE8, {CF_IN, DST_REGS_X, ACCUMULATOR, 1, 2}},
                     /* DEX */      {0xCA, {CF_DE, DST_REGS_X, ACCUMULATOR, 1, 2}},
                     /* DEY */      {0x88, {CF_DE, DST_REGS_Y, ACCUMULATOR, 1, 2}},
-                    /* SBC */      {0xE9, {CF_SBC, DST_REGS_A, IMMIDIATE_8bit, 1, 2}},
-                    
+                    /* SBC */      {0xE9, {CF_SBC, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
+                    /* ADC */      {0x69, {CF_ADC, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
                     
                     /* CMP #oper */ {0xC9, {CF_CP, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
                     /* CPX #oper */ {0xE0, {CF_CP, DST_REGS_X, IMMIDIATE_8bit, 2, 2}},
@@ -389,7 +396,12 @@ namespace ReNes {
                         }
                         case CF_SBC:
                         {
-                            calFunc(dst, CALCODE_IN, -addressingValue(mode) -valueFromRegs(DST_REGS_P_C));
+                            calFunc(dst, CALCODE_AD, -addressingValue(mode)-valueFromRegs(DST_REGS_P_C));
+                            break;
+                        }
+                        case CF_ADC:
+                        {
+                            calFunc(dst, CALCODE_AD, addressingValue(mode)+valueFromRegs(DST_REGS_P_C));
                             break;
                         }
                         case CF_B:
@@ -497,6 +509,7 @@ namespace ReNes {
             
             CF_DE,
             CF_SBC,
+            CF_ADC,
         };
         
         const std::map<CF, std::string> CF_NAME = {
@@ -518,6 +531,7 @@ namespace ReNes {
             
             {CF_DE, "DE"},
             {CF_SBC, "SBC"},
+            {CF_ADC, "ADC"},
         };
         
         enum DST{
@@ -541,7 +555,7 @@ namespace ReNes {
             
 //            C = 0,
 //            Z,I,D,B,_,V,N
-            
+
             
             DST_M,
         };
@@ -819,6 +833,7 @@ namespace ReNes {
         enum CALCODE{
             CALCODE_SET,
             CALCODE_IN,
+            CALCODE_AD,
             CALCODE_CP,
             CALCODE_AND,
         };
@@ -949,10 +964,12 @@ namespace ReNes {
          @param op 操作符
          @param value 值
          */
-        void cal(uint8_t* dst, CALCODE op, int8_t value)
+        void cal(uint8_t* dst, CALCODE op, int value)
         {
-            uint8_t old_value = *dst;
+            int old_value = *dst;
             int8_t new_value;
+            bool applyToDST = false;
+            bool checkFLAG[8] = {0};
             
             switch (op)
             {
@@ -960,6 +977,9 @@ namespace ReNes {
                 {
                     log("%d = %d\n", old_value, value);
                     new_value = value;
+                    checkFLAG[__registers::N] = true;
+                    checkFLAG[__registers::Z] = true;
+                    applyToDST = true;
                     break;
                 }
                 case CALCODE_IN:
@@ -973,22 +993,47 @@ namespace ReNes {
                         log("%d + %d\n", old_value, value);
                     }
                     new_value = old_value + value;
+                    checkFLAG[__registers::N] = true;
+                    checkFLAG[__registers::Z] = true;
+                    applyToDST = true;
+                    break;
+                }
+                case CALCODE_AD:
+                {
+                    if (value < 0)
+                    {
+                        log("%d - %d\n", old_value, abs(value));
+                    }
+                    else
+                    {
+                        log("%d + %d\n", old_value, value);
+                    }
+                    new_value = old_value + value;
+                    
+                    // 检查
+                    checkFLAG[__registers::N] = true;
+                    checkFLAG[__registers::Z] = true;
+                    checkFLAG[__registers::C] = true;
+                    checkFLAG[__registers::V] = true;
+                    applyToDST = true;
                     break;
                 }
                 case CALCODE_CP:
                 {
                     log("%d 比较 %d\n", old_value, value);
                     new_value = old_value - value;
-                    
-                    // 减操作，检查借位
-                    regs.P.set(__registers::C, (int8_t)new_value < 0);
-                    
+
+                    checkFLAG[__registers::N] = true;
+                    checkFLAG[__registers::Z] = true;
+                    checkFLAG[__registers::C] = true;
                     break;
                 }
                 case CALCODE_AND:
                 {
                     log("%d AND %d\n", old_value, value);
                     new_value = old_value & value;
+                    checkFLAG[__registers::N] = true;
+                    checkFLAG[__registers::Z] = true;
                     break;
                 }
                 default:
@@ -997,20 +1042,22 @@ namespace ReNes {
             }
             
             // 修改寄存器标记
-            regs.P.set(__registers::Z, (int8_t)new_value == 0);
-            regs.P.set(__registers::N, (int8_t)new_value < 0);
+            if (checkFLAG[__registers::Z])
+                regs.P.set(__registers::Z, new_value == 0);
+            
+            if (checkFLAG[__registers::N])
+                regs.P.set(__registers::N, new_value < 0);
+            
+            if (checkFLAG[__registers::V])
+                regs.P.set(__registers::V, new_value < -128 || new_value > 127);
+
+            if (checkFLAG[__registers::C]) // 检查高位是否发生进位或借位
+                regs.P.set(__registers::C, highBit(old_value) != highBit(new_value));
             
             // 影响目标值
-            switch (op)
+            if (applyToDST)
             {
-                case CALCODE_SET:
-                case CALCODE_IN:
-                {
-                    *dst = new_value;
-                    break;
-                }
-                default:
-                    break;
+                *dst = new_value;
             }
         }
         

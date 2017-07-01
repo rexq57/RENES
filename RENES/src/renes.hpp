@@ -1,6 +1,8 @@
 
 #include "cpu.hpp"
 #include "ppu.hpp"
+#include "control.hpp"
+
 #include <functional>
 #include <stdio.h>
 #include "type.hpp"
@@ -110,6 +112,45 @@ namespace ReNes {
             _cpu.init(&_mem);
             _ppu.init(&_mem);
             
+            // 控制器处理
+            {
+                int dstWrite4016 = 1;
+                uint16_t dstAddr4016 = 0;
+                _mem.addWritingObserver(0x4016, [this, &dstWrite4016, &dstAddr4016](uint16_t addr, uint8_t value){
+                    
+                    // 写0x4016 2次，以设置从0x4016读取的硬件信息
+                    std::function<void(int&,uint16_t&)> dstAddrWriting = [value](int& dstWrite, uint16_t& dstAddr){
+                        
+                        int writeBitIndex = dstWrite;
+                        dstWrite = (dstWrite+1) % 2;
+                        
+                        
+                        dstAddr &= (0xFF << dstWrite*8); // 清理高/低位
+                        dstAddr |= (value << writeBitIndex*8); // 设置对应位
+                    };
+                    
+                    dstAddrWriting(dstWrite4016, dstAddr4016);
+                    
+                    // 每次重新请求控制器的时候，重置按键
+                    if (dstWrite4016 == 1 && dstAddr4016 == 0x100)
+                    {
+                        _ctr.reset();
+                    }
+                        
+                });
+                
+                _mem.addReadingObserver(0x4016, [this, &dstWrite4016, &dstAddr4016](uint16_t addr, uint8_t* value){
+                    
+                    if (dstAddr4016 == 0x100)
+                    {
+                        *value = _ctr.nextKeyStatue();
+                        
+                        dstWrite4016 = 1; // 写入high复位
+                    }
+                });
+            }
+            
+            
             
             
             const static int f = 1024*1000*1.79; // 1.79Mhz
@@ -200,16 +241,21 @@ namespace ReNes {
             return &_mem;
         }
         
-        
+        Control* ctr()
+        {
+            return &_ctr;
+        }
         
         std::function<bool(CPU*)> cpu_callback;
         std::function<bool(PPU*)> ppu_callback;
         
     private:
         
+        // 硬件
         CPU _cpu;
         PPU _ppu;
         Memory _mem;
+        Control _ctr;
         
         bool _stoped;
         std::function<void()> _stopedCallback;

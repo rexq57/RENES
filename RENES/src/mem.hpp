@@ -47,6 +47,7 @@ namespace ReNes {
                     ((bit8*)&_data[addr])->set(7, 0);
             }
             
+            process8bitReadingEvent(addr, &data);
 
             return data;
         }
@@ -54,6 +55,9 @@ namespace ReNes {
         uint16_t read16bitData(uint16_t addr) 
         {
             uint16_t data = *(uint16_t*)getRealAddr(addr, READ);
+            
+//            processReadingEvent(addr, &data);
+            
             return data;
         }
         
@@ -63,9 +67,9 @@ namespace ReNes {
 //            memcpy(_data + addr, data_addr, length);
 //            
 //            // 检查地址监听
-//            if (SET_FIND(addrObserver, addr))
+//            if (SET_FIND(addrWritingObserver, addr))
 //            {
-//                addrObserver.at(addr)(addr, value);
+//                addrWritingObserver.at(addr)(addr, value);
 //            }
 //        }
         
@@ -74,16 +78,22 @@ namespace ReNes {
             *getRealAddr(addr, WRITE) = value;
             
             // 检查地址监听
-            if (SET_FIND(addrObserver, addr))
+            if (SET_FIND(addrWritingObserver, addr))
             {
-                addrObserver.at(addr)(addr, value);
+                addrWritingObserver.at(addr)(addr, value);
             }
         }
         
         // 添加写入监听者
         void addWritingObserver(uint16_t addr, std::function<void(uint16_t, uint8_t)> callback)
         {
-            addrObserver[addr] = callback;
+            addrWritingObserver[addr] = callback;
+        }
+        
+        // 添加读取监听者
+        void addReadingObserver(uint16_t addr, std::function<void(uint16_t, uint8_t*)> callback)
+        {
+            addr8bitReadingObserver[addr] = callback;
         }
         
         bool error = false;
@@ -130,9 +140,19 @@ namespace ReNes {
             return _data + fixedAddr;
         }
         
+        void process8bitReadingEvent(uint16_t addr, uint8_t* data)
+        {
+            // 检查地址监听
+            if (SET_FIND(addr8bitReadingObserver, addr))
+            {
+                addr8bitReadingObserver.at(addr)(addr, data);
+            }
+        }
+        
         uint8_t* _data = 0;
         
         
-        std::map<uint16_t, std::function<void(uint16_t, uint8_t)>> addrObserver;
+        std::map<uint16_t, std::function<void(uint16_t, uint8_t*)>> addr8bitReadingObserver;
+        std::map<uint16_t, std::function<void(uint16_t, uint8_t)>> addrWritingObserver;
     };
 }

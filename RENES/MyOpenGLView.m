@@ -251,7 +251,11 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
 //        [self setNeedsDisplay:YES];
         [self display];
     });
+}
 
+- (void) mouseDown:(NSEvent *)event
+{
+    [self.window makeFirstResponder:self.window.contentViewController];
 }
 
 @end
