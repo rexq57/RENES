@@ -149,9 +149,8 @@ namespace ReNes {
                     {
                         case InterruptTypeNMI:
                         {
-                            // NMI中断可以被0x2000的第7位屏蔽，== 0 就是屏蔽
-//                            if ((_mem->read8bitData(0x2000) & 0x8) == 0)
-                            if ((_mem->masterData()[0x2000] & 0x80) == 1)
+                            // NMI中断可以被0x2000的第7位屏蔽，== 0 就是屏蔽，这里不通过read访问
+                            if (((bit8*)_mem->masterData())->get(7) == 0)
                             {
                                 break;
                             }
@@ -395,15 +394,11 @@ namespace ReNes {
                         }
                         case CF_B:
                         {
-//                            auto p = info.dst;
-                            
                             int value = mode - IMMIDIATE_8bit_AND_CMP_0; // 得到具体数值
                             int8_t offset = 0;
                             
-//                            if (regs.P.get(p) == value)
                             if (valueFromDST(dst, mode) == value)
                             {
-//                                offset = (int8_t)*addressing(mode, READ);
                                 offset = addressingValue(mode);
                             }
                             

@@ -17,7 +17,7 @@ using namespace ReNes;
 
 @interface ViewController()
 {
-    ReNes::Nes* _nes;
+    Nes* _nes;
     
     dispatch_semaphore_t _nextSem;
     
@@ -74,7 +74,7 @@ using namespace ReNes;
         {
             delete _nes;
         }
-        _nes = new ReNes::Nes();
+        _nes = new Nes();
         
         _nes->cpu_callback = [self](CPU* cpu){
             
@@ -83,7 +83,7 @@ using namespace ReNes;
             {
                 if (cpu == _nes->cpu())
                 {
-                    if (!_keepNext || cpu->regs.PC == _stopedCmdAddr)
+                    if (!_keepNext || (cpu->regs.PC == _stopedCmdAddr && log("自定义地址中断\n")))
                         dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
                 }
             }
@@ -123,7 +123,7 @@ using namespace ReNes;
     
     
     
-//    ReNes::setLogCallback([self](const char* buffer){
+//    setLogCallback([self](const char* buffer){
 //        
 //        // 收集debug字符串
 //        @synchronized (self) {
@@ -231,19 +231,19 @@ using namespace ReNes;
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         
-        const ReNes::CPU::__registers& regs = _nes->cpu()->regs;
+        const CPU::__registers& regs = _nes->cpu()->regs;
         
         _registersView.stringValue = [NSString stringWithFormat:@"PC: 0x%04X SP: 0x%04X\n\
 C:%d Z:%d I:%d D:%d B:%d _:%d V:%d N:%d\n\
 A:%d X:%d Y:%d", regs.PC, regs.SP,
-                                      regs.P.get(ReNes::CPU::__registers::C),
-                                      regs.P.get(ReNes::CPU::__registers::Z),
-                                      regs.P.get(ReNes::CPU::__registers::I),
-                                      regs.P.get(ReNes::CPU::__registers::D),
-                                      regs.P.get(ReNes::CPU::__registers::B),
-                                      regs.P.get(ReNes::CPU::__registers::_),
-                                      regs.P.get(ReNes::CPU::__registers::V),
-                                      regs.P.get(ReNes::CPU::__registers::N),
+                                      regs.P.get(CPU::__registers::C),
+                                      regs.P.get(CPU::__registers::Z),
+                                      regs.P.get(CPU::__registers::I),
+                                      regs.P.get(CPU::__registers::D),
+                                      regs.P.get(CPU::__registers::B),
+                                      regs.P.get(CPU::__registers::_),
+                                      regs.P.get(CPU::__registers::V),
+                                      regs.P.get(CPU::__registers::N),
                                       regs.A,regs.X,regs.Y];
         
         
@@ -252,6 +252,7 @@ A:%d X:%d Y:%d", regs.PC, regs.SP,
 
 - (IBAction) next:(id)sender
 {
+    _keepNext = false;
     dispatch_semaphore_signal(_nextSem);
 }
 
@@ -261,12 +262,14 @@ A:%d X:%d Y:%d", regs.PC, regs.SP,
     
     dispatch_semaphore_signal(_nextSem);
     
-    _stopedCmdAddr = [[_stopedCmdAddrField stringValue] intValue];
+    int number = (int)strtol([[_stopedCmdAddrField stringValue] UTF8String], NULL, 16);
+    
+    _stopedCmdAddr = number;
 }
 
 - (IBAction) MNI:(id) sender
 {
-    _nes->cpu()->interrupts(ReNes::CPU::InterruptTypeNMI);
+    _nes->cpu()->interrupts(CPU::InterruptTypeNMI);
 }
 
 - (IBAction) debug:(NSButton*) sender
@@ -277,6 +280,7 @@ A:%d X:%d Y:%d", regs.PC, regs.SP,
 
 - (IBAction) resetButton:(id)sender
 {
+    // 停止，才重新启动
     _nes->stop([self](){
 
         [self startNes];

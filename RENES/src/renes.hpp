@@ -83,13 +83,11 @@ namespace ReNes {
                 const uint8_t* romAddr = &rom[16];
                 
                 memcpy(_mem.masterData() + PRG_ROM_LOWER_BANK_OFFSET, romAddr, 1024*16);
-//                _mem.writeData(PRG_ROM_LOWER_BANK_OFFSET, romAddr, 1024*16);
                 
                 // 如果只有1个16kB的bank，则需要再复制一份到0xC000处，让中断向量能够在0xFFFA出现
                 if (rom16kB_count == 1)
                 {
                     memcpy(_mem.masterData() + PRG_ROM_UPPER_BANK_OFFSET, romAddr, 1024*16);
-//                    _mem.writeData(PRG_ROM_UPPER_BANK_OFFSET, romAddr, 1024*16);
                 }
             }
             
@@ -145,10 +143,13 @@ namespace ReNes {
                 
                 t0 = t1; // 记录当前时间
                 
+                
                 return cpu_callback(&_cpu) && !_stoped;
             });
             
             std::thread ppu_thread(ppu_working, &_ppu, [this](){
+                
+                _cpu.interrupts(CPU::InterruptTypeNMI); // 每次VBlank发生在最后一行，就是绘制完一帧的时候
                 
                 return ppu_callback(&_ppu) && !_stoped;
             });

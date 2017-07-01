@@ -4,6 +4,13 @@
 #include "mem.hpp"
 
 namespace ReNes {
+    
+    /*
+     未完成：
+     1、VBlank 逐行发送模拟，目前是绘完最后发送
+     2、0x2000第5bit开启8x16精灵
+     
+     */
 
     // 2C02
     class PPU {
@@ -26,6 +33,9 @@ namespace ReNes {
         
         PPU()
         {
+            // 检查数据尺寸
+            assert(4 == sizeof(Sprite));
+            
             // RGB 数据缓冲区
             _buffer = (uint8_t*)malloc(width()*height() * bpp());
             
@@ -67,7 +77,6 @@ namespace ReNes {
                     }
                     case 0x2004:
                     {
-//                        vram.write8bitData(_dstAddr2004++, value);
                         _sprram[_dstAddr2004++] = value;
                         _dstWrite2003 = 1;
                         
@@ -85,11 +94,8 @@ namespace ReNes {
                     }
                     case 0x2007:
                     {
-//                        uint8_t data = *(uint8_t*)&io_regs[7];
-                        
                         log("向 %X 写数据 %d!\n", _dstAddr2007, value);
                         
-//                        VRAM[_dstAddr2007] = value;
                         _vram.write8bitData(_dstAddr2007, value);
                         
                         // 在每一次向$2007写数据后，地址会根据$2000的第二个bit位增加1或者32
@@ -102,7 +108,6 @@ namespace ReNes {
                     case 0x4014:
                     {
                         memcpy(_sprram, &_mem->masterData()[value << 8], 256);
-//                        memcpy(vram.masterData(), &_mem->masterData()[value << 8], 256); // test
                         break;
                     }
                     default:
@@ -110,19 +115,15 @@ namespace ReNes {
                 }
             };
             
-            
-            // 设置内存写入监听器
-//            mem->addWritingObserver(0x2000, writtingObserver);
-//            mem->addWritingObserver(0x2001, writtingObserver);
-            
             // 精灵读写监听
             mem->addWritingObserver(0x2003, writtingObserver);
             mem->addWritingObserver(0x2004, writtingObserver);
             
-            
+            // vram读写监听
             mem->addWritingObserver(0x2006, writtingObserver);
             mem->addWritingObserver(0x2007, writtingObserver);
             
+            // DMA拷贝监听
             mem->addWritingObserver(0x4014, writtingObserver);
         }
         
@@ -136,10 +137,13 @@ namespace ReNes {
             int nameTableIndex = 0;
             uint8_t* nameTableAddr = &_vram.masterData()[0x2000 + nameTableIndex*0x0400];
             uint8_t* attributeTableAddr = &_vram.masterData()[0x23C0 + nameTableIndex*0x0400];
-            uint8_t* petternTableAddr = &_vram.masterData()[0];
+            uint8_t* bkPetternTableAddr = &_vram.masterData()[0];
+            uint8_t* sprPetternTableAddr = &_vram.masterData()[0x1000];
             
-            uint8_t* paletteAddr = &_vram.masterData()[0x3F00]; // 背景调色板地址
+            uint8_t* bkPaletteAddr = &_vram.masterData()[0x3F00];   // 背景调色板地址
+            uint8_t* sprPaletteAddr = &_vram.masterData()[0x3F10]; // 精灵调色板地址
             
+
             
             for (int y=0; y<30; y++) // 只显示 30/30 行tile
             {
@@ -161,59 +165,39 @@ namespace ReNes {
                     
                     // 确定在图案表里的tile地址，每个tile是8x8像素，占用16字节。
                     // 前8字节(8x8) + 后8字节(8x8)
-                    uint8_t* tileAddr = &petternTableAddr[tileIndex * 16];
+                    uint8_t* tileAddr = &bkPetternTableAddr[tileIndex * 16];
+
+                    drawTile(x*8, y*8, high2, tileAddr, bkPaletteAddr);
                     
-                    for (int ty=0; ty<8; ty++)
-                    {
-                        for (int tx=0; tx<8; tx++)
-                        {
-                            // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
-                            int low0 = ((bit8*)&tileAddr[ty])->get(tx);
-                            int low1 = ((bit8*)&tileAddr[ty+8])->get(tx);
-                            int low2 = low0 | (low1 << 1);
-                            
-                            int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
-                            int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
-                            
-                            int pixelIndex = (y*8 + ty) * 32*8*3 + (x*8+tx) *3;
-                            
-                            RGB* rgb = (RGB*)&defaultPalette[systemPaletteUnitIndex*3];
-                            
-                            *(RGB*)&_buffer[pixelIndex] = *rgb;
-//                            log("colorIndex %d\n", systemPaletteUnitIndex);
-                        }
-                    }
                 }
             }
             
             // 绘制精灵
-            uint8_t* vramData = _vram.masterData();
             for (int i=0; i<_spriteCount; i++)
             {
-//                int spr_y = vramData[i*4];
-//                int spr_i = vramData[i*4+1];
-//                bit8 spr_p = *(bit8*)&vramData[i*4+2];
-//                int spr_x = vramData[i*4+3];
+                Sprite* spr = (Sprite*)&_sprram[i*4];
                 
-                Sprite* spr = (Sprite*)&vramData[i*4];
+                // 目前只处理8x8的精灵
+//                for (int j=0; j<10; j++)
+//                {
+//                    uint8_t* tileAddr = &sprPetternTableAddr[j * 16];;//&petternTableAddr[spr->tileIndex * 16];
+//                    
+//                    int high2 = spr->info.get(0) | (spr->info.get(1) << 1);
+//                    drawTile(spr->x + 1 + j*10, spr->y + 1, high2, tileAddr, sprPaletteAddr);
+//                }
                 
+                uint8_t* tileAddr = &sprPetternTableAddr[spr->tileIndex * 16];
+                
+                int high2 = spr->info.get(0) | (spr->info.get(1) << 1);
+                drawTile(spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr);
                 
             }
-            
-//            for (int y=0; y<height(); y++)
-//            {
-//                for (int x=0; x<width(); x++)
-//                {
-//                    int i = (y*width()+x)*bpp();
-//                    _buffer[i] = 0xff;
-//                    _buffer[i+1] = 0;
-//                    _buffer[i+2] = 0;
-//                }
-//            }
-            
 
-            // 绘制完成，等于发生了 VBlank，需要设置 2002 第7位
+            
+            // 绘制完成，等于发生了 VBlank，需要设置 2002 第7位（其实是每一行扫描线完成就会触发）
             io_regs[2].set(7, 1);
+            
+            
         }
         
         int width()
@@ -238,12 +222,38 @@ namespace ReNes {
         
     private:
         
+        void drawTile(int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr)
+        {
+            
+            for (int ty=0; ty<8; ty++)
+            {
+                for (int tx=0; tx<8; tx++)
+                {
+                    // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
+                    int low0 = ((bit8*)&tileAddr[ty])->get(tx);
+                    int low1 = ((bit8*)&tileAddr[ty+8])->get(tx);
+                    int low2 = low0 | (low1 << 1);
+                    
+                    int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
+                    int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
+                    
+                    int pixelIndex = (y + ty) * 32*8*3 + (x+tx) *3;
+                    
+                    RGB* rgb = (RGB*)&defaultPalette[systemPaletteUnitIndex*3];
+                    
+                    *(RGB*)&_buffer[pixelIndex] = *rgb;
+                    
+                    //                            log("colorIndex %d\n", systemPaletteUnitIndex);
+                }
+            }
+        }
+        
         struct Sprite {
             
-            int spr_y;
-            int spr_i;
-            bit8 spr_p;
-            int spr_x;
+            uint8_t y;
+            uint8_t tileIndex;  // 精灵在图案表里的tile索引
+            bit8 info; // 精灵的信息
+            uint8_t x;
         };
         
         struct RGB {
