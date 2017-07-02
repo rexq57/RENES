@@ -338,6 +338,8 @@ A:%d X:%d Y:%d (%lf, %lf)", regs.PC, regs.SP,
 
 - (void) keyDown:(NSEvent *)event
 {
+//    NSLog(@"%d", [event keyCode]);
+    
     switch ([event keyCode]) {
         case 126:
         {
@@ -357,6 +359,16 @@ A:%d X:%d Y:%d (%lf, %lf)", regs.PC, regs.SP,
         case 124:
         {
             _nes->ctr()->right(true);
+            break;
+        }
+        case 7:
+        {
+            _nes->ctr()->A(true);
+            break;
+        }
+        case 6:
+        {
+            _nes->ctr()->B(true);
             break;
         }
         default:
@@ -385,6 +397,16 @@ A:%d X:%d Y:%d (%lf, %lf)", regs.PC, regs.SP,
         case 124:
         {
             _nes->ctr()->right(false);
+            break;
+        }
+        case 7:
+        {
+            _nes->ctr()->A(false);
+            break;
+        }
+        case 6:
+        {
+            _nes->ctr()->B(false);
             break;
         }
         default:

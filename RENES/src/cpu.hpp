@@ -284,7 +284,7 @@ namespace ReNes {
                     /* STA (oper),Y  */ {0x91, {"STA", CF_ST, DST_REGS_A, INDIRECT_INDEXED_Y, 2, 6}},
                     
                     /* STX oper  */ {0x86, {"STX", CF_ST, DST_REGS_X, ZERO_PAGE, 2, 3}},
-                    /* STX oper,X  */ {0x96, {"STX", CF_ST, DST_REGS_X, ZERO_PAGE_Y, 2, 4}},
+                    /* STX oper,Y  */ {0x96, {"STX", CF_ST, DST_REGS_X, ZERO_PAGE_Y, 2, 4}},
                     /* STX oper  */ {0x8E, {"STX", CF_ST, DST_REGS_X, INDEXED_ABSOLUTE, 3, 4}},
                     
                     /* STY oper  */ {0x8C, {"STY", CF_ST, DST_REGS_Y, INDEXED_ABSOLUTE, 3, 4}},
@@ -355,6 +355,8 @@ namespace ReNes {
             }
             
             bool pushPC = false;
+            
+//            uint16_t sp =
             
             auto info = CMD_LIST.at(cmd);
             {
@@ -582,6 +584,18 @@ namespace ReNes {
                 if (pushPC)
                 {
                     push((const uint8_t*)&regs.PC, 2); // 移动到下一句指令才存储
+                    
+                    
+                }
+                
+                uint16_t stack_addr = STACK_ADDR_OFFSET + regs.SP+1;
+                
+                int a = _mem->read8bitData(stack_addr);
+                int b = _mem->read8bitData(stack_addr+1);
+                
+                if (a != 128)
+                {
+                    log("fuck\n");
                 }
 
                 if (jumpPC != 0)

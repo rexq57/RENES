@@ -180,6 +180,41 @@ namespace ReNes {
             uint8_t* bkPaletteAddr = &_vram.masterData()[0x3F00];   // 背景调色板地址
             uint8_t* sprPaletteAddr = &_vram.masterData()[0x3F10]; // 精灵调色板地址
             
+            
+            
+            
+            std::function<void(int, int, int, uint8_t*, uint8_t*)> drawTile = [this, bkPaletteAddr, sprPaletteAddr](int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr)
+            {
+                
+                for (int ty=0; ty<8; ty++)
+                {
+                    for (int tx=0; tx<8; tx++)
+                    {
+                        // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
+                        int low0 = ((bit8*)&tileAddr[ty])->get(tx);
+                        int low1 = ((bit8*)&tileAddr[ty+8])->get(tx);
+                        int low2 = low0 | (low1 << 1);
+                        
+                        int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
+                        int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
+                        
+                        // 如果绘制精灵，而且当前颜色引用到背景透明色（背景调色板第一位），就不绘制
+                        if (paletteAddr == sprPaletteAddr && systemPaletteUnitIndex == bkPaletteAddr[0])
+                        {
+                            continue;
+                        }
+                        
+                        int pixelIndex = NES_MIN(y + ty, 239) * 32*8*3 + NES_MIN(x+(7-tx), 255) *3; // 最低位是右边第一像素，所以渲染顺序要从右往左
+                        
+                        RGB* rgb = (RGB*)&defaultPalette[systemPaletteUnitIndex*3];
+                        
+                        *(RGB*)&_buffer[pixelIndex] = *rgb;
+                        
+                        //                            log("colorIndex %d\n", systemPaletteUnitIndex);
+                    }
+                }
+            };
+            
 
             
             for (int y=0; y<30; y++) // 只显示 30/30 行tile
@@ -230,8 +265,8 @@ namespace ReNes {
                 uint8_t* tileAddr = &sprPetternTableAddr[spr->tileIndex * 16];
                 
                 int high2 = spr->info.get(0) | (spr->info.get(1) << 1);
+//                int high2 = (spr->info.get(0) << 1) | spr->info.get(1);
                 drawTile(spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr);
-                
             }
 
             
@@ -263,31 +298,31 @@ namespace ReNes {
         
     private:
         
-        void drawTile(int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr)
-        {
-            
-            for (int ty=0; ty<8; ty++)
-            {
-                for (int tx=0; tx<8; tx++)
-                {
-                    // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
-                    int low0 = ((bit8*)&tileAddr[ty])->get(tx);
-                    int low1 = ((bit8*)&tileAddr[ty+8])->get(tx);
-                    int low2 = low0 | (low1 << 1);
-                    
-                    int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
-                    int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
-                    
-                    int pixelIndex = NES_MIN(y + ty, 239) * 32*8*3 + NES_MIN(x+tx, 255) *3;
-                    
-                    RGB* rgb = (RGB*)&defaultPalette[systemPaletteUnitIndex*3];
-                    
-                    *(RGB*)&_buffer[pixelIndex] = *rgb;
-                    
-                    //                            log("colorIndex %d\n", systemPaletteUnitIndex);
-                }
-            }
-        }
+//        void drawTile(int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr)
+//        {
+//            
+//            for (int ty=0; ty<8; ty++)
+//            {
+//                for (int tx=0; tx<8; tx++)
+//                {
+//                    // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
+//                    int low0 = ((bit8*)&tileAddr[ty])->get(tx);
+//                    int low1 = ((bit8*)&tileAddr[ty+8])->get(tx);
+//                    int low2 = low0 | (low1 << 1);
+//                    
+//                    int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
+//                    int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
+//                    
+//                    int pixelIndex = NES_MIN(y + ty, 239) * 32*8*3 + NES_MIN(x+(7-tx), 255) *3; // 最低位是右边第一像素，所以渲染顺序要从右往左
+//                    
+//                    RGB* rgb = (RGB*)&defaultPalette[systemPaletteUnitIndex*3];
+//                    
+//                    *(RGB*)&_buffer[pixelIndex] = *rgb;
+//                    
+//                    //                            log("colorIndex %d\n", systemPaletteUnitIndex);
+//                }
+//            }
+//        }
         
         struct Sprite {
             

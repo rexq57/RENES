@@ -53,6 +53,16 @@ namespace ReNes {
             _statues[KEY_RIGHT] = pressDown;
         }
         
+        void A(bool pressDown)
+        {
+            _statues[KEY_A] = pressDown;
+        }
+        
+        void B(bool pressDown)
+        {
+            _statues[KEY_B] = pressDown;
+        }
+        
         void setNextKey(KEY key)
         {
             _nextKey = key;

@@ -133,25 +133,38 @@ namespace ReNes {
             
             // 控制器处理
             {
-                int dstWrite4016 = 1;
+                int dstWrite4016 = 0;
+                uint16_t dstAddr4016tmp = 0;
                 uint16_t dstAddr4016 = 0;
-                _mem.addWritingObserver(0x4016, [this, &dstWrite4016, &dstAddr4016](uint16_t addr, uint8_t value){
+                
+                _mem.addWritingObserver(0x4016, [this, &dstWrite4016, &dstAddr4016tmp,  &dstAddr4016](uint16_t addr, uint8_t value){
                     
                     // 写0x4016 2次，以设置从0x4016读取的硬件信息
-                    std::function<void(int&,uint16_t&)> dstAddrWriting = [value](int& dstWrite, uint16_t& dstAddr){
+                    std::function<void(int&,uint16_t&, uint16_t&)> dstAddrWriting = [value](int& dstWrite, uint16_t& dstAddrTmp, uint16_t& dstAddr){
                         
-                        int writeBitIndex = dstWrite;
+                        //                    int writeBitIndex = dstWrite;
+                        //                    dstWrite = (dstWrite+1) % 2;
+                        //
+                        //
+                        //                    dstAddr &= (0xFF << dstWrite*8); // 清理高/低位
+                        //                    dstAddr |= (value << writeBitIndex*8); // 设置对应位
+                        
+                        int writeBitIndex = (dstWrite+1) % 2;
+                        
+                        dstAddrTmp &= (0xFF << dstWrite*8); // 清理相反的高/低位
+                        dstAddrTmp |= (value << writeBitIndex*8); // 设置对应位
+                        
                         dstWrite = (dstWrite+1) % 2;
                         
-                        
-                        dstAddr &= (0xFF << dstWrite*8); // 清理高/低位
-                        dstAddr |= (value << writeBitIndex*8); // 设置对应位
+                        if (dstWrite == 0)
+                            dstAddr = dstAddrTmp;
                     };
                     
-                    dstAddrWriting(dstWrite4016, dstAddr4016);
+                    dstAddrWriting(dstWrite4016, dstAddr4016tmp, dstAddr4016);
                     
                     // 每次重新请求控制器的时候，重置按键
-                    if (dstWrite4016 == 1 && dstAddr4016 == 0x100)
+//                    if (dstWrite4016 == 1 && dstAddr4016 == 0x100)
+                    if (dstWrite4016 == 0 && dstAddr4016 == 0x100)
                     {
                         _ctr.reset();
                     }
@@ -164,7 +177,7 @@ namespace ReNes {
                     {
                         *value = _ctr.nextKeyStatue();
                         
-                        dstWrite4016 = 1; // 写入high复位
+//                        dstWrite4016 = 0;
                     }
                 });
             }
