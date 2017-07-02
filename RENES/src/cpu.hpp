@@ -35,26 +35,28 @@ namespace ReNes {
         
         ACCUMULATOR,
         
-        IMMIDIATE_8bit_VALUE_0,
-        IMMIDIATE_8bit_VALUE_1,
+        IMMIDIATE_VALUE_0,
+        IMMIDIATE_VALUE_1,
         
-        ZERO_PAGE_8bit,     // 零页寻址，就是间接8bit寻址
-        ZERO_PAGE_X_8bit,   // 零页寻址
+        ZERO_PAGE,     // 零页寻址，就是间接8bit寻址
+        ZERO_PAGE_X,   // 零页寻址
         
-        ZERO_PAGE_Y_8bit,
+        ZERO_PAGE_Y,
         
-        INDEXED_ABSOLUTE_8bit, // 索引绝对寻址，8bit数据
-        INDEXED_ABSOLUTE_X_8bit, // 索引绝对寻址，8bit数据
-        INDEXED_ABSOLUTE_Y_8bit, // 索引绝对寻址，8bit数据
+        INDEXED_ABSOLUTE, // 索引绝对寻址，8bit数据
+        INDEXED_ABSOLUTE_X, // 索引绝对寻址，8bit数据
+        INDEXED_ABSOLUTE_Y, // 索引绝对寻址，8bit数据
         
-        IMMIDIATE_8bit,     // 立即数，8bit数据
-        IMMIDIATE_16bit,    // 立即数，16bit数据
+        IMMIDIATE,     // 立即数，8bit数据
         
-        INDIRECT_ABSOLUTE_8bit, // 间接绝对寻址
-        INDIRECT_ABSOLUTE_Y_8bit, // 间接绝对寻址 (oper),Y
+//        INDIRECT_ABSOLUTE, // 间接绝对寻址
+        INDIRECT_ABSOLUTE_Y, // 间接绝对寻址 (oper),Y
         
-        ADDR_REGS_X,
         ADDR_REGS_A,
+        ADDR_REGS_X,
+        ADDR_REGS_Y,
+        
+        
         
         DATA_VALUE,
     };
@@ -259,77 +261,86 @@ namespace ReNes {
             if (CMD_LIST.size() == 0)
             {
                 CMD_LIST = {
-                    /* BRK */ {0x00, {CF_BRK, DST_NONE, ACCUMULATOR, 1, 7}},
-                    /* LDA #oper */ {0xA9, {CF_LD, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
-                    /* LDA oper */  {0xAD, {CF_LD, DST_REGS_A, INDEXED_ABSOLUTE_8bit, 3, 4}},
-                    /* LDA (oper),Y */ {0xB1, {CF_LD, DST_REGS_A, INDIRECT_ABSOLUTE_Y_8bit, 2, 5}},
-                    
-                    /* LDX #oper */ {0xA2, {CF_LD, DST_REGS_X, IMMIDIATE_8bit, 2, 2}},
-                    /* LDX oper */ {0xAE, {CF_LD, DST_REGS_X, INDEXED_ABSOLUTE_8bit, 3, 4}},
-                    
-                    /* LDY #oper */ {0xA0, {CF_LD, DST_REGS_Y, IMMIDIATE_8bit, 2, 2}},
-                    /* LDY oper */ {0xAC, {CF_LD, DST_REGS_Y, INDEXED_ABSOLUTE_8bit, 3, 4}},
+                    /* BRK */ {0x00, {"BRK", CF_BRK, DST_NONE, ACCUMULATOR, 1, 7}},
+                    /* LDA #oper */ {0xA9, {"LDA", CF_LD, DST_REGS_A, IMMIDIATE, 2, 2}},
+                    /* LDA oper */  {0xAD, {"LDA", CF_LD, DST_REGS_A, INDEXED_ABSOLUTE, 3, 4}},
+                    /* LDA oper,X*/ {0xBD, {"LDA", CF_LD, DST_REGS_A, INDEXED_ABSOLUTE_X, 3, 4}},
+                    /* LDA (oper),Y */ {0xB1, {"LDA", CF_LD, DST_REGS_A, INDIRECT_ABSOLUTE_Y, 2, 5}},
                     
                     
-                    /* STA oper  */ {0x85, {CF_ST, DST_REGS_A, ZERO_PAGE_8bit, 2, 3}},
-                    /* STA oper,X  */ {0x95, {CF_ST, DST_REGS_A, ZERO_PAGE_X_8bit, 2, 4}},
-                    /* STA oper  */ {0x8D, {CF_ST, DST_REGS_A, INDEXED_ABSOLUTE_8bit, 3, 4}},
-                    /* STA oper,Y  */ {0x99, {CF_ST, DST_REGS_A, INDEXED_ABSOLUTE_Y_8bit, 3, 5}},
-                    /* STA (oper),Y  */ {0x91, {CF_ST, DST_REGS_A, INDIRECT_ABSOLUTE_Y_8bit, 2, 6}},
+                    /* LDX #oper */ {0xA2, {"LDX", CF_LD, DST_REGS_X, IMMIDIATE, 2, 2}},
+                    /* LDX oper */ {0xAE, {"LDX", CF_LD, DST_REGS_X, INDEXED_ABSOLUTE, 3, 4}},
                     
-                    /* STX oper  */ {0x86, {CF_ST, DST_REGS_X, ZERO_PAGE_8bit, 2, 3}},
-                    /* STX oper,X  */ {0x96, {CF_ST, DST_REGS_X, ZERO_PAGE_Y_8bit, 2, 4}},
-                    /* STX oper  */ {0x8E, {CF_ST, DST_REGS_X, INDEXED_ABSOLUTE_8bit, 3, 4}},
+                    /* LDY #oper */ {0xA0, {"LDY", CF_LD, DST_REGS_Y, IMMIDIATE, 2, 2}},
+                    /* LDY oper */ {0xAC, {"LDY", CF_LD, DST_REGS_Y, INDEXED_ABSOLUTE, 3, 4}},
                     
                     
-                    /* LDX #oper */ {0xA2, {CF_LD, DST_REGS_X, IMMIDIATE_8bit, 2, 2}},
-                    /* LDA oper,X*/ {0xBD, {CF_LD, DST_REGS_A, INDEXED_ABSOLUTE_X_8bit, 3, 4}},
-                    /* INX */      {0xE8, {CF_IN, DST_REGS_X, ACCUMULATOR, 1, 2}},
-                    /* INY */      {0xC8, {CF_IN, DST_REGS_Y, ACCUMULATOR, 1, 2}},
-                    /* INC oper */  {0xEE, {CF_IN, DST_M, INDEXED_ABSOLUTE_8bit, 3, 6}},
+                    /* STA oper  */ {0x85, {"STA", CF_ST, DST_REGS_A, ZERO_PAGE, 2, 3}},
+                    /* STA oper,X  */ {0x95, {"STA", CF_ST, DST_REGS_A, ZERO_PAGE_X, 2, 4}},
+                    /* STA oper  */ {0x8D, {"STA", CF_ST, DST_REGS_A, INDEXED_ABSOLUTE, 3, 4}},
+                    /* STA oper,X  */ {0x9D, {"STA", CF_ST, DST_REGS_A, INDEXED_ABSOLUTE_X, 3, 5}},
+                    /* STA oper,Y  */ {0x99, {"STA", CF_ST, DST_REGS_A, INDEXED_ABSOLUTE_Y, 3, 5}},
+                    /* STA (oper),Y  */ {0x91, {"STA", CF_ST, DST_REGS_A, INDIRECT_ABSOLUTE_Y, 2, 6}},
                     
-                    /* DEX */      {0xCA, {CF_DE, DST_REGS_X, ACCUMULATOR, 1, 2}},
-                    /* DEY */      {0x88, {CF_DE, DST_REGS_Y, ACCUMULATOR, 1, 2}},
-                    /* SBC */      {0xE9, {CF_SBC, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
-                    /* ADC */      {0x69, {CF_ADC, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
+                    /* STX oper  */ {0x86, {"STX", CF_ST, DST_REGS_X, ZERO_PAGE, 2, 3}},
+                    /* STX oper,X  */ {0x96, {"STX", CF_ST, DST_REGS_X, ZERO_PAGE_Y, 2, 4}},
+                    /* STX oper  */ {0x8E, {"STX", CF_ST, DST_REGS_X, INDEXED_ABSOLUTE, 3, 4}},
                     
-                    /* CMP #oper */ {0xC9, {CF_CP, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
-                    /* CPX #oper */ {0xE0, {CF_CP, DST_REGS_X, IMMIDIATE_8bit, 2, 2}},
-                    /* CPY #oper */ {0xC0, {CF_CP, DST_REGS_Y, IMMIDIATE_8bit, 2, 2}},
+                    /* STY oper  */ {0x8C, {"STY", CF_ST, DST_REGS_Y, INDEXED_ABSOLUTE, 3, 4}},
                     
-                    /* BNE oper */  {0xD0, {CF_B, DST_REGS_P_Z, IMMIDIATE_8bit_VALUE_0, 2, 2}},
-                    /* BPL oper */  {0x10, {CF_B, DST_REGS_P_N, IMMIDIATE_8bit_VALUE_0, 2, 2}},
-                    /* BCS oper */  {0xB0, {CF_B, DST_REGS_P_C, IMMIDIATE_8bit_VALUE_1, 2, 2}},
+                    /* LDX #oper */ {0xA2, {"LDX", CF_LD, DST_REGS_X, IMMIDIATE, 2, 2}},
+
+                    /* INX */      {0xE8, {"INX", CF_IN, DST_REGS_X, ACCUMULATOR, 1, 2}},
+                    /* INY */      {0xC8, {"INY", CF_IN, DST_REGS_Y, ACCUMULATOR, 1, 2}},
                     
+                    /* INC oper */  {0xE6, {"INC", CF_IN, DST_M, ZERO_PAGE, 2, 5}},
+                    /* INC oper */  {0xEE, {"INC", CF_IN, DST_M, INDEXED_ABSOLUTE, 3, 6}},
                     
-                    /* RTI */      {0x40, {CF_RTI, DST_NONE, ACCUMULATOR, 1, 6}},
-                    /* JSR oper */  {0x20, {CF_JSR, DST_NONE, IMMIDIATE_16bit, 3, 6}},
-                    /* RTS */      {0x60, {CF_RTS, DST_NONE, ACCUMULATOR, 1, 6}},
-                    /* AND #oper */ {0x29, {CF_AND, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
-                    /* JMP oper */ {0x4C, {CF_JMP, DST_NONE, IMMIDIATE_16bit, 3, 3}},
+                    /* DEX */      {0xCA, {"DEX", CF_DE, DST_REGS_X, ACCUMULATOR, 1, 2}},
+                    /* DEY */      {0x88, {"DEY", CF_DE, DST_REGS_Y, ACCUMULATOR, 1, 2}},
+                    /* SBC */      {0xE9, {"SBC", CF_SBC, DST_REGS_A, IMMIDIATE, 2, 2}},
                     
-                    /* SEC */ {0x38, {CF_SE, DST_REGS_P_C, ACCUMULATOR, 1, 2}},
-                    /* SED */ {0xF8, {CF_SE, DST_REGS_P_D, ACCUMULATOR, 1, 2}},
-                    /* SEI */ {0x78, {CF_SE, DST_REGS_P_I, ACCUMULATOR, 1, 2}},
-                    /* CLC */ {0x18, {CF_CL, DST_REGS_P_C, ACCUMULATOR, 1, 2}},
-                    /* CLD */ {0xD8, {CF_CL, DST_REGS_P_D, ACCUMULATOR, 1, 2}},
-                    /* CLI */ {0x58, {CF_CL, DST_REGS_P_I, ACCUMULATOR, 1, 2}},
+                    /* ADC #oper */ {0x69, {"ADC", CF_ADC, DST_REGS_A, IMMIDIATE, 2, 2}},
+                    /* ADC oper */  {0x65, {"ADC", CF_ADC, DST_REGS_A, ZERO_PAGE, 2, 3}},
                     
-                    /* TXS */ {0x9A, {CF_T, DST_REGS_SP, ADDR_REGS_X, 1, 2}},
-                    /* TXA */ {0x8A, {CF_T, DST_REGS_A, ADDR_REGS_X, 1, 2}},
-                    /* TAX */ {0xAA, {CF_T, DST_REGS_X, ADDR_REGS_A, 1, 2}},
+                    /* CMP #oper */ {0xC9, {"CMP", CF_CP, DST_REGS_A, IMMIDIATE, 2, 2}},
+                    /* CPX #oper */ {0xE0, {"CPX", CF_CP, DST_REGS_X, IMMIDIATE, 2, 2}},
+                    /* CPY #oper */ {0xC0, {"CPY", CF_CP, DST_REGS_Y, IMMIDIATE, 2, 2}},
                     
-                    /* BIT oper */ {0x2C, {CF_BIT, DST_REGS_P_Z, IMMIDIATE_8bit, 3, 4}},
+                    /* BNE oper */  {0xD0, {"BNE", CF_B, DST_REGS_P_Z, IMMIDIATE_VALUE_0, 2, 2}},
+                    /* BPL oper */  {0x10, {"BPL", CF_B, DST_REGS_P_N, IMMIDIATE_VALUE_0, 2, 2}},
+                    /* BCS oper */  {0xB0, {"BCS", CF_B, DST_REGS_P_C, IMMIDIATE_VALUE_1, 2, 2}},
+                    /* BEQ oper */  {0xF0, {"BEQ", CF_B, DST_REGS_P_Z, IMMIDIATE_VALUE_1, 2, 2}},
                     
-                    /* ORA #oper */ {0x09, {CF_OR, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
+                    /* RTI */      {0x40, {"RTI", CF_RTI, DST_NONE, ACCUMULATOR, 1, 6}},
+                    /* JSR oper */  {0x20, {"JSR", CF_JSR, DST_NONE, INDEXED_ABSOLUTE, 3, 6}},
+                    /* RTS */      {0x60, {"RTS", CF_RTS, DST_NONE, ACCUMULATOR, 1, 6}},
+                    /* AND #oper */ {0x29, {"AND", CF_AND, DST_REGS_A, IMMIDIATE, 2, 2}},
+                    /* JMP oper */ {0x4C, {"JMP", CF_JMP, DST_NONE, INDEXED_ABSOLUTE, 3, 3}},
                     
-                    /* ASL A */ {0x0A, {CF_ASL, DST_REGS_A, ACCUMULATOR, 1, 2}},
-                    /* LSR A */ {0x4A, {CF_LSR, DST_REGS_A, ACCUMULATOR, 1, 2}},
+                    /* SEC */ {0x38, {"SEC", CF_SE, DST_REGS_P_C, ACCUMULATOR, 1, 2}},
+                    /* SED */ {0xF8, {"SED", CF_SE, DST_REGS_P_D, ACCUMULATOR, 1, 2}},
+                    /* SEI */ {0x78, {"SEI", CF_SE, DST_REGS_P_I, ACCUMULATOR, 1, 2}},
+                    /* CLC */ {0x18, {"CLC", CF_CL, DST_REGS_P_C, ACCUMULATOR, 1, 2}},
+                    /* CLD */ {0xD8, {"CLD", CF_CL, DST_REGS_P_D, ACCUMULATOR, 1, 2}},
+                    /* CLI */ {0x58, {"CLI", CF_CL, DST_REGS_P_I, ACCUMULATOR, 1, 2}},
                     
-                    /* PHA */ {0x48, {CF_PH, DST_REGS_A, ACCUMULATOR, 1, 3}},
-                    /* PLA */ {0x68, {CF_PL, DST_REGS_A, ACCUMULATOR, 1, 4}},
+                    /* TXS */ {0x9A, {"TXS", CF_T, DST_REGS_SP, ADDR_REGS_X, 1, 2}},
+                    /* TXA */ {0x8A, {"TXA", CF_T, DST_REGS_A, ADDR_REGS_X, 1, 2}},
+                    /* TAX */ {0xAA, {"TAX", CF_T, DST_REGS_X, ADDR_REGS_A, 1, 2}},
+                    /* TYA */ {0x98, {"TYA", CF_T, DST_REGS_A, ADDR_REGS_Y, 1, 2}},
                     
-                    /* BCC oper */ {0x90, {CF_REGS, DST_REGS_P_C, IMMIDIATE_8bit_VALUE_0, 2, 2}},
+                    /* BIT oper */ {0x2C, {"BIT", CF_BIT, DST_REGS_P_Z, INDEXED_ABSOLUTE, 3, 4}},
+                    
+                    /* ORA #oper */ {0x09, {"ORA", CF_OR, DST_REGS_A, IMMIDIATE, 2, 2}},
+                    
+                    /* ASL A */ {0x0A, {"ASL", CF_ASL, DST_REGS_A, ACCUMULATOR, 1, 2}},
+                    /* LSR A */ {0x4A, {"LSR", CF_LSR, DST_REGS_A, ACCUMULATOR, 1, 2}},
+                    
+                    /* PHA */ {0x48, {"PHA", CF_PH, DST_REGS_A, ACCUMULATOR, 1, 3}},
+                    /* PLA */ {0x68, {"PLA", CF_PL, DST_REGS_A, ACCUMULATOR, 1, 4}},
+                    
+                    /* BCC oper */ {0x90, {"BCC", CF_REGS, DST_REGS_P_C, IMMIDIATE_VALUE_0, 2, 2}},
                     
                     
                 };
@@ -351,7 +362,8 @@ namespace ReNes {
                 auto cf = info.cf;
                 
                 
-                logCmd(CF_NAME.at(info.cf), info.dst, mode);
+//                logCmd(CF_NAME.at(info.cf), info, mode);
+                logCmd(info.name, info, mode);
                 
                 {
                     ////////////////////////////////
@@ -397,7 +409,7 @@ namespace ReNes {
                         }
                         case CF_JMP:
                         {
-                            int offset = addressingValue(mode);
+                            int offset = addressingOnly(mode);//addressingValue(mode);
                             
                             log("跳转到 %04X\n", offset);
                             
@@ -426,6 +438,9 @@ namespace ReNes {
                             {
                                 case ADDR_REGS_X:
                                     src = DST_REGS_X;
+                                    break;
+                                case ADDR_REGS_Y:
+                                    src = DST_REGS_Y;
                                     break;
                                 case ADDR_REGS_A:
                                     src = DST_REGS_A;
@@ -459,7 +474,7 @@ namespace ReNes {
                         }
                         case CF_B:
                         {
-                            int value = mode - IMMIDIATE_8bit_VALUE_0; // 得到具体数值
+                            int value = mode - IMMIDIATE_VALUE_0; // 得到具体数值
                             int8_t offset = 0;
                             
                             if (valueFromDST(dst, mode) == value)
@@ -508,7 +523,7 @@ namespace ReNes {
                         }
                         case CF_REGS:
                         {
-                            int value = mode - IMMIDIATE_8bit_VALUE_0; // 得到具体数值
+                            int value = mode - IMMIDIATE_VALUE_0; // 得到具体数值
                             int offset = dst - DST_REGS_P_C;
                             switch (dst)
                             {
@@ -573,13 +588,13 @@ namespace ReNes {
                     // 检查调整类型：相对，绝对
                     switch (info.mode)
                     {
-                        case IMMIDIATE_8bit_VALUE_0:
-                        case IMMIDIATE_8bit_VALUE_1:
-                        case IMMIDIATE_8bit:
+                        case IMMIDIATE_VALUE_0:
+                        case IMMIDIATE_VALUE_1:
+                        case IMMIDIATE:
                             // 相对跳转
                             regs.PC += jumpPC;
                             break;
-                        case IMMIDIATE_16bit:
+                        case INDEXED_ABSOLUTE:
                             // 绝对跳转
                             regs.PC = jumpPC;
                             break;
@@ -634,38 +649,38 @@ namespace ReNes {
             CF_REGS,
         };
         
-        const std::map<CF, std::string> CF_NAME = {
-            {CF_BRK, "BRK"},
-            {CF_LD, "LD"},
-            {CF_ST, "ST"},
-            {CF_IN, "IN"},
-            {CF_CP, "CP"},
-            {CF_B, "B"},
-            {CF_RTI, "RTI"},
-            {CF_JSR, "JSR"},
-            {CF_RTS, "RTS"},
-            {CF_AND, "AND"},
-            {CF_JMP, "JMP"},
-            
-            {CF_SE, "SE"},
-            {CF_CL, "CL"},
-            {CF_T, "T"},
-            
-            {CF_DE, "DE"},
-            {CF_SBC, "SBC"},
-            {CF_ADC, "ADC"},
-            
-            {CF_BIT, "BIT"},
-            
-            {CF_OR, "OR"},
-            
-            {CF_ASL, "ASL"},
-            {CF_LSR, "LSR"},
-            {CF_PH, "PH"},
-            {CF_PL, "PL"},
-            
-            {CF_REGS, "BC"}
-        };
+//        const std::map<CF, std::string> CF_NAME = {
+//            {CF_BRK, "BRK"},
+//            {CF_LD, "LD"},
+//            {CF_ST, "ST"},
+//            {CF_IN, "IN"},
+//            {CF_CP, "CP"},
+//            {CF_B, "B"},
+//            {CF_RTI, "RTI"},
+//            {CF_JSR, "JSR"},
+//            {CF_RTS, "RTS"},
+//            {CF_AND, "AND"},
+//            {CF_JMP, "JMP"},
+//            
+//            {CF_SE, "SE"},
+//            {CF_CL, "CL"},
+//            {CF_T, "T"},
+//            
+//            {CF_DE, "DE"},
+//            {CF_SBC, "SBC"},
+//            {CF_ADC, "ADC"},
+//            
+//            {CF_BIT, "BIT"},
+//            
+//            {CF_OR, "OR"},
+//            
+//            {CF_ASL, "ASL"},
+//            {CF_LSR, "LSR"},
+//            {CF_PH, "PH"},
+//            {CF_PL, "PL"},
+//            
+//            {CF_REGS, "BC"}
+//        };
         
         enum DST{
             
@@ -802,54 +817,54 @@ namespace ReNes {
             //                        uint8_t* data;
             switch (mode)
             {
-                    //                case ZERO_PAGE_8bit:
+                    //                case ZERO_PAGE:
                     //                {
                     //                    addr = _mem->read8bitData(dataAddr);
                     //                }
-                case IMMIDIATE_8bit_VALUE_0:
-                case IMMIDIATE_8bit_VALUE_1:
-                case IMMIDIATE_8bit:
+                case IMMIDIATE_VALUE_0:
+                case IMMIDIATE_VALUE_1:
+                case IMMIDIATE:
                 {
                     addr = dataAddr;
                     break;
                 }
-                case IMMIDIATE_16bit:
-                {
-                    addr = dataAddr;
-                    data16bit = true;
-                    break;
-                }
-                case ZERO_PAGE_8bit:
+//                case IMMIDIATE_16bit:
+//                {
+//                    addr = dataAddr;
+//                    data16bit = true;
+//                    break;
+//                }
+                case ZERO_PAGE:
                 {
                     addr = _mem->read8bitData(dataAddr);
                     break;
                 }
-                case ZERO_PAGE_X_8bit:
+                case ZERO_PAGE_X:
                 {
                     addr = _mem->read8bitData(dataAddr) + regs.X;
                     break;
                 }
-                case ZERO_PAGE_Y_8bit:
+                case ZERO_PAGE_Y:
                 {
                     addr = _mem->read8bitData(dataAddr) + regs.Y;
                     break;
                 }
-                case INDEXED_ABSOLUTE_8bit:
+                case INDEXED_ABSOLUTE:
                 {
                     addr = _mem->read16bitData(dataAddr);
                     break;
                 }
-                case INDEXED_ABSOLUTE_X_8bit:
+                case INDEXED_ABSOLUTE_X:
                 {
                     addr = _mem->read16bitData(dataAddr) + regs.X;
                     break;
                 }
-                case INDEXED_ABSOLUTE_Y_8bit:
+                case INDEXED_ABSOLUTE_Y:
                 {
                     addr = _mem->read16bitData(dataAddr) + regs.Y;
                     break;
                 }
-                case INDIRECT_ABSOLUTE_Y_8bit:
+                case INDIRECT_ABSOLUTE_Y:
                 {
                     addr = _mem->read16bitData(_mem->read16bitData(dataAddr)) + regs.Y;
                     break;
@@ -887,15 +902,15 @@ namespace ReNes {
 //            return _mem->read8bitData(addressingOnly(mode));
 //        };
         
-        int addressingValue(AddressingMode mode)
+        int8_t addressingValue(AddressingMode mode)
         {
-            if (mode == IMMIDIATE_16bit)
+//            if (mode == IMMIDIATE_16bit)
+//            {
+//                return _mem->read16bitData(addressingOnly(mode));
+//            }
+//            else
             {
-                return _mem->read16bitData(addressingOnly(mode));
-            }
-            else
-            {
-                return (int8_t)_mem->read8bitData(addressingOnly(mode));
+                return _mem->read8bitData(addressingOnly(mode));
             }
         };
         
@@ -903,7 +918,7 @@ namespace ReNes {
         // 执行指令
         struct CmdInfo {
             
-            
+            std::string name;
             CF cf;
             DST dst; // 寄存器目标
             AddressingMode mode;
@@ -1017,11 +1032,13 @@ namespace ReNes {
          根据目标打印指令日志
 
          @param cmd 指令
-         @param dst 目标
+         @param info 目标
          @param mode 寻址模式
          */
-        void logCmd(const std::string& cmd, DST dst, AddressingMode mode)
+        void logCmd(const std::string& cmd, CmdInfo info, AddressingMode mode)
         {
+//            DST dst = info.dst;
+            
             std::function<std::string(DST)> dstCode = [this](DST dst){
                 if (SET_FIND(REGS_NAME, dst))
                 {
@@ -1031,57 +1048,61 @@ namespace ReNes {
             };
             
             
-            std::function<std::string(AddressingMode)> operCode = [this](AddressingMode mode)
+            std::function<std::string(AddressingMode)> operCode = [this, cmd, &info](AddressingMode mode)
             {
                 uint16_t dataAddr = regs.PC + 1; // 操作数位置 = PC + 1
                 std::string res;
+                bool immidiate = false;
+                int immidiate_value = 0;
                 
                 switch (mode)
                 {
-                    case IMMIDIATE_8bit_VALUE_0:
-                    case IMMIDIATE_8bit_VALUE_1:
-                    case IMMIDIATE_8bit:
+                    case IMMIDIATE_VALUE_0:
+                    case IMMIDIATE_VALUE_1:
+                    case IMMIDIATE:
                     {
-                        res = std::string("#") + int_to_hex(_mem->read8bitData(dataAddr));
+                        immidiate_value = _mem->read8bitData(dataAddr);
+                        immidiate = true;
                         break;
                     }
-                    case IMMIDIATE_16bit:
-                    {
-                        res = std::string("#") + int_to_hex(_mem->read16bitData(dataAddr));
-                        break;
-                    }
-                    case ZERO_PAGE_8bit:
+//                    case IMMIDIATE_16bit:
+//                    {
+//                        immidiate_value = _mem->read16bitData(dataAddr);
+//                        immidiate = true;
+//                        break;
+//                    }
+                    case ZERO_PAGE:
                     {
                         res = int_to_hex(_mem->read8bitData(dataAddr));
                         break;
                     }
-                    case ZERO_PAGE_X_8bit:
+                    case ZERO_PAGE_X:
                     {
                         res = int_to_hex(_mem->read8bitData(dataAddr)) + ",X";
                         break;
                     }
-                    case ZERO_PAGE_Y_8bit:
+                    case ZERO_PAGE_Y:
                     {
                         res = int_to_hex(_mem->read8bitData(dataAddr)) + ",Y";
                         break;
                     }
-                    case INDEXED_ABSOLUTE_8bit:
+                    case INDEXED_ABSOLUTE:
                     {
                         res = int_to_hex(_mem->read16bitData(dataAddr));
                         //                    addr = readMem16bit();
                         break;
                     }
-                    case INDEXED_ABSOLUTE_X_8bit:
+                    case INDEXED_ABSOLUTE_X:
                     {
                         res = int_to_hex(_mem->read16bitData(dataAddr)) + ",X";
                         break;
                     }
-                    case INDEXED_ABSOLUTE_Y_8bit:
+                    case INDEXED_ABSOLUTE_Y:
                     {
                         res = int_to_hex(_mem->read16bitData(dataAddr)) + ",Y";
                         break;
                     }
-                    case INDIRECT_ABSOLUTE_Y_8bit:
+                    case INDIRECT_ABSOLUTE_Y:
                     {
                         res = int_to_hex(_mem->read16bitData(_mem->read16bitData(dataAddr))) + ",Y";
                     }
@@ -1094,6 +1115,11 @@ namespace ReNes {
                         res = int_to_hex(regs.X);
                         break;
                     }
+                    case ADDR_REGS_Y:
+                    {
+                        res = int_to_hex(regs.Y);
+                        break;
+                    }
                     case ADDR_REGS_A:
                     {
                         res = int_to_hex(regs.A);
@@ -1103,32 +1129,47 @@ namespace ReNes {
                         assert(!"error!");
                         break;
                 }
+                
+                if (immidiate)
+                {
+                    // 将跳转地址计算出来
+                    int addr = 0;
+                    if (cmd == "B")
+                    {
+                        addr = regs.PC + info.bytes;
+                    }
+                    
+                    res = std::string("#") + int_to_hex((uint16_t)(immidiate_value + addr));
+                }
+                
                 return res;
             };
             
-            std::string dst_code;
+//            std::string dst_code;
             std::string oper = operCode(mode);
-            std::set<std::string> nameAppend({"LD", "ST", "IN", "DE", "CP", "SE", "CL", "TX", "B", "PH", "PL"});
-            if (SET_FIND(nameAppend, cmd))
-            {
-                if (cmd == "B")
-                {
-                    const std::map<int, std::string> dstNames = {
-                        {DST_REGS_P_Z, "NE"},
-                        {DST_REGS_P_N, "PL"},
-                        {DST_REGS_P_C, "CS"}
-                    };
-                    
-                    dst_code = dstNames.at(dst);
-//                    oper = std::to_string(regs.P.get(dst - DST_REGS_P_C) /*  */);
-                }
-                else
-                {
-                    dst_code = dstCode(dst);
-                }
-            }
+//            std::set<std::string> nameAppend({"LD", "ST", "IN", "DE", "CP", "SE", "CL", "TX", "B", "PH", "PL"});
+//            if (SET_FIND(nameAppend, cmd))
+//            {
+//                if (cmd == "B")
+//                {
+//                    const std::map<int, std::string> dstNames = {
+//                        {DST_REGS_P_Z, "NE"},
+//                        {DST_REGS_P_N, "PL"},
+//                        {DST_REGS_P_C, "CS"}
+//                    };
+//                    
+//                    dst_code = dstNames.at(dst);
+//                    
+////                    oper = std::to_string(regs.P.get(dst - DST_REGS_P_C) /*  */);
+//                }
+//                else
+//                {
+//                    dst_code = dstCode(dst);
+//                }
+//            }
             
-            log("%s%s %s\n", cmd.c_str(), dst_code.c_str(), oper.c_str());
+//            log("%s%s %s\n", cmd.c_str(), dst_code.c_str(), oper.c_str());
+            log("%s %s\n", cmd.c_str(),  oper.c_str());
         }
         
         

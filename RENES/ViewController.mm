@@ -273,8 +273,8 @@ using namespace ReNes;
             const CPU::__registers& regs = _nes->cpu()->regs;
             
             _registersView.stringValue = [NSString stringWithFormat:@"PC: 0x%04X SP: 0x%04X\n\
-                                          C:%d Z:%d I:%d D:%d B:%d _:%d V:%d N:%d\n\
-                                          A:%d X:%d Y:%d (%lf, %lf)", regs.PC, regs.SP,
+C:%d Z:%d I:%d D:%d B:%d _:%d V:%d N:%d\n\
+A:%d X:%d Y:%d (%lf, %lf)", regs.PC, regs.SP,
                                           regs.P.get(CPU::__registers::C),
                                           regs.P.get(CPU::__registers::Z),
                                           regs.P.get(CPU::__registers::I),

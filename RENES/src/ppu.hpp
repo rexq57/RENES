@@ -101,7 +101,7 @@ namespace ReNes {
                         _vram.write8bitData(_dstAddr2007, value);
                         
                         // 在每一次向$2007写数据后，地址会根据$2000的第二个bit位增加1或者32
-                        _dstAddr2007 += io_regs[0].get(1) == 0 ? 1 : 32;
+                        _dstAddr2007 += io_regs[0].get(2) == 0 ? 1 : 32;
                         
                         _dstWrite2006 = 1; // 每次写入2007之后，移动2006写入高位地址（可能是这样，也有可能没有这么处理）
                         
@@ -134,13 +134,34 @@ namespace ReNes {
             // 等待数据准备好才开始绘图
 //            _sem.wait();
             
+            /*
+             0x2000 > write
+             7  bit  0
+             ---- ----
+             VPHB SINN
+             |||| ||||
+             |||| ||++- Base nametable address                                          (ok)
+             |||| ||    (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
+             |||| |+--- VRAM address increment per CPU read/write of PPUDATA            (ok)
+             |||| |     (0: add 1, going across; 1: add 32, going down)
+             |||| +---- Sprite pattern table address for 8x8 sprites                    (ok)
+             ||||       (0: $0000; 1: $1000; ignored in 8x16 mode)
+             |||+------ Background pattern table address (0: $0000; 1: $1000)           (ok)
+             ||+------- Sprite size (0: 8x8; 1: 8x16)
+             |+-------- PPU master/slave select
+             |          (0: read backdrop from EXT pins; 1: output color on EXT pins)
+             +--------- Generate an NMI at the start of the                             (ok)
+             vertical blanking interval (0: off; 1: on)
+             
+             */
+            
             // 绘制背景
             // 从名称表里取当前绘制的tile（1字节）
-            int nameTableIndex = 0;
+            int nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
             uint8_t* nameTableAddr = &_vram.masterData()[0x2000 + nameTableIndex*0x0400];
             uint8_t* attributeTableAddr = &_vram.masterData()[0x23C0 + nameTableIndex*0x0400];
-            uint8_t* bkPetternTableAddr = &_vram.masterData()[0];
-            uint8_t* sprPetternTableAddr = &_vram.masterData()[0x1000];
+            uint8_t* bkPetternTableAddr = &_vram.masterData()[0 + 0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址
+            uint8_t* sprPetternTableAddr = &_vram.masterData()[0x1000 * io_regs[0].get(3)]; // 第3bit决定精灵图案表地址
             
             uint8_t* bkPaletteAddr = &_vram.masterData()[0x3F00];   // 背景调色板地址
             uint8_t* sprPaletteAddr = &_vram.masterData()[0x3F10]; // 精灵调色板地址
@@ -162,8 +183,8 @@ namespace ReNes {
                     int high2 = (*attributeAddrFor4x4Tile >> bit) & 0x3;
                     
                     
-                    uint8_t tileIndex = nameTableAddr[y*32 + x]; // 得到 bkg tile index
-                    
+                    int tileIndex = nameTableAddr[y*32 + x]; // 得到 bkg tile index
+//                    tileIndex = 0;
                     
                     // 确定在图案表里的tile地址，每个tile是8x8像素，占用16字节。
                     // 前8字节(8x8) + 后8字节(8x8)
@@ -180,6 +201,8 @@ namespace ReNes {
                 Sprite* spr = (Sprite*)&_sprram[i*4];
                 if (*(int*)spr == 0) // 没有精灵数据
                     continue;
+                
+//                spr->y = 0;
                 
                 // 目前只处理8x8的精灵
 //                for (int j=0; j<10; j++)
@@ -241,7 +264,7 @@ namespace ReNes {
                     int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
                     int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
                     
-                    int pixelIndex = (y + ty) * 32*8*3 + (x+tx) *3;
+                    int pixelIndex = NES_MIN(y + ty, 239) * 32*8*3 + NES_MIN(x+tx, 255) *3;
                     
                     RGB* rgb = (RGB*)&defaultPalette[systemPaletteUnitIndex*3];
                     

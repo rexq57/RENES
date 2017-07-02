@@ -62,4 +62,27 @@ namespace ReNes {
     private:
         uint8_t _data; // 8bit
     };
+    
+    
+    template <typename T>
+    inline T const& __max (T const& a, T const& b)
+    {
+        // if a < b then use b else use a
+        return  a < b ? b : a;
+    }
+    
+    template <typename T>
+    inline T const& __min (T const& a, T const& b)
+    {
+        // if a < b then use b else use a
+        return  a > b ? b : a;
+    }
+    
+#ifndef NES_MAX
+#define NES_MAX(a, b) __max(a, b)
+#endif
+    
+#ifndef NES_MIN
+#define NES_MIN(a, b) __min(a, b)
+#endif
 }
