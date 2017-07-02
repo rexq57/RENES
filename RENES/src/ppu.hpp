@@ -56,14 +56,24 @@ namespace ReNes {
             std::function<void(uint16_t, uint8_t)> writtingObserver = [this](uint16_t addr, uint8_t value){
                 
                 
-                std::function<void(int&,uint16_t&)> dstAddrWriting = [value](int& dstWrite, uint16_t& dstAddr){
+                std::function<void(int&,uint16_t&, uint16_t&)> dstAddrWriting = [value](int& dstWrite, uint16_t& dstAddrTmp, uint16_t& dstAddr){
                     
-                    int writeBitIndex = dstWrite;
+//                    int writeBitIndex = dstWrite;
+//                    dstWrite = (dstWrite+1) % 2;
+//                    
+//                    
+//                    dstAddr &= (0xFF << dstWrite*8); // 清理高/低位
+//                    dstAddr |= (value << writeBitIndex*8); // 设置对应位
+                    
+                    int writeBitIndex = (dstWrite+1) % 2;
+                    
+                    dstAddrTmp &= (0xFF << dstWrite*8); // 清理相反的高/低位
+                    dstAddrTmp |= (value << writeBitIndex*8); // 设置对应位
+                    
                     dstWrite = (dstWrite+1) % 2;
                     
-                    
-                    dstAddr &= (0xFF << dstWrite*8); // 清理高/低位
-                    dstAddr |= (value << writeBitIndex*8); // 设置对应位
+                    if (dstWrite == 0)
+                        dstAddr = dstAddrTmp;
                 };
 
                 
@@ -72,7 +82,7 @@ namespace ReNes {
                         
                     case 0x2003:
                     {
-                        dstAddrWriting(_dstWrite2003, _dstAddr2004);
+                        dstAddrWriting(_dstWrite2003, _dstAddr2004tmp, _dstAddr2004);
                         
                         if (_dstWrite2003 == 1)
                             _sprramWritingEnabled = true;
@@ -83,7 +93,7 @@ namespace ReNes {
                         if (_sprramWritingEnabled)
                         {
                             _sprram[_dstAddr2004++] = value;
-                            _dstWrite2003 = 1;
+//                            _dstWrite2003 = 0;
                         }
                         
                         break;
@@ -91,7 +101,11 @@ namespace ReNes {
                     
                     case 0x2006:
                     {
-                        dstAddrWriting(_dstWrite2006, _dstAddr2007);
+//                        if (value == 0x20)
+//                            log("fuck\n");
+                        
+                        dstAddrWriting(_dstWrite2006, _dstAddr2007tmp, _dstAddr2007);
+                        
                         break;
                     }
                     case 0x2007:
@@ -103,7 +117,7 @@ namespace ReNes {
                         // 在每一次向$2007写数据后，地址会根据$2000的第二个bit位增加1或者32
                         _dstAddr2007 += io_regs[0].get(2) == 0 ? 1 : 32;
                         
-                        _dstWrite2006 = 1; // 每次写入2007之后，移动2006写入高位地址（可能是这样，也有可能没有这么处理）
+//                        _dstWrite2006 = 0; // 每次写入2007之后，移动2006写入高位地址（可能是这样，也有可能没有这么处理）
                         
                         break;
                     }
@@ -160,7 +174,7 @@ namespace ReNes {
             int nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
             uint8_t* nameTableAddr = &_vram.masterData()[0x2000 + nameTableIndex*0x0400];
             uint8_t* attributeTableAddr = &_vram.masterData()[0x23C0 + nameTableIndex*0x0400];
-            uint8_t* bkPetternTableAddr = &_vram.masterData()[0 + 0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址
+            uint8_t* bkPetternTableAddr = &_vram.masterData()[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址
             uint8_t* sprPetternTableAddr = &_vram.masterData()[0x1000 * io_regs[0].get(3)]; // 第3bit决定精灵图案表地址
             
             uint8_t* bkPaletteAddr = &_vram.masterData()[0x3F00];   // 背景调色板地址
@@ -357,20 +371,23 @@ namespace ReNes {
         
         void reset()
         {
-            _dstWrite2003 = 1;
+            _dstWrite2003 = 0;
+            _dstAddr2004tmp = 0;
             _dstAddr2004 = 0;
             _sprramWritingEnabled = false;
-            _dstWrite2006 = 1;
+            _dstWrite2006 = 0;
             _dstAddr2007 = 0;
             
             memset(_sprram, 0, 256);
         }
         
-        int _dstWrite2003 = 1;
+        int _dstWrite2003 = 0;
+        uint16_t _dstAddr2004tmp = 0;
         uint16_t _dstAddr2004 = 0;
         bool _sprramWritingEnabled = false;
         
-        int _dstWrite2006 = 1;
+        int _dstWrite2006 = 0;
+        uint16_t _dstAddr2007tmp = 0;
         uint16_t _dstAddr2007 = 0;
         
         uint8_t* _buffer = 0;

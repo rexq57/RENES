@@ -49,8 +49,9 @@ namespace ReNes {
         
         IMMIDIATE,     // 立即数，8bit数据
         
+        
 //        INDIRECT_ABSOLUTE, // 间接绝对寻址
-        INDIRECT_ABSOLUTE_Y, // 间接绝对寻址 (oper),Y
+        INDIRECT_INDEXED_Y, // 从零页找到16bit再加Y (oper),Y
         
         ADDR_REGS_A,
         ADDR_REGS_X,
@@ -265,7 +266,7 @@ namespace ReNes {
                     /* LDA #oper */ {0xA9, {"LDA", CF_LD, DST_REGS_A, IMMIDIATE, 2, 2}},
                     /* LDA oper */  {0xAD, {"LDA", CF_LD, DST_REGS_A, INDEXED_ABSOLUTE, 3, 4}},
                     /* LDA oper,X*/ {0xBD, {"LDA", CF_LD, DST_REGS_A, INDEXED_ABSOLUTE_X, 3, 4}},
-                    /* LDA (oper),Y */ {0xB1, {"LDA", CF_LD, DST_REGS_A, INDIRECT_ABSOLUTE_Y, 2, 5}},
+                    /* LDA (oper),Y */ {0xB1, {"LDA", CF_LD, DST_REGS_A, INDIRECT_INDEXED_Y, 2, 5}},
                     
                     
                     /* LDX #oper */ {0xA2, {"LDX", CF_LD, DST_REGS_X, IMMIDIATE, 2, 2}},
@@ -280,7 +281,7 @@ namespace ReNes {
                     /* STA oper  */ {0x8D, {"STA", CF_ST, DST_REGS_A, INDEXED_ABSOLUTE, 3, 4}},
                     /* STA oper,X  */ {0x9D, {"STA", CF_ST, DST_REGS_A, INDEXED_ABSOLUTE_X, 3, 5}},
                     /* STA oper,Y  */ {0x99, {"STA", CF_ST, DST_REGS_A, INDEXED_ABSOLUTE_Y, 3, 5}},
-                    /* STA (oper),Y  */ {0x91, {"STA", CF_ST, DST_REGS_A, INDIRECT_ABSOLUTE_Y, 2, 6}},
+                    /* STA (oper),Y  */ {0x91, {"STA", CF_ST, DST_REGS_A, INDIRECT_INDEXED_Y, 2, 6}},
                     
                     /* STX oper  */ {0x86, {"STX", CF_ST, DST_REGS_X, ZERO_PAGE, 2, 3}},
                     /* STX oper,X  */ {0x96, {"STX", CF_ST, DST_REGS_X, ZERO_PAGE_Y, 2, 4}},
@@ -864,9 +865,9 @@ namespace ReNes {
                     addr = _mem->read16bitData(dataAddr) + regs.Y;
                     break;
                 }
-                case INDIRECT_ABSOLUTE_Y:
+                case INDIRECT_INDEXED_Y:
                 {
-                    addr = _mem->read16bitData(_mem->read16bitData(dataAddr)) + regs.Y;
+                    addr = _mem->read16bitData(_mem->read8bitData(dataAddr)) + regs.Y;
                     break;
                 }
                 default:
@@ -1102,9 +1103,11 @@ namespace ReNes {
                         res = int_to_hex(_mem->read16bitData(dataAddr)) + ",Y";
                         break;
                     }
-                    case INDIRECT_ABSOLUTE_Y:
+                    case INDIRECT_INDEXED_Y:
                     {
-                        res = int_to_hex(_mem->read16bitData(_mem->read16bitData(dataAddr))) + ",Y";
+//                        res = int_to_hex(_mem->read16bitData(_mem->read16bitData(dataAddr))) + ",Y";
+                        
+                        res = int_to_hex(_mem->read16bitData(_mem->read8bitData(dataAddr))) + ",Y";
                     }
                     case ACCUMULATOR:
                     {
