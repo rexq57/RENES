@@ -234,23 +234,33 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
 - (void) updateRGBData:(uint8_t*) data size:(CGSize) size
 {
     @synchronized (self) {
-        NSData* dt = [NSData dataWithBytes:data length:(int)size.width*(int)size.height*3];
         
-        __weak MyOpenGLView* unsafe_self = self;
-        self.updateData = ^() {
+        @autoreleasepool {
+        
+            NSData* dt = [NSData dataWithBytes:data length:(int)size.width*(int)size.height*3];
             
-            [unsafe_self _updateRGBData:(uint8_t*)[dt bytes] size:size];
-        };
+            __weak MyOpenGLView* unsafe_self = self;
+            self.updateData = ^() {
+                
+                [unsafe_self _updateRGBData:(uint8_t*)[dt bytes] size:size];
+            };
+            
+            dispatch_async(dispatch_get_main_queue(), ^{
+                
+                @autoreleasepool {
+                    //        [self setNeedsDisplay:YES];
+                    [self display];
+                }
+                
+            });
+        }
     }
 //    [[self openGLContext] flushBuffer];
 //    [self update];
 //    self.needsDisplay = YES;
     
     
-    dispatch_async(dispatch_get_main_queue(), ^{
-//        [self setNeedsDisplay:YES];
-        [self display];
-    });
+    
 }
 
 - (void) mouseDown:(NSEvent *)event

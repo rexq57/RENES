@@ -19,7 +19,7 @@ namespace ReNes {
     
     #define STACK_ADDR_OFFSET 0x0100
     
-    size_t highBit(uint32_t a) {
+    size_t highBit(uint8_t a) {
         size_t bits=0;
         while (a!=0) {
             ++bits;
@@ -35,8 +35,8 @@ namespace ReNes {
         
         ACCUMULATOR,
         
-        IMMIDIATE_8bit_AND_CMP_0,
-        IMMIDIATE_8bit_AND_CMP_1,
+        IMMIDIATE_8bit_VALUE_0,
+        IMMIDIATE_8bit_VALUE_1,
         
         ZERO_PAGE_8bit,     // 零页寻址，就是间接8bit寻址
         ZERO_PAGE_X_8bit,   // 零页寻址
@@ -51,7 +51,10 @@ namespace ReNes {
         IMMIDIATE_16bit,    // 立即数，16bit数据
         
         INDIRECT_ABSOLUTE_8bit, // 间接绝对寻址
-        INDIRECT_ABSOLUTE_Y_8bit, // 间接绝对寻址
+        INDIRECT_ABSOLUTE_Y_8bit, // 间接绝对寻址 (oper),Y
+        
+        ADDR_REGS_X,
+        ADDR_REGS_A,
         
         DATA_VALUE,
     };
@@ -111,7 +114,7 @@ namespace ReNes {
         
         bool error; // 错误标记
         
-        
+        long execCmdLine = 0;
         
         CPU()
         {
@@ -161,7 +164,7 @@ namespace ReNes {
                         case InterruptTypeNMI:
                         {
                             // NMI中断可以被0x2000的第7位屏蔽，== 0 就是屏蔽，这里不通过read访问
-                            if (((bit8*)_mem->masterData())->get(7) == 0)
+                            if (((bit8*)&_mem->masterData()[0x2000])->get(7) == 0)
                             {
                                 break;
                             }
@@ -249,7 +252,7 @@ namespace ReNes {
             // 从内存里面取出一条8bit指令，将PC移动到下一个内存地址
             uint8_t cmd = _mem->read8bitData(regs.PC);
             
-            log("[%04X] cmd: %x => ", regs.PC, cmd);
+            log("[%ld][%04X] cmd: %x => ", execCmdLine, regs.PC, cmd);
             
             int jumpPC = 0;
             
@@ -259,8 +262,13 @@ namespace ReNes {
                     /* BRK */ {0x00, {CF_BRK, DST_NONE, ACCUMULATOR, 1, 7}},
                     /* LDA #oper */ {0xA9, {CF_LD, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
                     /* LDA oper */  {0xAD, {CF_LD, DST_REGS_A, INDEXED_ABSOLUTE_8bit, 3, 4}},
+                    /* LDA (oper),Y */ {0xB1, {CF_LD, DST_REGS_A, INDIRECT_ABSOLUTE_Y_8bit, 2, 5}},
+                    
                     /* LDX #oper */ {0xA2, {CF_LD, DST_REGS_X, IMMIDIATE_8bit, 2, 2}},
+                    /* LDX oper */ {0xAE, {CF_LD, DST_REGS_X, INDEXED_ABSOLUTE_8bit, 3, 4}},
+                    
                     /* LDY #oper */ {0xA0, {CF_LD, DST_REGS_Y, IMMIDIATE_8bit, 2, 2}},
+                    /* LDY oper */ {0xAC, {CF_LD, DST_REGS_Y, INDEXED_ABSOLUTE_8bit, 3, 4}},
                     
                     
                     /* STA oper  */ {0x85, {CF_ST, DST_REGS_A, ZERO_PAGE_8bit, 2, 3}},
@@ -289,9 +297,9 @@ namespace ReNes {
                     /* CPX #oper */ {0xE0, {CF_CP, DST_REGS_X, IMMIDIATE_8bit, 2, 2}},
                     /* CPY #oper */ {0xC0, {CF_CP, DST_REGS_Y, IMMIDIATE_8bit, 2, 2}},
                     
-                    /* BNE oper */  {0xD0, {CF_B, DST_REGS_P_Z, IMMIDIATE_8bit_AND_CMP_0, 2, 2}},
-                    /* BPL oper */  {0x10, {CF_B, DST_REGS_P_N, IMMIDIATE_8bit_AND_CMP_0, 2, 2}},
-                    /* BCS oper */  {0xB0, {CF_B, DST_REGS_P_C, IMMIDIATE_8bit_AND_CMP_1, 2, 2}},
+                    /* BNE oper */  {0xD0, {CF_B, DST_REGS_P_Z, IMMIDIATE_8bit_VALUE_0, 2, 2}},
+                    /* BPL oper */  {0x10, {CF_B, DST_REGS_P_N, IMMIDIATE_8bit_VALUE_0, 2, 2}},
+                    /* BCS oper */  {0xB0, {CF_B, DST_REGS_P_C, IMMIDIATE_8bit_VALUE_1, 2, 2}},
                     
                     
                     /* RTI */      {0x40, {CF_RTI, DST_NONE, ACCUMULATOR, 1, 6}},
@@ -307,12 +315,23 @@ namespace ReNes {
                     /* CLD */ {0xD8, {CF_CL, DST_REGS_P_D, ACCUMULATOR, 1, 2}},
                     /* CLI */ {0x58, {CF_CL, DST_REGS_P_I, ACCUMULATOR, 1, 2}},
                     
-                    /* TXS */ {0x9A, {CF_TX, DST_REGS_SP, ACCUMULATOR, 1, 2}},
-                    /* TXA */ {0x8A, {CF_TX, DST_REGS_A, ACCUMULATOR, 1, 2}},
+                    /* TXS */ {0x9A, {CF_T, DST_REGS_SP, ADDR_REGS_X, 1, 2}},
+                    /* TXA */ {0x8A, {CF_T, DST_REGS_A, ADDR_REGS_X, 1, 2}},
+                    /* TAX */ {0xAA, {CF_T, DST_REGS_X, ADDR_REGS_A, 1, 2}},
                     
                     /* BIT oper */ {0x2C, {CF_BIT, DST_REGS_P_Z, IMMIDIATE_8bit, 3, 4}},
                     
                     /* ORA #oper */ {0x09, {CF_OR, DST_REGS_A, IMMIDIATE_8bit, 2, 2}},
+                    
+                    /* ASL A */ {0x0A, {CF_ASL, DST_REGS_A, ACCUMULATOR, 1, 2}},
+                    /* LSR A */ {0x4A, {CF_LSR, DST_REGS_A, ACCUMULATOR, 1, 2}},
+                    
+                    /* PHA */ {0x48, {CF_PH, DST_REGS_A, ACCUMULATOR, 1, 3}},
+                    /* PLA */ {0x68, {CF_PL, DST_REGS_A, ACCUMULATOR, 1, 4}},
+                    
+                    /* BCC oper */ {0x90, {CF_REGS, DST_REGS_P_C, IMMIDIATE_8bit_VALUE_0, 2, 2}},
+                    
+                    
                 };
             }
 
@@ -339,7 +358,7 @@ namespace ReNes {
                     // 寻址
                     std::function<void(DST, CALCODE, int)> calFunc = [this, &mode, cf](DST dst, CALCODE code, int val){
                         
-                        uint8_t dst_value;
+                        uint8_t dst_value = 0;
                         
                         if (cf != CF_ST) // set 函数不需要获取原来的值
                         {
@@ -400,9 +419,23 @@ namespace ReNes {
                             regs.P.set(dst - DST_REGS_P_C, 0);
                             break;
                         }
-                        case CF_TX:
+                        case CF_T:
                         {
-                            calFunc(dst, CALCODE_SET, valueFromRegs(DST_REGS_X));
+                            DST src;
+                            switch (mode)
+                            {
+                                case ADDR_REGS_X:
+                                    src = DST_REGS_X;
+                                    break;
+                                case ADDR_REGS_A:
+                                    src = DST_REGS_A;
+                                    break;
+                                default:
+                                    assert(!"error!");
+                                    break;
+                            }
+                            
+                            calFunc(dst, CALCODE_SET, valueFromRegs(src));
                             break;
                         }
                         case CF_SBC:
@@ -426,7 +459,7 @@ namespace ReNes {
                         }
                         case CF_B:
                         {
-                            int value = mode - IMMIDIATE_8bit_AND_CMP_0; // 得到具体数值
+                            int value = mode - IMMIDIATE_8bit_VALUE_0; // 得到具体数值
                             int8_t offset = 0;
                             
                             if (valueFromDST(dst, mode) == value)
@@ -442,6 +475,54 @@ namespace ReNes {
                         case CF_OR:
                         {
                             calFunc(dst, CALCODE_OR, addressingValue(mode));
+                            break;
+                        }
+                        case CF_ASL:
+                        {
+                            calFunc(dst, CALCODE_ASL, 1);
+                            break;
+                        }
+                        case CF_LSR:
+                        {
+                            calFunc(dst, CALCODE_LSR, 1);
+                            break;
+                        }
+                        case CF_PH:
+                        {
+                            push(valueFromRegs(dst));
+                            break;
+                        }
+                        case CF_PL:
+                        {
+                            switch (dst)
+                            {
+                                case DST_REGS_A:
+                                    regs.A = pop();
+                                    break;
+                                default:
+                                    assert(!"error!");
+                                    break;
+                            }
+                            
+                            break;
+                        }
+                        case CF_REGS:
+                        {
+                            int value = mode - IMMIDIATE_8bit_VALUE_0; // 得到具体数值
+                            int offset = dst - DST_REGS_P_C;
+                            switch (dst)
+                            {
+                                case DST_REGS_A:
+                                    regs.A = value;
+                                    break;
+                                case DST_REGS_P_C:
+                                    regs.P.set(offset, value);
+                                    break;
+                                default:
+                                    assert(!"error!");
+                                    break;
+                            }
+                            
                             break;
                         }
                         case CF_RTS:
@@ -492,8 +573,8 @@ namespace ReNes {
                     // 检查调整类型：相对，绝对
                     switch (info.mode)
                     {
-                        case IMMIDIATE_8bit_AND_CMP_0:
-                        case IMMIDIATE_8bit_AND_CMP_1:
+                        case IMMIDIATE_8bit_VALUE_0:
+                        case IMMIDIATE_8bit_VALUE_1:
                         case IMMIDIATE_8bit:
                             // 相对跳转
                             regs.PC += jumpPC;
@@ -511,6 +592,8 @@ namespace ReNes {
                     log("jmp %X\n", regs.PC);
                 }
             }
+            
+            execCmdLine ++;
             
             return info.cyles;
         }
@@ -532,7 +615,7 @@ namespace ReNes {
             
             CF_SE,
             CF_CL,
-            CF_TX,
+            CF_T,
             
             CF_DE,
             CF_SBC,
@@ -541,6 +624,14 @@ namespace ReNes {
             CF_BIT,
             
             CF_OR,
+            
+            CF_ASL, // 累加器寻址，算数左移
+            CF_LSR,
+            
+            CF_PH,
+            CF_PL,
+            
+            CF_REGS,
         };
         
         const std::map<CF, std::string> CF_NAME = {
@@ -558,7 +649,7 @@ namespace ReNes {
             
             {CF_SE, "SE"},
             {CF_CL, "CL"},
-            {CF_TX, "TX"},
+            {CF_T, "T"},
             
             {CF_DE, "DE"},
             {CF_SBC, "SBC"},
@@ -567,6 +658,13 @@ namespace ReNes {
             {CF_BIT, "BIT"},
             
             {CF_OR, "OR"},
+            
+            {CF_ASL, "ASL"},
+            {CF_LSR, "LSR"},
+            {CF_PH, "PH"},
+            {CF_PL, "PL"},
+            
+            {CF_REGS, "BC"}
         };
         
         enum DST{
@@ -708,8 +806,8 @@ namespace ReNes {
                     //                {
                     //                    addr = _mem->read8bitData(dataAddr);
                     //                }
-                case IMMIDIATE_8bit_AND_CMP_0:
-                case IMMIDIATE_8bit_AND_CMP_1:
+                case IMMIDIATE_8bit_VALUE_0:
+                case IMMIDIATE_8bit_VALUE_1:
                 case IMMIDIATE_8bit:
                 {
                     addr = dataAddr;
@@ -834,6 +932,13 @@ namespace ReNes {
             }
         }
         
+        void push(uint8_t value)
+        {
+            uint16_t stack_addr = STACK_ADDR_OFFSET + regs.SP;
+            _mem->write8bitData(stack_addr, value);
+            regs.SP --;
+        }
+        
         // 出栈
         uint8_t pop()
         {
@@ -847,7 +952,7 @@ namespace ReNes {
         {
             // 保存现场（把PC、 P两个寄存器压栈）
             push((const uint8_t*)&regs.PC, 2);
-            push((const uint8_t*)&regs.P, 1);
+            push(*(uint8_t*)&regs.P);
         }
         
         // 恢复现场()
@@ -885,7 +990,9 @@ namespace ReNes {
             CALCODE_AND,
             
             CALCODE_BIT,
-            CALCODE_OR
+            CALCODE_OR,
+            CALCODE_ASL,
+            CALCODE_LSR,
         };
         
         template< typename T >
@@ -931,8 +1038,8 @@ namespace ReNes {
                 
                 switch (mode)
                 {
-                    case IMMIDIATE_8bit_AND_CMP_0:
-                    case IMMIDIATE_8bit_AND_CMP_1:
+                    case IMMIDIATE_8bit_VALUE_0:
+                    case IMMIDIATE_8bit_VALUE_1:
                     case IMMIDIATE_8bit:
                     {
                         res = std::string("#") + int_to_hex(_mem->read8bitData(dataAddr));
@@ -982,6 +1089,16 @@ namespace ReNes {
                     {
                         break;
                     }
+                    case ADDR_REGS_X:
+                    {
+                        res = int_to_hex(regs.X);
+                        break;
+                    }
+                    case ADDR_REGS_A:
+                    {
+                        res = int_to_hex(regs.A);
+                        break;
+                    }
                     default:
                         assert(!"error!");
                         break;
@@ -991,7 +1108,7 @@ namespace ReNes {
             
             std::string dst_code;
             std::string oper = operCode(mode);
-            std::set<std::string> nameAppend({"LD", "ST", "IN", "DE", "CP", "SE", "CL", "TX", "B"});
+            std::set<std::string> nameAppend({"LD", "ST", "IN", "DE", "CP", "SE", "CL", "TX", "B", "PH", "PL"});
             if (SET_FIND(nameAppend, cmd))
             {
                 if (cmd == "B")
@@ -1024,10 +1141,10 @@ namespace ReNes {
          @param op 操作符
          @param value 值
          */
-        void cal(uint8_t* dst, CALCODE op, int value)
+        void cal(uint8_t* dst, CALCODE op, int8_t value)
         {
-            int old_value = *dst;
-            int8_t new_value;
+            int8_t old_value = *dst; // [0, 255]
+            int new_value;
             bool applyToDST = false;
             bool checkFLAG[8] = {0};
             
@@ -1035,8 +1152,8 @@ namespace ReNes {
             {
                 case CALCODE_SET:
                 {
-                    log("%d = %d\n", old_value, value);
-                    new_value = value;
+                    log("%d = %d\n", (uint8_t)old_value, (uint8_t)value); // 为了显示
+                    new_value = (int8_t)value;
                     checkFLAG[__registers::N] = true;
                     checkFLAG[__registers::Z] = true;
                     applyToDST = true;
@@ -1046,13 +1163,13 @@ namespace ReNes {
                 {
                     if (value < 0)
                     {
-                       log("%d - %d\n", old_value, abs(value));
+                       log("%d - %d\n", (uint8_t)old_value, abs((int8_t)value));
                     }
                     else
                     {
-                        log("%d + %d\n", old_value, value);
+                        log("%d + %d\n", (uint8_t)old_value, (uint8_t)value);
                     }
-                    new_value = old_value + value;
+                    new_value = (int8_t)old_value + (int8_t)value; // -128 - 2 最终会限制到8bit -1 + 1 = 255 + 1
                     checkFLAG[__registers::N] = true;
                     checkFLAG[__registers::Z] = true;
                     applyToDST = true;
@@ -1062,13 +1179,13 @@ namespace ReNes {
                 {
                     if (value < 0)
                     {
-                        log("%d - %d\n", old_value, abs(value));
+                        log("%d - %d\n", (int8_t)old_value, abs((int8_t)value));
                     }
                     else
                     {
-                        log("%d + %d\n", old_value, value);
+                        log("%d + %d\n", (int8_t)old_value, (int8_t)value);
                     }
-                    new_value = old_value + value;
+                    new_value = (int8_t)old_value + (int8_t)value;
                     
                     // 检查
                     checkFLAG[__registers::N] = true;
@@ -1080,8 +1197,8 @@ namespace ReNes {
                 }
                 case CALCODE_CP:
                 {
-                    log("%d 比较 %d\n", old_value, value);
-                    new_value = old_value - value;
+                    log("%d 比较 %d\n", (int8_t)old_value, (int8_t)value);
+                    new_value = (int8_t)old_value - (int8_t)value;
 
                     checkFLAG[__registers::N] = true;
                     checkFLAG[__registers::Z] = true;
@@ -1090,8 +1207,8 @@ namespace ReNes {
                 }
                 case CALCODE_AND:
                 {
-                    log("%d AND %d\n", old_value, value);
-                    new_value = old_value & value;
+                    log("%d AND %d\n", (uint8_t)old_value, (uint8_t)value);
+                    new_value = (uint8_t)old_value & (uint8_t)value;
                     checkFLAG[__registers::N] = true;
                     checkFLAG[__registers::Z] = true;
                     applyToDST = true;
@@ -1100,7 +1217,7 @@ namespace ReNes {
                 case CALCODE_BIT:
                 {
                     // Z = A AND M
-                    new_value = regs.A & value;
+                    new_value = regs.A & (uint8_t)value;
                     checkFLAG[__registers::Z] = true;
                     
                     // P(b,7) = M(6,7)
@@ -1110,11 +1227,34 @@ namespace ReNes {
                 }
                 case CALCODE_OR:
                 {
-                    log("%d OR %d\n", old_value, value);
-                    new_value = old_value | value;
+                    log("%d OR %d\n", (uint8_t)old_value, (uint8_t)value);
+//                    if (value < 0)
+//                        log("");
+                    new_value = (uint8_t)old_value | (uint8_t)value;
                     checkFLAG[__registers::N] = true;
                     checkFLAG[__registers::Z] = true;
                     applyToDST = true;
+                    break;
+                }
+                case CALCODE_ASL:
+                {
+                    log("%d << 1\n", (uint8_t)old_value);
+                    
+                    new_value = regs.A << 1;
+                    checkFLAG[__registers::N] = true;
+                    checkFLAG[__registers::Z] = true;
+                    checkFLAG[__registers::C] = true;
+                    
+                    break;
+                }
+                case CALCODE_LSR:
+                {
+                    log("%d >> 1\n", (uint8_t)old_value);
+                    
+                    new_value = regs.A >> 1;
+                    checkFLAG[__registers::Z] = true;
+                    checkFLAG[__registers::C] = true;
+                    
                     break;
                 }
                 default:
@@ -1123,18 +1263,24 @@ namespace ReNes {
             }
             
             // 修改寄存器标记
-            if (checkFLAG[__registers::Z])
-                regs.P.set(__registers::Z, new_value == 0);
+            if (checkFLAG[__registers::Z]) // 限定最后的结果在8bit，则 0 == 0 可检查
+                regs.P.set(__registers::Z, (int8_t)new_value == 0);
             
-            if (checkFLAG[__registers::N])
-                regs.P.set(__registers::N, new_value < 0);
+            if (checkFLAG[__registers::N]) // 限定最后的结果在8bit，则小于0在负数表示范围
+                regs.P.set(__registers::N, (int8_t)new_value < 0);
             
-            if (checkFLAG[__registers::V])
+            if (checkFLAG[__registers::V]) // 计算溢出，需要在符号计算情况下，更高的范围来判断
                 regs.P.set(__registers::V, new_value < -128 || new_value > 127);
 
-            if (checkFLAG[__registers::C]) // 检查高位是否发生进位或借位
-                regs.P.set(__registers::C, highBit(old_value) != highBit(new_value));
+            if (checkFLAG[__registers::C]) // 检查高位是否发生进位或借位，判断前后最高位的位置，不等则发生了错位
+            {
+//                if (old_value < 0 || new_value < 0)
+//                    log("fuck\n");
+                int c = highBit(old_value) != highBit(new_value);
+                regs.P.set(__registers::C, c);
+            }
             
+
             // 影响目标值
             if (applyToDST)
             {

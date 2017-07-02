@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		214C3C8A1F002C540069C001 /* OUR.NES in Resources */ = {isa = PBXBuildFile; fileRef = 214C3C891F002C4F0069C001 /* OUR.NES */; };
 		2156BFBB1EFF5976001B3025 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 2156BFBA1EFF5976001B3025 /* AppDelegate.m */; };
-		2156BFBE1EFF5976001B3025 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 2156BFBD1EFF5976001B3025 /* main.m */; };
+		2156BFBE1EFF5976001B3025 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2156BFBD1EFF5976001B3025 /* main.mm */; };
 		2156BFC11EFF5976001B3025 /* ViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2156BFC01EFF5976001B3025 /* ViewController.mm */; };
 		2156BFC31EFF5976001B3025 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2156BFC21EFF5976001B3025 /* Assets.xcassets */; };
 		2156BFC61EFF5976001B3025 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2156BFC41EFF5976001B3025 /* Main.storyboard */; };
@@ -24,7 +24,7 @@
 		2156BFB61EFF5976001B3025 /* RENES.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RENES.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2156BFB91EFF5976001B3025 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		2156BFBA1EFF5976001B3025 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
-		2156BFBD1EFF5976001B3025 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		2156BFBD1EFF5976001B3025 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		2156BFBF1EFF5976001B3025 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
 		2156BFC01EFF5976001B3025 /* ViewController.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ViewController.mm; sourceTree = "<group>"; };
 		2156BFC21EFF5976001B3025 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -89,7 +89,7 @@
 		2156BFBC1EFF5976001B3025 /* Supporting Files */ = {
 			isa = PBXGroup;
 			children = (
-				2156BFBD1EFF5976001B3025 /* main.m */,
+				2156BFBD1EFF5976001B3025 /* main.mm */,
 			);
 			name = "Supporting Files";
 			sourceTree = "<group>";
@@ -236,7 +236,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2156BFC11EFF5976001B3025 /* ViewController.mm in Sources */,
-				2156BFBE1EFF5976001B3025 /* main.m in Sources */,
+				2156BFBE1EFF5976001B3025 /* main.mm in Sources */,
 				2156BFBB1EFF5976001B3025 /* AppDelegate.m in Sources */,
 				2167AF7D1F05117C000E6D99 /* MyOpenGLView.m in Sources */,
 			);

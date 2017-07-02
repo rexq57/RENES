@@ -80,18 +80,37 @@ namespace ReNes {
                    rom[8], rom[9], rom[10], rom[11], rom[12], rom[13], rom[14], rom[15]);
             
             // 将rom载入内存
-            for (int i=0; i<rom16kB_count; i++)
+//            for (int i=0; i<rom16kB_count; i++)
+//            {
+//                const uint8_t* romAddr = &rom[16];
+//                
+//                memcpy(_mem.masterData() + PRG_ROM_LOWER_BANK_OFFSET, romAddr, 1024*16);
+//                
+//                // 如果只有1个16kB的bank，则需要再复制一份到0xC000处，让中断向量能够在0xFFFA出现
+//                if (rom16kB_count == 1)
+//                {
+//                    memcpy(_mem.masterData() + PRG_ROM_UPPER_BANK_OFFSET, romAddr, 1024*16);
+//                }
+//            }
+            if (rom16kB_count == 1)
             {
                 const uint8_t* romAddr = &rom[16];
                 
                 memcpy(_mem.masterData() + PRG_ROM_LOWER_BANK_OFFSET, romAddr, 1024*16);
                 
                 // 如果只有1个16kB的bank，则需要再复制一份到0xC000处，让中断向量能够在0xFFFA出现
-                if (rom16kB_count == 1)
+                memcpy(_mem.masterData() + PRG_ROM_UPPER_BANK_OFFSET, romAddr, 1024*16);
+            }
+            else
+            {
+                for (int i=0; i<rom16kB_count && i < 2; i++)
                 {
-                    memcpy(_mem.masterData() + PRG_ROM_UPPER_BANK_OFFSET, romAddr, 1024*16);
+                    const uint8_t* romAddr = &rom[16 + 1024*16*i];
+                    
+                    memcpy(_mem.masterData() + PRG_ROM_LOWER_BANK_OFFSET + 1024*16*i, romAddr, 1024*16);
                 }
             }
+            
             
             // 将图案表数据载入VRAM
             for (int i=0; i<vrom8kB_count; i++)

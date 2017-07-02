@@ -26,6 +26,7 @@ using namespace ReNes;
     std::string _logStringCache;
     
     int _stopedCmdAddr;
+    long _stopedCmdLine;
 }
 
 @property (nonatomic) IBOutlet MyOpenGLView* displayView;
@@ -35,6 +36,7 @@ using namespace ReNes;
 @property (nonatomic) IBOutlet NSTextView* sprramView;
 
 @property (nonatomic) IBOutlet NSTextField* stopedCmdAddrField;
+@property (nonatomic) IBOutlet NSTextField* stopedCmdLineField;
 
 
 @property (nonatomic) IBOutlet NSTextView* logView;
@@ -53,12 +55,17 @@ using namespace ReNes;
     
     dispatch_async(dispatch_get_main_queue(), ^{
         
-//        std::string str = std::string([_logView.string UTF8String]) + std::string([buffer UTF8String]);
+        @autoreleasepool {
+            
+            //        std::string str = std::string([_logView.string UTF8String]) + std::string([buffer UTF8String]);
+            
+            //        _logView.string = [NSString stringWithUTF8String:str.c_str()];
+            [[_logView textStorage] appendAttributedString:[[NSAttributedString alloc] initWithString:buffer]];
+            
+            [_logView scrollRangeToVisible: NSMakeRange(_logView.string.length, 0)];
+        }
         
-//        _logView.string = [NSString stringWithUTF8String:str.c_str()];
-        [[_logView textStorage] appendAttributedString:[[NSAttributedString alloc] initWithString:buffer]];
-        
-        [_logView scrollRangeToVisible: NSMakeRange(_logView.string.length, 0)];
+
     });
 }
 
@@ -67,52 +74,65 @@ using namespace ReNes;
     // 异步
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         
-        NSString* filePath = [[NSBundle mainBundle] pathForResource:@"OUR.NES" ofType:@""];
-        NSData* data = [NSData dataWithContentsOfFile:filePath];
+        @autoreleasepool {
         
-        if (_nes != 0)
-        {
-            delete _nes;
+            NSString* filePath = [[NSBundle mainBundle] pathForResource:@"OUR.NES" ofType:@""];
+            NSData* data = [NSData dataWithContentsOfFile:filePath];
+            
+            if (_nes != 0)
+            {
+                delete _nes;
+            }
+            _nes = new Nes();
+            
+            _nes->cpu_callback = [self](CPU* cpu){
+                
+                // 手动中断
+                //            @synchronized ((__bridge id)_nes)
+                {
+                    if (cpu == _nes->cpu())
+                    {
+                        if (!_keepNext || ((cpu->regs.PC == _stopedCmdAddr || cpu->execCmdLine == _stopedCmdLine) && log("自定义地址中断\n")))
+                            dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
+                    }
+                }
+                
+                
+                return true;
+            };
+            
+            _nes->ppu_callback = [self](PPU* ppu){
+                
+                //            @synchronized ((__bridge id)_nes)
+                {
+                    if (ppu == _nes->ppu())
+                    {
+                        // 显示图片
+                        int width  = ppu->width();
+                        int height = ppu->height();
+                        uint8_t* srcBuffer = ppu->buffer();
+                        
+                        [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+                    }
+                }
+                return true;
+            };
+            
+            //        _nes->mem()->addWritingObserver(0x2000, [self](uint16_t addr, uint8_t value){
+            //
+            //            if (addr == 0x2000 && (*(bit8*)&value).get(7) == 1)
+            //            {
+            //                _keepNext = false;
+            //                log("fuck\n");
+            //            }
+            //        });
+            
+            _nes->setDebug(true);
+            _nes->loadRom((const uint8_t*)[data bytes], [data length]);
+            
+            _nes->run();
+            
         }
-        _nes = new Nes();
-        
-        _nes->cpu_callback = [self](CPU* cpu){
-            
-            // 手动中断
-            //            @synchronized ((__bridge id)_nes)
-            {
-                if (cpu == _nes->cpu())
-                {
-                    if (!_keepNext || (cpu->regs.PC == _stopedCmdAddr && log("自定义地址中断\n")))
-                        dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
-                }
-            }
-            
-            
-            return true;
-        };
-        
-        _nes->ppu_callback = [self](PPU* ppu){
-            
-            //            @synchronized ((__bridge id)_nes)
-            {
-                if (ppu == _nes->ppu())
-                {
-                    // 显示图片
-                    int width  = ppu->width();
-                    int height = ppu->height();
-                    uint8_t* srcBuffer = ppu->buffer();
-                    
-                    [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
-                }
-            }
-            return true;
-        };
-        
-        _nes->setDebug(true);
-        _nes->loadRom((const uint8_t*)[data bytes], [data length]);
-        
-        _nes->run();
     });
 }
 
@@ -158,68 +178,72 @@ using namespace ReNes;
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         
-        std::string str;
-        int count;
-        NSTextView* dstView;
-        uint8_t* srcData;
-
-        switch ([[_memTabView.selectedTabViewItem identifier] integerValue]) {
-            case 0:
-                dstView = _memView;
-                count = 0x10000;
-                srcData = _nes->mem()->masterData();
-                break;
-            case 1:
-                dstView = _vramView;
-                count = 1024*16;
-                srcData = _nes->ppu()->vram()->masterData();
-                break;
+        @autoreleasepool {
+        
+            std::string str;
+            int count;
+            NSTextView* dstView;
+            uint8_t* srcData;
             
-            case 2:
-                dstView = _sprramView;
-                count = 0x100;
-                srcData = _nes->ppu()->sprram();
-                break;
-            default:
-                assert(!"error!");
-                break;
-        }
-        
-        
-        bool printLineNum = true;
-        
-        char buffer[10];
-        
-        for (int i=0; i<count; i++)
-        {
-            if (i > 1 && i % 0x10 == 0)
-            {
-                str += "\r";
-                printLineNum = true;
+            switch ([[_memTabView.selectedTabViewItem identifier] integerValue]) {
+                case 0:
+                    dstView = _memView;
+                    count = 0x10000;
+                    srcData = _nes->mem()->masterData();
+                    break;
+                case 1:
+                    dstView = _vramView;
+                    count = 1024*16;
+                    srcData = _nes->ppu()->vram()->masterData();
+                    break;
+                    
+                case 2:
+                    dstView = _sprramView;
+                    count = 0x100;
+                    srcData = _nes->ppu()->sprram();
+                    break;
+                default:
+                    assert(!"error!");
+                    break;
             }
             
-            if (printLineNum)
+            
+            bool printLineNum = true;
+            
+            char buffer[10];
+            
+            for (int i=0; i<count; i++)
             {
-                sprintf(buffer, "0x%04X  ", i);
-                str += buffer;
-                printLineNum = false;
-            }
-            
-            uint8_t data = srcData[i];
-            
-            sprintf(buffer, "%02X", data);
-            
-            str += buffer;
-            
-            
-            if (i < count-1)
-            {
+                if (i > 1 && i % 0x10 == 0)
                 {
-                    str += " ";
+                    str += "\r";
+                    printLineNum = true;
+                }
+                
+                if (printLineNum)
+                {
+                    sprintf(buffer, "0x%04X  ", i);
+                    str += buffer;
+                    printLineNum = false;
+                }
+                
+                uint8_t data = srcData[i];
+                
+                sprintf(buffer, "%02X", data);
+                
+                str += buffer;
+                
+                
+                if (i < count-1)
+                {
+                    {
+                        str += " ";
+                    }
                 }
             }
+            dstView.string = [NSString stringWithUTF8String:str.c_str()];
+            
         }
-        dstView.string = [NSString stringWithUTF8String:str.c_str()];
     });
 }
 
@@ -244,22 +268,25 @@ using namespace ReNes;
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         
-        const CPU::__registers& regs = _nes->cpu()->regs;
+        @autoreleasepool {
         
-        _registersView.stringValue = [NSString stringWithFormat:@"PC: 0x%04X SP: 0x%04X\n\
-C:%d Z:%d I:%d D:%d B:%d _:%d V:%d N:%d\n\
-A:%d X:%d Y:%d (%lf, %lf)", regs.PC, regs.SP,
-                                      regs.P.get(CPU::__registers::C),
-                                      regs.P.get(CPU::__registers::Z),
-                                      regs.P.get(CPU::__registers::I),
-                                      regs.P.get(CPU::__registers::D),
-                                      regs.P.get(CPU::__registers::B),
-                                      regs.P.get(CPU::__registers::_),
-                                      regs.P.get(CPU::__registers::V),
-                                      regs.P.get(CPU::__registers::N),
-                                      regs.A,regs.X,regs.Y,
-                                      _nes->cmdTime(), _nes->renderTime()];
+            const CPU::__registers& regs = _nes->cpu()->regs;
+            
+            _registersView.stringValue = [NSString stringWithFormat:@"PC: 0x%04X SP: 0x%04X\n\
+                                          C:%d Z:%d I:%d D:%d B:%d _:%d V:%d N:%d\n\
+                                          A:%d X:%d Y:%d (%lf, %lf)", regs.PC, regs.SP,
+                                          regs.P.get(CPU::__registers::C),
+                                          regs.P.get(CPU::__registers::Z),
+                                          regs.P.get(CPU::__registers::I),
+                                          regs.P.get(CPU::__registers::D),
+                                          regs.P.get(CPU::__registers::B),
+                                          regs.P.get(CPU::__registers::_),
+                                          regs.P.get(CPU::__registers::V),
+                                          regs.P.get(CPU::__registers::N),
+                                          regs.A,regs.X,regs.Y,
+                                          _nes->cmdTime(), _nes->renderTime()];
         
+        }
         
     });
 }
@@ -277,8 +304,9 @@ A:%d X:%d Y:%d (%lf, %lf)", regs.PC, regs.SP,
     dispatch_semaphore_signal(_nextSem);
     
     int number = (int)strtol([[_stopedCmdAddrField stringValue] UTF8String], NULL, 16);
-    
     _stopedCmdAddr = number;
+    
+    _stopedCmdLine = [[_stopedCmdLineField stringValue] integerValue];
 }
 
 - (IBAction) MNI:(id) sender

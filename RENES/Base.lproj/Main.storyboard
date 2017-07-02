@@ -771,8 +771,11 @@
                                             <action selector="debug:" target="XfG-lQ-9wD" id="ukr-6Z-KjT"/>
                                         </connections>
                                     </button>
-                                    <textField verticalHuggingPriority="750" ambiguous="YES" allowsCharacterPickerTouchBarItem="NO" translatesAutoresizingMaskIntoConstraints="NO" id="i9o-DB-KkO">
-                                        <rect key="frame" x="73" y="61" width="57" height="16"/>
+                                    <textField verticalHuggingPriority="750" allowsCharacterPickerTouchBarItem="NO" translatesAutoresizingMaskIntoConstraints="NO" id="i9o-DB-KkO">
+                                        <rect key="frame" x="72" y="61" width="57" height="16"/>
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="57" id="Gbx-vF-t1K"/>
+                                        </constraints>
                                         <textFieldCell key="cell" controlSize="mini" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" drawsBackground="YES" id="kxD-uO-iJJ">
                                             <font key="font" metaFont="miniSystem"/>
                                             <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
@@ -789,8 +792,20 @@
                                             <action selector="resetButton:" target="XfG-lQ-9wD" id="uqi-h3-0PM"/>
                                         </connections>
                                     </button>
+                                    <textField verticalHuggingPriority="750" allowsCharacterPickerTouchBarItem="NO" translatesAutoresizingMaskIntoConstraints="NO" id="auG-AK-Y5h">
+                                        <rect key="frame" x="312" y="61" width="68" height="16"/>
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="68" id="eRp-Xq-fjN"/>
+                                        </constraints>
+                                        <textFieldCell key="cell" controlSize="mini" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" drawsBackground="YES" id="AQR-Ob-IpP">
+                                            <font key="font" metaFont="miniSystem"/>
+                                            <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                            <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                        </textFieldCell>
+                                    </textField>
                                 </subviews>
                                 <constraints>
+                                    <constraint firstItem="auG-AK-Y5h" firstAttribute="top" secondItem="hsI-oI-CmB" secondAttribute="top" constant="20" id="DQL-DH-O8A"/>
                                     <constraint firstItem="5pg-2O-Rfc" firstAttribute="leading" secondItem="k5N-kg-0gb" secondAttribute="trailing" constant="20" id="GTh-UX-JVk"/>
                                     <constraint firstAttribute="bottom" secondItem="9CY-2j-WiT" secondAttribute="bottom" constant="20" id="I74-g9-L7K"/>
                                     <constraint firstItem="i9o-DB-KkO" firstAttribute="leading" secondItem="fSW-01-Cg2" secondAttribute="trailing" constant="10" id="Jhr-jm-3ge"/>
@@ -798,6 +813,7 @@
                                     <constraint firstAttribute="bottom" secondItem="KzD-1P-ebo" secondAttribute="bottom" constant="20" id="SzO-4O-je2"/>
                                     <constraint firstItem="KzD-1P-ebo" firstAttribute="leading" secondItem="5pg-2O-Rfc" secondAttribute="trailing" constant="20" id="Yzf-Mf-qop"/>
                                     <constraint firstItem="i9o-DB-KkO" firstAttribute="top" secondItem="hsI-oI-CmB" secondAttribute="top" constant="20" id="aVw-fD-v6Y"/>
+                                    <constraint firstAttribute="trailing" secondItem="auG-AK-Y5h" secondAttribute="trailing" constant="20" id="azF-e1-IxF"/>
                                     <constraint firstItem="k5N-kg-0gb" firstAttribute="centerY" secondItem="9CY-2j-WiT" secondAttribute="centerY" id="bOi-lo-KYq"/>
                                     <constraint firstItem="fSW-01-Cg2" firstAttribute="top" secondItem="hsI-oI-CmB" secondAttribute="top" constant="20" id="cyd-yO-ha4"/>
                                     <constraint firstItem="fSW-01-Cg2" firstAttribute="leading" secondItem="hsI-oI-CmB" secondAttribute="leading" constant="20" id="hWb-qv-0Wl"/>
@@ -968,6 +984,7 @@
                         <outlet property="registersView" destination="my7-70-8J6" id="aT9-Af-lcO"/>
                         <outlet property="sprramView" destination="aix-nH-EPa" id="bCW-Tp-hVW"/>
                         <outlet property="stopedCmdAddrField" destination="i9o-DB-KkO" id="BRe-ss-Ghf"/>
+                        <outlet property="stopedCmdLineField" destination="auG-AK-Y5h" id="PgX-OR-M9E"/>
                         <outlet property="vramView" destination="HTT-tX-tqy" id="QAh-MO-iO9"/>
                     </connections>
                 </viewController>
