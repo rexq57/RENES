@@ -8,7 +8,7 @@ namespace ReNes {
     public:
         
         enum KEY{
-            KEY_A,
+            KEY_A = 0,
             KEY_B,
             KEY_SELECT,
             KEY_START,
@@ -63,6 +63,16 @@ namespace ReNes {
             _statues[KEY_B] = pressDown;
         }
         
+        void select(bool pressDown)
+        {
+            _statues[KEY_SELECT] = pressDown;
+        }
+        
+        void start(bool pressDown)
+        {
+            _statues[KEY_START] = pressDown;
+        }
+        
         void setNextKey(KEY key)
         {
             _nextKey = key;
@@ -81,6 +91,11 @@ namespace ReNes {
         void reset()
         {
             setNextKey(KEY_A);
+        }
+        
+        const bool* statues() const
+        {
+            return _statues;
         }
         
     private:

@@ -339,9 +339,12 @@ using namespace ReNes;
         
             const CPU::__registers& regs = _nes->cpu()->regs;
             
+            const bool* statues = _nes->ctr()->statues();
+            
             _registersView.stringValue = [NSString stringWithFormat:@"PC: 0x%04X SP: 0x%04X\n\
 C:%d Z:%d I:%d D:%d B:%d _:%d V:%d N:%d\n\
-A:%d X:%d Y:%d (%lf, %lf)", regs.PC, regs.SP,
+A:%d X:%d Y:%d (%lf, %lf)\n\
+%d %d %d %d %d %d %d %d", regs.PC, regs.SP,
                                           regs.P.get(CPU::__registers::C),
                                           regs.P.get(CPU::__registers::Z),
                                           regs.P.get(CPU::__registers::I),
@@ -351,7 +354,8 @@ A:%d X:%d Y:%d (%lf, %lf)", regs.PC, regs.SP,
                                           regs.P.get(CPU::__registers::V),
                                           regs.P.get(CPU::__registers::N),
                                           regs.A,regs.X,regs.Y,
-                                          _nes->cmdTime(), _nes->renderTime()];
+                                          _nes->cmdTime(), _nes->renderTime(),
+                                          statues[0], statues[1], statues[2], statues[3], statues[4], statues[5], statues[6], statues[7]];
         
         }
         
@@ -438,6 +442,16 @@ A:%d X:%d Y:%d (%lf, %lf)", regs.PC, regs.SP,
             _nes->ctr()->B(true);
             break;
         }
+        case 18:
+        {
+            _nes->ctr()->select(true);
+            break;
+        }
+        case 19:
+        {
+            _nes->ctr()->start(true);
+            break;
+        }
         default:
             break;
     }
@@ -474,6 +488,16 @@ A:%d X:%d Y:%d (%lf, %lf)", regs.PC, regs.SP,
         case 6:
         {
             _nes->ctr()->B(false);
+            break;
+        }
+        case 18:
+        {
+            _nes->ctr()->select(false);
+            break;
+        }
+        case 19:
+        {
+            _nes->ctr()->start(false);
             break;
         }
         default:

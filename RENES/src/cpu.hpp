@@ -109,9 +109,10 @@ namespace ReNes {
         CF_ASL, // 累加器寻址，算数左移
         CF_LSR,
         
-        CF_PH,
-        CF_PL,
-        
+        CF_PHA,
+        CF_PLA,
+        CF_ROL,
+        CF_ROR,
     };
     
     
@@ -158,6 +159,8 @@ namespace ReNes {
         
         int bytes;
         int cyles;
+        
+        int flags; // 寄存器影响标签，用于检查执行错误
     };
     
     /**
@@ -361,126 +364,136 @@ namespace ReNes {
         
         /* BCC oper */ {0x90, {"BCC", CF_B, DST_REGS_P_C, RELATIVE, PARAM_0, 2, 2}},
 #else
-        /* (immidiate) ADC #oper */ {0x69, {"ADC", CF_ADC, DST_REGS_A, IMMIDIATE, PARAM_NONE, 2, 2}},
-        /* (zeropage) ADC oper */ {0x65, {"ADC", CF_ADC, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (zeropage,X) ADC oper,X */ {0x75, {"ADC", CF_ADC, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4}},
-        /* (absolute) ADC oper */ {0x6D, {"ADC", CF_ADC, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (absolute,X) ADC oper,X */ {0x7D, {"ADC", CF_ADC, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4}},
-        /* (absolute,Y) ADC oper,Y */ {0x79, {"ADC", CF_ADC, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4}},
-        /* ((indirect,X)) ADC (oper,X) */ {0x61, {"ADC", CF_ADC, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6}},
-        /* ((indirect),Y) ADC (oper),Y */ {0x71, {"ADC", CF_ADC, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 5}},
-        /* (immidiate) AND #oper */ {0x29, {"AND", CF_AND, DST_REGS_A, IMMIDIATE, PARAM_NONE, 2, 2}},
-        /* (zeropage) AND oper */ {0x25, {"AND", CF_AND, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (zeropage,X) AND oper,X */ {0x35, {"AND", CF_AND, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4}},
-        /* (absolute) AND oper */ {0x2D, {"AND", CF_AND, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (absolute,X) AND oper,X */ {0x3D, {"AND", CF_AND, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4}},
-        /* (absolute,Y) AND oper,Y */ {0x39, {"AND", CF_AND, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4}},
-        /* ((indirect,X)) AND (oper,X) */ {0x21, {"AND", CF_AND, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6}},
-        /* ((indirect),Y) AND (oper),Y */ {0x31, {"AND", CF_AND, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 5}},
-        /* (accumulator) ASL A */ {0x0A, {"ASL", CF_ASL, DST_REGS_A, ACCUMULATOR, PARAM_NONE, 1, 2}},
-        /* (zeropage) ASL oper */ {0x06, {"ASL", CF_ASL, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 5}},
-        /* (zeropage,X) ASL oper,X */ {0x16, {"ASL", CF_ASL, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 6}},
-        /* (absolute) ASL oper */ {0x0E, {"ASL", CF_ASL, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 6}},
-        /* (absolute,X) ASL oper,X */ {0x1E, {"ASL", CF_ASL, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 7}},
-        /* (relative) BCC oper */ {0x90, {"BCC", CF_B, DST_REGS_P_C, RELATIVE, PARAM_0, 2, 2}},
-        /* (relative) BCS oper */ {0xB0, {"BCS", CF_B, DST_REGS_P_C, RELATIVE, PARAM_1, 2, 2}},
-        /* (relative) BEQ oper */ {0xF0, {"BEQ", CF_B, DST_REGS_P_Z, RELATIVE, PARAM_1, 2, 2}},
-        /* (zeropage) BIT oper */ {0x24, {"BIT", CF_BIT, DST_REGS_P_Z, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (absolute) BIT oper */ {0x2C, {"BIT", CF_BIT, DST_REGS_P_Z, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (relative) BNE oper */ {0xD0, {"BNE", CF_B, DST_REGS_P_Z, RELATIVE, PARAM_0, 2, 2}},
-        /* (relative) BPL oper */ {0x10, {"BPL", CF_B, DST_REGS_P_N, RELATIVE, PARAM_0, 2, 2}},
-        /* (implied) BRK */ {0x00, {"BRK", CF_BRK, DST_NONE, IMPLIED, PARAM_NONE, 1, 7}},
-        /* (implied) CLC */ {0x18, {"CLC", CF_CL, DST_REGS_P_C, IMPLIED, PARAM_NONE, 1, 2}},
-        /* (implied) CLD */ {0xD8, {"CLD", CF_CL, DST_REGS_P_D, IMPLIED, PARAM_NONE, 1, 2}},
-        /* (implied) CLI */ {0x58, {"CLI", CF_CL, DST_REGS_P_I, IMPLIED, PARAM_NONE, 1, 2}},
-        /* (immidiate) CMP #oper */ {0xC9, {"CMP", CF_CP, DST_REGS_A, IMMIDIATE, PARAM_NONE, 2, 2}},
-        /* (zeropage) CMP oper */ {0xC5, {"CMP", CF_CP, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (zeropage,X) CMP oper,X */ {0xD5, {"CMP", CF_CP, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4}},
-        /* (absolute) CMP oper */ {0xCD, {"CMP", CF_CP, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (absolute,X) CMP oper,X */ {0xDD, {"CMP", CF_CP, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4}},
-        /* (absolute,Y) CMP oper,Y */ {0xD9, {"CMP", CF_CP, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4}},
-        /* ((indirect,X)) CMP (oper,X) */ {0xC1, {"CMP", CF_CP, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6}},
-        /* ((indirect),Y) CMP (oper),Y */ {0xD1, {"CMP", CF_CP, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 5}},
-        /* (immidiate) CPX #oper */ {0xE0, {"CPX", CF_CP, DST_REGS_X, IMMIDIATE, PARAM_NONE, 2, 2}},
-        /* (zeropage) CPX oper */ {0xE4, {"CPX", CF_CP, DST_REGS_X, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (absolute) CPX oper */ {0xEC, {"CPX", CF_CP, DST_REGS_X, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (immidiate) CPY #oper */ {0xC0, {"CPY", CF_CP, DST_REGS_Y, IMMIDIATE, PARAM_NONE, 2, 2}},
-        /* (zeropage) CPY oper */ {0xC4, {"CPY", CF_CP, DST_REGS_Y, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (absolute) CPY oper */ {0xCC, {"CPY", CF_CP, DST_REGS_Y, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (implied) DEX */ {0xCA, {"DEX", CF_DE, DST_REGS_X, IMPLIED, PARAM_NONE, 1, 2}},
-        /* (implied) DEY */ {0x88, {"DEY", CF_DE, DST_REGS_Y, IMPLIED, PARAM_NONE, 1, 2}},
-        /* (zeropage) INC oper */ {0xE6, {"INC", CF_IN, DST_M, ZERO_PAGE, PARAM_NONE, 2, 5}},
-        /* (zeropage,X) INC oper,X */ {0xF6, {"INC", CF_IN, DST_M, ZERO_PAGE_X, PARAM_NONE, 2, 6}},
-        /* (absolute) INC oper */ {0xEE, {"INC", CF_IN, DST_M, INDEXED_ABSOLUTE, PARAM_NONE, 3, 6}},
-        /* (absolute,X) INC oper,X */ {0xFE, {"INC", CF_IN, DST_M, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 7}},
-        /* (implied) INX */ {0xE8, {"INX", CF_IN, DST_REGS_X, IMPLIED, PARAM_NONE, 1, 2}},
-        /* (implied) INY */ {0xC8, {"INY", CF_IN, DST_REGS_Y, IMPLIED, PARAM_NONE, 1, 2}},
-        /* (absolute) JMP oper */ {0x4C, {"JMP", CF_JMP, DST_NONE, INDEXED_ABSOLUTE, PARAM_NONE, 3, 3}},
-        /* (indirect) JMP (oper) */ {0x6C, {"JMP", CF_JMP, DST_NONE, INDIRECT_INDEXED, PARAM_NONE, 3, 5}},
-        /* (absolute) JSR oper */ {0x20, {"JSR", CF_JSR, DST_NONE, INDEXED_ABSOLUTE, PARAM_NONE, 3, 6}},
-        /* (immidiate) LDA #oper */ {0xA9, {"LDA", CF_LD, DST_REGS_A, IMMIDIATE, PARAM_NONE, 2, 2}},
-        /* (zeropage) LDA oper */ {0xA5, {"LDA", CF_LD, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (zeropage,X) LDA oper,X */ {0xB5, {"LDA", CF_LD, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4}},
-        /* (absolute) LDA oper */ {0xAD, {"LDA", CF_LD, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (absolute,X) LDA oper,X */ {0xBD, {"LDA", CF_LD, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4}},
-        /* (absolute,Y) LDA oper,Y */ {0xB9, {"LDA", CF_LD, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4}},
-        /* ((indirect,X)) LDA (oper,X) */ {0xA1, {"LDA", CF_LD, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6}},
-        /* ((indirect),Y) LDA (oper),Y */ {0xB1, {"LDA", CF_LD, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 5}},
-        /* (immidiate) LDX #oper */ {0xA2, {"LDX", CF_LD, DST_REGS_X, IMMIDIATE, PARAM_NONE, 2, 2}},
-        /* (zeropage) LDX oper */ {0xA6, {"LDX", CF_LD, DST_REGS_X, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (zeropage,Y) LDX oper,Y */ {0xB6, {"LDX", CF_LD, DST_REGS_X, ZERO_PAGE_Y, PARAM_NONE, 2, 4}},
-        /* (absolute) LDX oper */ {0xAE, {"LDX", CF_LD, DST_REGS_X, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (absolute,Y) LDX oper,Y */ {0xBE, {"LDX", CF_LD, DST_REGS_X, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4}},
-        /* (immidiate) LDY #oper */ {0xA0, {"LDY", CF_LD, DST_REGS_Y, IMMIDIATE, PARAM_NONE, 2, 2}},
-        /* (zeropage) LDY oper */ {0xA4, {"LDY", CF_LD, DST_REGS_Y, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (zeropage,X) LDY oper,X */ {0xB4, {"LDY", CF_LD, DST_REGS_Y, ZERO_PAGE_X, PARAM_NONE, 2, 4}},
-        /* (absolute) LDY oper */ {0xAC, {"LDY", CF_LD, DST_REGS_Y, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (absolute,X) LDY oper,X */ {0xBC, {"LDY", CF_LD, DST_REGS_Y, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4}},
-        /* (accumulator) LSR A */ {0x4A, {"LSR", CF_LSR, DST_REGS_A, ACCUMULATOR, PARAM_NONE, 1, 2}},
-        /* (zeropage) LSR oper */ {0x46, {"LSR", CF_LSR, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 5}},
-        /* (zeropage,X) LSR oper,X */ {0x56, {"LSR", CF_LSR, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 6}},
-        /* (absolute) LSR oper */ {0x4E, {"LSR", CF_LSR, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 6}},
-        /* (absolute,X) LSR oper,X */ {0x5E, {"LSR", CF_LSR, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 7}},
-        /* (immidiate) ORA #oper */ {0x09, {"ORA", CF_OR, DST_REGS_A, IMMIDIATE, PARAM_NONE, 2, 2}},
-        /* (zeropage) ORA oper */ {0x05, {"ORA", CF_OR, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (zeropage,X) ORA oper,X */ {0x15, {"ORA", CF_OR, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4}},
-        /* (absolute) ORA oper */ {0x0D, {"ORA", CF_OR, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (absolute,X) ORA oper,X */ {0x1D, {"ORA", CF_OR, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4}},
-        /* (absolute,Y) ORA oper,Y */ {0x19, {"ORA", CF_OR, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4}},
-        /* ((indirect,X)) ORA (oper,X) */ {0x01, {"ORA", CF_OR, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6}},
-        /* ((indirect),Y) ORA (oper),Y */ {0x11, {"ORA", CF_OR, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 5}},
-        /* (implied) PHA */ {0x48, {"PHA", CF_PH, DST_REGS_A, IMPLIED, PARAM_NONE, 1, 3}},
-        /* (implied) PLA */ {0x68, {"PLA", CF_PL, DST_REGS_A, IMPLIED, PARAM_NONE, 1, 4}},
-        /* (implied) RTI */ {0x40, {"RTI", CF_RTI, DST_NONE, IMPLIED, PARAM_NONE, 1, 6}},
-        /* (implied) RTS */ {0x60, {"RTS", CF_RTS, DST_NONE, IMPLIED, PARAM_NONE, 1, 6}},
-        /* (immidiate) SBC #oper */ {0xE9, {"SBC", CF_SBC, DST_REGS_A, IMMIDIATE, PARAM_NONE, 2, 2}},
-        /* (zeropage) SBC oper */ {0xE5, {"SBC", CF_SBC, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (zeropage,X) SBC oper,X */ {0xF5, {"SBC", CF_SBC, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4}},
-        /* (absolute) SBC oper */ {0xED, {"SBC", CF_SBC, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (absolute,X) SBC oper,X */ {0xFD, {"SBC", CF_SBC, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4}},
-        /* (absolute,Y) SBC oper,Y */ {0xF9, {"SBC", CF_SBC, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4}},
-        /* ((indirect,X)) SBC (oper,X) */ {0xE1, {"SBC", CF_SBC, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6}},
-        /* ((indirect),Y) SBC (oper),Y */ {0xF1, {"SBC", CF_SBC, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 5}},
-        /* (implied) SEC */ {0x38, {"SEC", CF_SE, DST_REGS_P_C, IMPLIED, PARAM_NONE, 1, 2}},
-        /* (implied) SED */ {0xF8, {"SED", CF_SE, DST_REGS_P_D, IMPLIED, PARAM_NONE, 1, 2}},
-        /* (implied) SEI */ {0x78, {"SEI", CF_SE, DST_REGS_P_I, IMPLIED, PARAM_NONE, 1, 2}},
-        /* (zeropage) STA oper */ {0x85, {"STA", CF_ST, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (zeropage,X) STA oper,X */ {0x95, {"STA", CF_ST, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4}},
-        /* (absolute) STA oper */ {0x8D, {"STA", CF_ST, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (absolute,X) STA oper,X */ {0x9D, {"STA", CF_ST, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 5}},
-        /* (absolute,Y) STA oper,Y */ {0x99, {"STA", CF_ST, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 5}},
-        /* ((indirect,X)) STA (oper,X) */ {0x81, {"STA", CF_ST, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6}},
-        /* ((indirect),Y) STA (oper),Y */ {0x91, {"STA", CF_ST, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 6}},
-        /* (zeropage) STX oper */ {0x86, {"STX", CF_ST, DST_REGS_X, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (zeropage,Y) STX oper,Y */ {0x96, {"STX", CF_ST, DST_REGS_X, ZERO_PAGE_Y, PARAM_NONE, 2, 4}},
-        /* (absolute) STX oper */ {0x8E, {"STX", CF_ST, DST_REGS_X, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (zeropage) STY oper */ {0x84, {"STY", CF_ST, DST_REGS_Y, ZERO_PAGE, PARAM_NONE, 2, 3}},
-        /* (zeropage,X) STY oper,X */ {0x94, {"STY", CF_ST, DST_REGS_Y, ZERO_PAGE_X, PARAM_NONE, 2, 4}},
-        /* (absolute) STY oper */ {0x8C, {"STY", CF_ST, DST_REGS_Y, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4}},
-        /* (implied) TAX */ {0xAA, {"TAX", CF_T, DST_REGS_X, IMPLIED, PARAM_REGS_A, 1, 2}},
-        /* (implied) TXA */ {0x8A, {"TXA", CF_T, DST_REGS_A, IMPLIED, PARAM_REGS_X, 1, 2}},
-        /* (implied) TXS */ {0x9A, {"TXS", CF_T, DST_REGS_SP, IMPLIED, PARAM_REGS_X, 1, 2}},
-        /* (implied) TYA */ {0x98, {"TYA", CF_T, DST_REGS_A, IMPLIED, PARAM_REGS_Y, 1, 2}},
+        /* (immidiate) ADC #oper */ {0x69, {"ADC", CF_ADC, DST_REGS_A, IMMIDIATE, PARAM_NONE, 2, 2, 195}},
+        /* (zeropage) ADC oper */ {0x65, {"ADC", CF_ADC, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3, 195}},
+        /* (zeropage,X) ADC oper,X */ {0x75, {"ADC", CF_ADC, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4, 195}},
+        /* (absolute) ADC oper */ {0x6D, {"ADC", CF_ADC, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 195}},
+        /* (absolute,X) ADC oper,X */ {0x7D, {"ADC", CF_ADC, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4, 195}},
+        /* (absolute,Y) ADC oper,Y */ {0x79, {"ADC", CF_ADC, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4, 195}},
+        /* ((indirect,X)) ADC (oper,X) */ {0x61, {"ADC", CF_ADC, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6, 195}},
+        /* ((indirect),Y) ADC (oper),Y */ {0x71, {"ADC", CF_ADC, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 5, 195}},
+        /* (immidiate) AND #oper */ {0x29, {"AND", CF_AND, DST_REGS_A, IMMIDIATE, PARAM_NONE, 2, 2, 130}},
+        /* (zeropage) AND oper */ {0x25, {"AND", CF_AND, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3, 130}},
+        /* (zeropage,X) AND oper,X */ {0x35, {"AND", CF_AND, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4, 130}},
+        /* (absolute) AND oper */ {0x2D, {"AND", CF_AND, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 130}},
+        /* (absolute,X) AND oper,X */ {0x3D, {"AND", CF_AND, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4, 130}},
+        /* (absolute,Y) AND oper,Y */ {0x39, {"AND", CF_AND, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4, 130}},
+        /* ((indirect,X)) AND (oper,X) */ {0x21, {"AND", CF_AND, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6, 130}},
+        /* ((indirect),Y) AND (oper),Y */ {0x31, {"AND", CF_AND, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 5, 130}},
+        /* (accumulator) ASL A */ {0x0A, {"ASL", CF_ASL, DST_M, ACCUMULATOR, PARAM_NONE, 1, 2, 131}},
+        /* (zeropage) ASL oper */ {0x06, {"ASL", CF_ASL, DST_M, ZERO_PAGE, PARAM_NONE, 2, 5, 131}},
+        /* (zeropage,X) ASL oper,X */ {0x16, {"ASL", CF_ASL, DST_M, ZERO_PAGE_X, PARAM_NONE, 2, 6, 131}},
+        /* (absolute) ASL oper */ {0x0E, {"ASL", CF_ASL, DST_M, INDEXED_ABSOLUTE, PARAM_NONE, 3, 6, 131}},
+        /* (absolute,X) ASL oper,X */ {0x1E, {"ASL", CF_ASL, DST_M, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 7, 131}},
+        /* (relative) BCC oper */ {0x90, {"BCC", CF_B, DST_REGS_P_C, RELATIVE, PARAM_0, 2, 2, 0}},
+        /* (relative) BCS oper */ {0xB0, {"BCS", CF_B, DST_REGS_P_C, RELATIVE, PARAM_1, 2, 2, 0}},
+        /* (relative) BEQ oper */ {0xF0, {"BEQ", CF_B, DST_REGS_P_Z, RELATIVE, PARAM_1, 2, 2, 0}},
+        /* (zeropage) BIT oper */ {0x24, {"BIT", CF_BIT, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3, 2}},
+        /* (absolute) BIT oper */ {0x2C, {"BIT", CF_BIT, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 2}},
+        /* (relative) BNE oper */ {0xD0, {"BNE", CF_B, DST_REGS_P_Z, RELATIVE, PARAM_0, 2, 2, 0}},
+        /* (relative) BPL oper */ {0x10, {"BPL", CF_B, DST_REGS_P_N, RELATIVE, PARAM_0, 2, 2, 0}},
+        /* (implied) BRK */ {0x00, {"BRK", CF_BRK, DST_NONE, IMPLIED, PARAM_NONE, 1, 7, 0}},
+        /* (implied) CLC */ {0x18, {"CLC", CF_CL, DST_REGS_P_C, IMPLIED, PARAM_NONE, 1, 2, 0}},
+        /* (implied) CLD */ {0xD8, {"CLD", CF_CL, DST_REGS_P_D, IMPLIED, PARAM_NONE, 1, 2, 0}},
+        /* (implied) CLI */ {0x58, {"CLI", CF_CL, DST_REGS_P_I, IMPLIED, PARAM_NONE, 1, 2, 0}},
+        /* (immidiate) CMP #oper */ {0xC9, {"CMP", CF_CP, DST_REGS_A, IMMIDIATE, PARAM_NONE, 2, 2, 131}},
+        /* (zeropage) CMP oper */ {0xC5, {"CMP", CF_CP, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3, 131}},
+        /* (zeropage,X) CMP oper,X */ {0xD5, {"CMP", CF_CP, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4, 131}},
+        /* (absolute) CMP oper */ {0xCD, {"CMP", CF_CP, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 131}},
+        /* (absolute,X) CMP oper,X */ {0xDD, {"CMP", CF_CP, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4, 131}},
+        /* (absolute,Y) CMP oper,Y */ {0xD9, {"CMP", CF_CP, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4, 131}},
+        /* ((indirect,X)) CMP (oper,X) */ {0xC1, {"CMP", CF_CP, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6, 131}},
+        /* ((indirect),Y) CMP (oper),Y */ {0xD1, {"CMP", CF_CP, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 5, 131}},
+        /* (immidiate) CPX #oper */ {0xE0, {"CPX", CF_CP, DST_REGS_X, IMMIDIATE, PARAM_NONE, 2, 2, 131}},
+        /* (zeropage) CPX oper */ {0xE4, {"CPX", CF_CP, DST_REGS_X, ZERO_PAGE, PARAM_NONE, 2, 3, 131}},
+        /* (absolute) CPX oper */ {0xEC, {"CPX", CF_CP, DST_REGS_X, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 131}},
+        /* (immidiate) CPY #oper */ {0xC0, {"CPY", CF_CP, DST_REGS_Y, IMMIDIATE, PARAM_NONE, 2, 2, 131}},
+        /* (zeropage) CPY oper */ {0xC4, {"CPY", CF_CP, DST_REGS_Y, ZERO_PAGE, PARAM_NONE, 2, 3, 131}},
+        /* (absolute) CPY oper */ {0xCC, {"CPY", CF_CP, DST_REGS_Y, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 131}},
+        /* (implied) DEX */ {0xCA, {"DEX", CF_DE, DST_REGS_X, IMPLIED, PARAM_NONE, 1, 2, 130}},
+        /* (implied) DEY */ {0x88, {"DEY", CF_DE, DST_REGS_Y, IMPLIED, PARAM_NONE, 1, 2, 130}},
+        /* (zeropage) INC oper */ {0xE6, {"INC", CF_IN, DST_M, ZERO_PAGE, PARAM_NONE, 2, 5, 130}},
+        /* (zeropage,X) INC oper,X */ {0xF6, {"INC", CF_IN, DST_M, ZERO_PAGE_X, PARAM_NONE, 2, 6, 130}},
+        /* (absolute) INC oper */ {0xEE, {"INC", CF_IN, DST_M, INDEXED_ABSOLUTE, PARAM_NONE, 3, 6, 130}},
+        /* (absolute,X) INC oper,X */ {0xFE, {"INC", CF_IN, DST_M, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 7, 130}},
+        /* (implied) INX */ {0xE8, {"INX", CF_IN, DST_REGS_X, IMPLIED, PARAM_NONE, 1, 2, 130}},
+        /* (implied) INY */ {0xC8, {"INY", CF_IN, DST_REGS_Y, IMPLIED, PARAM_NONE, 1, 2, 130}},
+        /* (absolute) JMP oper */ {0x4C, {"JMP", CF_JMP, DST_NONE, INDEXED_ABSOLUTE, PARAM_NONE, 3, 3, 0}},
+        /* (indirect) JMP (oper) */ {0x6C, {"JMP", CF_JMP, DST_NONE, INDIRECT_INDEXED, PARAM_NONE, 3, 5, 0}},
+        /* (absolute) JSR oper */ {0x20, {"JSR", CF_JSR, DST_NONE, INDEXED_ABSOLUTE, PARAM_NONE, 3, 6, 0}},
+        /* (immidiate) LDA #oper */ {0xA9, {"LDA", CF_LD, DST_REGS_A, IMMIDIATE, PARAM_NONE, 2, 2, 130}},
+        /* (zeropage) LDA oper */ {0xA5, {"LDA", CF_LD, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3, 130}},
+        /* (zeropage,X) LDA oper,X */ {0xB5, {"LDA", CF_LD, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4, 130}},
+        /* (absolute) LDA oper */ {0xAD, {"LDA", CF_LD, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 130}},
+        /* (absolute,X) LDA oper,X */ {0xBD, {"LDA", CF_LD, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4, 130}},
+        /* (absolute,Y) LDA oper,Y */ {0xB9, {"LDA", CF_LD, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4, 130}},
+        /* ((indirect,X)) LDA (oper,X) */ {0xA1, {"LDA", CF_LD, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6, 130}},
+        /* ((indirect),Y) LDA (oper),Y */ {0xB1, {"LDA", CF_LD, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 5, 130}},
+        /* (immidiate) LDX #oper */ {0xA2, {"LDX", CF_LD, DST_REGS_X, IMMIDIATE, PARAM_NONE, 2, 2, 130}},
+        /* (zeropage) LDX oper */ {0xA6, {"LDX", CF_LD, DST_REGS_X, ZERO_PAGE, PARAM_NONE, 2, 3, 130}},
+        /* (zeropage,Y) LDX oper,Y */ {0xB6, {"LDX", CF_LD, DST_REGS_X, ZERO_PAGE_Y, PARAM_NONE, 2, 4, 130}},
+        /* (absolute) LDX oper */ {0xAE, {"LDX", CF_LD, DST_REGS_X, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 130}},
+        /* (absolute,Y) LDX oper,Y */ {0xBE, {"LDX", CF_LD, DST_REGS_X, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4, 130}},
+        /* (immidiate) LDY #oper */ {0xA0, {"LDY", CF_LD, DST_REGS_Y, IMMIDIATE, PARAM_NONE, 2, 2, 130}},
+        /* (zeropage) LDY oper */ {0xA4, {"LDY", CF_LD, DST_REGS_Y, ZERO_PAGE, PARAM_NONE, 2, 3, 130}},
+        /* (zeropage,X) LDY oper,X */ {0xB4, {"LDY", CF_LD, DST_REGS_Y, ZERO_PAGE_X, PARAM_NONE, 2, 4, 130}},
+        /* (absolute) LDY oper */ {0xAC, {"LDY", CF_LD, DST_REGS_Y, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 130}},
+        /* (absolute,X) LDY oper,X */ {0xBC, {"LDY", CF_LD, DST_REGS_Y, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4, 130}},
+        /* (accumulator) LSR A */ {0x4A, {"LSR", CF_LSR, DST_M, ACCUMULATOR, PARAM_NONE, 1, 2, 3}},
+        /* (zeropage) LSR oper */ {0x46, {"LSR", CF_LSR, DST_M, ZERO_PAGE, PARAM_NONE, 2, 5, 3}},
+        /* (zeropage,X) LSR oper,X */ {0x56, {"LSR", CF_LSR, DST_M, ZERO_PAGE_X, PARAM_NONE, 2, 6, 3}},
+        /* (absolute) LSR oper */ {0x4E, {"LSR", CF_LSR, DST_M, INDEXED_ABSOLUTE, PARAM_NONE, 3, 6, 3}},
+        /* (absolute,X) LSR oper,X */ {0x5E, {"LSR", CF_LSR, DST_M, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 7, 3}},
+        /* (immidiate) ORA #oper */ {0x09, {"ORA", CF_OR, DST_REGS_A, IMMIDIATE, PARAM_NONE, 2, 2, 130}},
+        /* (zeropage) ORA oper */ {0x05, {"ORA", CF_OR, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3, 130}},
+        /* (zeropage,X) ORA oper,X */ {0x15, {"ORA", CF_OR, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4, 130}},
+        /* (absolute) ORA oper */ {0x0D, {"ORA", CF_OR, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 130}},
+        /* (absolute,X) ORA oper,X */ {0x1D, {"ORA", CF_OR, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4, 130}},
+        /* (absolute,Y) ORA oper,Y */ {0x19, {"ORA", CF_OR, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4, 130}},
+        /* ((indirect,X)) ORA (oper,X) */ {0x01, {"ORA", CF_OR, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6, 130}},
+        /* ((indirect),Y) ORA (oper),Y */ {0x11, {"ORA", CF_OR, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 5, 130}},
+        /* (implied) PHA */ {0x48, {"PHA", CF_PHA, DST_REGS_A, IMPLIED, PARAM_NONE, 1, 3, 0}},
+        /* (implied) PLA */ {0x68, {"PLA", CF_PLA, DST_REGS_A, IMPLIED, PARAM_NONE, 1, 4, 130}},
+        /* (accumulator) ROL A */ {0x2A, {"ROL", CF_ROL, DST_M, ACCUMULATOR, PARAM_NONE, 1, 2, 131}},
+        /* (zeropage) ROL oper */ {0x26, {"ROL", CF_ROL, DST_M, ZERO_PAGE, PARAM_NONE, 2, 5, 131}},
+        /* (zeropage,X) ROL oper,X */ {0x36, {"ROL", CF_ROL, DST_M, ZERO_PAGE_X, PARAM_NONE, 2, 6, 131}},
+        /* (absolute) ROL oper */ {0x2E, {"ROL", CF_ROL, DST_M, INDEXED_ABSOLUTE, PARAM_NONE, 3, 6, 131}},
+        /* (absolute,X) ROL oper,X */ {0x3E, {"ROL", CF_ROL, DST_M, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 7, 131}},
+        /* (accumulator) ROR A */ {0x6A, {"ROR", CF_ROR, DST_M, ACCUMULATOR, PARAM_NONE, 1, 2, 131}},
+        /* (zeropage) ROR oper */ {0x66, {"ROR", CF_ROR, DST_M, ZERO_PAGE, PARAM_NONE, 2, 5, 131}},
+        /* (zeropage,X) ROR oper,X */ {0x76, {"ROR", CF_ROR, DST_M, ZERO_PAGE_X, PARAM_NONE, 2, 6, 131}},
+        /* (absolute) ROR oper */ {0x6E, {"ROR", CF_ROR, DST_M, INDEXED_ABSOLUTE, PARAM_NONE, 3, 6, 131}},
+        /* (absolute,X) ROR oper,X */ {0x7E, {"ROR", CF_ROR, DST_M, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 7, 131}},
+        /* (implied) RTI */ {0x40, {"RTI", CF_RTI, DST_NONE, IMPLIED, PARAM_NONE, 1, 6, 0}},
+        /* (implied) RTS */ {0x60, {"RTS", CF_RTS, DST_NONE, IMPLIED, PARAM_NONE, 1, 6, 0}},
+        /* (immidiate) SBC #oper */ {0xE9, {"SBC", CF_SBC, DST_REGS_A, IMMIDIATE, PARAM_NONE, 2, 2, 195}},
+        /* (zeropage) SBC oper */ {0xE5, {"SBC", CF_SBC, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3, 195}},
+        /* (zeropage,X) SBC oper,X */ {0xF5, {"SBC", CF_SBC, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4, 195}},
+        /* (absolute) SBC oper */ {0xED, {"SBC", CF_SBC, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 195}},
+        /* (absolute,X) SBC oper,X */ {0xFD, {"SBC", CF_SBC, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4, 195}},
+        /* (absolute,Y) SBC oper,Y */ {0xF9, {"SBC", CF_SBC, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4, 195}},
+        /* ((indirect,X)) SBC (oper,X) */ {0xE1, {"SBC", CF_SBC, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6, 195}},
+        /* ((indirect),Y) SBC (oper),Y */ {0xF1, {"SBC", CF_SBC, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 5, 195}},
+        /* (implied) SEC */ {0x38, {"SEC", CF_SE, DST_REGS_P_C, IMPLIED, PARAM_NONE, 1, 2, 0}},
+        /* (implied) SED */ {0xF8, {"SED", CF_SE, DST_REGS_P_D, IMPLIED, PARAM_NONE, 1, 2, 0}},
+        /* (implied) SEI */ {0x78, {"SEI", CF_SE, DST_REGS_P_I, IMPLIED, PARAM_NONE, 1, 2, 0}},
+        /* (zeropage) STA oper */ {0x85, {"STA", CF_ST, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3, 0}},
+        /* (zeropage,X) STA oper,X */ {0x95, {"STA", CF_ST, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4, 0}},
+        /* (absolute) STA oper */ {0x8D, {"STA", CF_ST, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 0}},
+        /* (absolute,X) STA oper,X */ {0x9D, {"STA", CF_ST, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 5, 0}},
+        /* (absolute,Y) STA oper,Y */ {0x99, {"STA", CF_ST, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 5, 0}},
+        /* ((indirect,X)) STA (oper,X) */ {0x81, {"STA", CF_ST, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6, 0}},
+        /* ((indirect),Y) STA (oper),Y */ {0x91, {"STA", CF_ST, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 6, 0}},
+        /* (zeropage) STX oper */ {0x86, {"STX", CF_ST, DST_REGS_X, ZERO_PAGE, PARAM_NONE, 2, 3, 0}},
+        /* (zeropage,Y) STX oper,Y */ {0x96, {"STX", CF_ST, DST_REGS_X, ZERO_PAGE_Y, PARAM_NONE, 2, 4, 0}},
+        /* (absolute) STX oper */ {0x8E, {"STX", CF_ST, DST_REGS_X, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 0}},
+        /* (zeropage) STY oper */ {0x84, {"STY", CF_ST, DST_REGS_Y, ZERO_PAGE, PARAM_NONE, 2, 3, 0}},
+        /* (zeropage,X) STY oper,X */ {0x94, {"STY", CF_ST, DST_REGS_Y, ZERO_PAGE_X, PARAM_NONE, 2, 4, 0}},
+        /* (absolute) STY oper */ {0x8C, {"STY", CF_ST, DST_REGS_Y, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 0}},
+        /* (implied) TAX */ {0xAA, {"TAX", CF_T, DST_REGS_X, IMPLIED, PARAM_REGS_A, 1, 2, 130}},
+        /* (implied) TXA */ {0x8A, {"TXA", CF_T, DST_REGS_A, IMPLIED, PARAM_REGS_X, 1, 2, 130}},
+        /* (implied) TXS */ {0x9A, {"TXS", CF_T, DST_REGS_SP, IMPLIED, PARAM_REGS_X, 1, 2, 130}},
+        /* (implied) TYA */ {0x98, {"TYA", CF_T, DST_REGS_A, IMPLIED, PARAM_REGS_Y, 1, 2, 130}},
 #endif
         
     };
@@ -709,18 +722,20 @@ namespace ReNes {
                 {
                     ////////////////////////////////
                     // 寻址
-                    std::function<void(DST, CALCODE, int)> calFunc = [this, &mode, cf](DST dst, CALCODE code, int val){
+                    std::function<void(DST, CALCODE, int, DST)> calFunc = [this, &mode, cf, &info](DST fromDST, CALCODE code, int val, DST toDST){
                         
                         uint8_t dst_value = 0;
                         
-                        if (cf != CF_ST) // set 函数不需要获取原来的值
+                        // DST_NONE 不需要获取原来的值
+                        if (fromDST != DST_NONE)
                         {
-                            dst_value = valueFromDST(dst, mode);
+                            dst_value = valueFromDST(fromDST, mode);
                         }
                         
-                        cal(&dst_value, code, val);
+                        cal(&dst_value, code, val, info.flags);
                         
-                        valueToDST(dst, dst_value, mode);
+                        if (toDST != DST_NONE)
+                            valueToDST(toDST, dst_value, mode);
                     };
                     
                     switch(info.cf)
@@ -730,20 +745,20 @@ namespace ReNes {
                             interrupts(InterruptTypeIRQs);
                             break;
                         case CF_LD:
-                            calFunc(dst, CALCODE_SET, addressingValue(mode));
+                            calFunc(dst, CALCODE_LD, addressingValue(mode), dst);
                             break;
                         case CF_ST:
                             assert(dst != DST_M);
-                            calFunc(DST_M, CALCODE_SET, valueFromDST(dst, mode));
+                            calFunc(DST_NONE, CALCODE_ST, valueFromDST(dst, mode), DST_M);
                             break;
                         case CF_IN:
-                            calFunc(dst, CALCODE_IN, 1);
+                            calFunc(dst, CALCODE_IN, 1, dst);
                             break;
                         case CF_DE:
-                            calFunc(dst, CALCODE_IN, -1);
+                            calFunc(dst, CALCODE_IN, -1, dst);
                             break;
                         case CF_CP:
-                            calFunc(dst, CALCODE_CP, addressingValue(mode));
+                            calFunc(dst, CALCODE_CP, addressingValue(mode), dst);
                             break;
                         case CF_JSR:
                         {
@@ -760,7 +775,7 @@ namespace ReNes {
                         }
                         case CF_AND:
                         {
-                            calFunc(dst, CALCODE_AND, addressingValue(mode));
+                            calFunc(dst, CALCODE_AND, addressingValue(mode), dst);
                             break;
                         }
                         case CF_SE:
@@ -792,25 +807,27 @@ namespace ReNes {
                                     break;
                             }
                             
-                            calFunc(dst, CALCODE_SET, valueFromRegs(src));
+                            calFunc(dst, CALCODE_LD, valueFromRegs(src), dst);
                             break;
                         }
                         case CF_SBC:
                         {
-                            calFunc(dst, CALCODE_AD, -(addressingValue(mode)+valueFromRegs(DST_REGS_P_C)));
+                            calFunc(dst, CALCODE_AD, -(addressingValue(mode)+valueFromRegs(DST_REGS_P_C)), dst);
                             break;
                         }
                         case CF_ADC:
                         {
-                            calFunc(dst, CALCODE_AD, addressingValue(mode)+valueFromRegs(DST_REGS_P_C));
+                            calFunc(dst, CALCODE_AD, addressingValue(mode)+valueFromRegs(DST_REGS_P_C), dst);
                             break;
                         }
                         case CF_BIT:
                         {
 //                            calFunc(DST_REGS_P_Z, CALCODE_BIT, addressingValue(mode));
+                            assert(dst == DST_REGS_A);
+//                            uint8_t dst_value = valueFromRegs(DST_REGS_A);
+//                            cal(&dst_value, CALCODE_BIT, addressingValue(mode), info.flags);
                             
-                            uint8_t dst_value = valueFromRegs(dst);
-                            cal(&dst_value, CALCODE_BIT, addressingValue(mode));
+                            calFunc(DST_REGS_A, CALCODE_BIT, addressingValue(mode), DST_REGS_A);
                             
                             break;
                         }
@@ -834,35 +851,40 @@ namespace ReNes {
                         }
                         case CF_OR:
                         {
-                            calFunc(dst, CALCODE_OR, addressingValue(mode));
+                            calFunc(dst, CALCODE_OR, addressingValue(mode), dst);
                             break;
                         }
                         case CF_ASL:
                         {
-                            calFunc(dst, CALCODE_ASL, 1);
+                            calFunc(dst, CALCODE_ASL, addressingValue(mode), dst);
                             break;
                         }
                         case CF_LSR:
                         {
-                            calFunc(dst, CALCODE_LSR, 1);
+                            calFunc(dst, CALCODE_LSR, addressingValue(mode), dst);
                             break;
                         }
-                        case CF_PH:
+                        case CF_ROL:
                         {
-                            push(valueFromRegs(dst));
+                            calFunc(dst, CALCODE_ROL, addressingValue(mode), dst);
                             break;
                         }
-                        case CF_PL:
+                        case CF_ROR:
                         {
-                            switch (dst)
-                            {
-                                case DST_REGS_A:
-                                    regs.A = pop();
-                                    break;
-                                default:
-                                    assert(!"error!");
-                                    break;
-                            }
+                            calFunc(dst, CALCODE_ROR, addressingValue(mode), dst);
+                            break;
+                        }
+                        case CF_PHA:
+                        {
+                            assert(dst == DST_REGS_A);
+//                            push(valueFromRegs(DST_REGS_A));
+                            calFunc(DST_REGS_A, CALCODE_PHA, 0, DST_NONE);
+                            break;
+                        }
+                        case CF_PLA:
+                        {
+                            assert(dst == DST_REGS_A);
+                            calFunc(DST_NONE, CALCODE_PLA, 0, DST_REGS_A);
                             
                             break;
                         }
@@ -886,6 +908,7 @@ namespace ReNes {
                             restoreStatus();
                             break;
                         }
+                        
                         default:
                             log("未知的指令！");
                             error = true;
@@ -966,8 +989,8 @@ namespace ReNes {
                 return 0;
             }
 
-            // ACCUMULATOR 进行内存寻址会报错
-            return valueFromDST(dst, ACCUMULATOR);
+            // IMPLIED 进行内存寻址会报错，这里用来防止 dst == DST_M
+            return valueFromDST(dst, IMPLIED);
         };
         
         uint8_t valueFromDST(DST dst, AddressingMode mode) {
@@ -1067,12 +1090,11 @@ namespace ReNes {
                     addr = dataAddr;
                     break;
                 }
-//                case IMMIDIATE_16bit:
-//                {
-//                    addr = dataAddr;
-//                    data16bit = true;
-//                    break;
-//                }
+                case ACCUMULATOR:
+                {
+                    addr = regs.A;
+                    break;
+                }
                 case ZERO_PAGE:
                 {
                     addr = _mem->read8bitData(dataAddr);
@@ -1237,7 +1259,8 @@ namespace ReNes {
         
         
         enum CALCODE{
-            CALCODE_SET,
+            CALCODE_LD,
+            CALCODE_ST,
             CALCODE_IN,
             CALCODE_AD,
             CALCODE_CP,
@@ -1247,20 +1270,27 @@ namespace ReNes {
             CALCODE_OR,
             CALCODE_ASL,
             CALCODE_LSR,
+            
+            CALCODE_PHA,
+            CALCODE_PLA,
+            
+            CALCODE_ROL,
+            CALCODE_ROR,
         };
         
-        
-        
         #define SET_FIND(s, v) (s.find(v) != s.end())
-        
-        
-        
 
         
-        
-        
-        
-        
+        enum {
+            
+            FLAGS_C = (1 << 0),
+            FLAGS_Z = (1 << 1),
+            FLAGS_I = (1 << 2),
+            FLAGS_D = (1 << 3),
+            FLAGS_B = (1 << 4),
+            FLAGS_V = (1 << 6),
+            FLAGS_N = (1 << 7)
+        };
         
         /**
          计算函数，对内存进行数值操作
@@ -1269,21 +1299,29 @@ namespace ReNes {
          @param op 操作符
          @param value 值
          */
-        void cal(uint8_t* dst, CALCODE op, int8_t value)
+        void cal(uint8_t* dst, CALCODE op, int8_t value, int flags)
         {
             int8_t old_value = *dst; // [0, 255]
             int new_value;
             bool applyToDST = false;
-            bool checkFLAG[8] = {0};
+//            bool checkFLAG[8] = {0};
+            int checkFLAG = 0;
             
             switch (op)
             {
-                case CALCODE_SET:
+                case CALCODE_LD:
                 {
                     log("%d = %d\n", (uint8_t)old_value, (uint8_t)value); // 为了显示
                     new_value = (int8_t)value;
-                    checkFLAG[__registers::N] = true;
-                    checkFLAG[__registers::Z] = true;
+                    checkFLAG = FLAGS_N | FLAGS_Z;
+                    applyToDST = true;
+                    break;
+                }
+                case CALCODE_ST:
+                {
+                    log("%d = %d\n", (uint8_t)old_value, (uint8_t)value); // 为了显示
+                    new_value = (int8_t)value;
+
                     applyToDST = true;
                     break;
                 }
@@ -1298,8 +1336,8 @@ namespace ReNes {
                         log("%d + %d\n", (uint8_t)old_value, (uint8_t)value);
                     }
                     new_value = (int8_t)old_value + (int8_t)value; // -128 - 2 最终会限制到8bit -1 + 1 = 255 + 1
-                    checkFLAG[__registers::N] = true;
-                    checkFLAG[__registers::Z] = true;
+
+                    checkFLAG = FLAGS_N | FLAGS_Z;
                     applyToDST = true;
                     break;
                 }
@@ -1315,11 +1353,7 @@ namespace ReNes {
                     }
                     new_value = (int8_t)old_value + (int8_t)value;
                     
-                    // 检查
-                    checkFLAG[__registers::N] = true;
-                    checkFLAG[__registers::Z] = true;
-                    checkFLAG[__registers::C] = true;
-                    checkFLAG[__registers::V] = true;
+                    checkFLAG = FLAGS_N | FLAGS_Z | FLAGS_C | FLAGS_V;
                     applyToDST = true;
                     break;
                 }
@@ -1328,17 +1362,15 @@ namespace ReNes {
                     log("%d 比较 %d\n", (int8_t)old_value, (int8_t)value);
                     new_value = (int8_t)old_value - (int8_t)value;
 
-                    checkFLAG[__registers::N] = true;
-                    checkFLAG[__registers::Z] = true;
-                    checkFLAG[__registers::C] = true;
+                    checkFLAG = FLAGS_N | FLAGS_Z | FLAGS_C;
                     break;
                 }
                 case CALCODE_AND:
                 {
                     log("%d AND %d\n", (uint8_t)old_value, (uint8_t)value);
                     new_value = (uint8_t)old_value & (uint8_t)value;
-                    checkFLAG[__registers::N] = true;
-                    checkFLAG[__registers::Z] = true;
+
+                    checkFLAG = FLAGS_N | FLAGS_Z;
                     applyToDST = true;
                     break;
                 }
@@ -1346,7 +1378,8 @@ namespace ReNes {
                 {
                     // Z = A AND M
                     new_value = regs.A & (uint8_t)value;
-                    checkFLAG[__registers::Z] = true;
+
+                    checkFLAG = FLAGS_Z;
                     
                     // P(b,7) = M(6,7)
                     regs.P.set(__registers::N, ((bit8*)&value)->get(__registers::N));
@@ -1359,30 +1392,58 @@ namespace ReNes {
 //                    if (value < 0)
 //                        log("");
                     new_value = (uint8_t)old_value | (uint8_t)value;
-                    checkFLAG[__registers::N] = true;
-                    checkFLAG[__registers::Z] = true;
+
+                    checkFLAG = FLAGS_N | FLAGS_Z;
                     applyToDST = true;
                     break;
                 }
-                case CALCODE_ASL:
+                case CALCODE_ASL: // 最高位移进标志位C
                 {
-                    log("%d << 1\n", (uint8_t)old_value);
+                    log("%d << 1\n", (uint8_t)value);
                     
-                    new_value = regs.A << 1;
-                    checkFLAG[__registers::N] = true;
-                    checkFLAG[__registers::Z] = true;
-                    checkFLAG[__registers::C] = true;
+                    new_value = value << 1;
+                    checkFLAG = FLAGS_N | FLAGS_Z | FLAGS_C;
                     
                     break;
                 }
-                case CALCODE_LSR:
+                case CALCODE_LSR: // 最低位移进标志位C
                 {
-                    log("%d >> 1\n", (uint8_t)old_value);
+                    log("%d >> 1\n", (uint8_t)value);
                     
-                    new_value = regs.A >> 1;
-                    checkFLAG[__registers::Z] = true;
-                    checkFLAG[__registers::C] = true;
+                    new_value = value >> 1;
+                    checkFLAG = FLAGS_Z | FLAGS_C;
                     
+                    break;
+                }
+                case CALCODE_PHA:
+                {
+                    push(regs.A);
+                    
+                    break;
+                }
+                case CALCODE_PLA:
+                {
+                    new_value = pop();
+                    
+                    checkFLAG = FLAGS_N | FLAGS_Z;
+                    break;
+                }
+                case CALCODE_ROL:
+                {
+                    log("%d << 1\n", (uint8_t)value);
+                    
+                    new_value = (value << 1) | (value >> 7);
+                    
+                    checkFLAG = FLAGS_N | FLAGS_Z | FLAGS_C;
+                    break;
+                }
+                case CALCODE_ROR:
+                {
+                    log("%d >> 1\n", (uint8_t)value);
+                    
+                    new_value = (value >> 1) | ((value & 0x1) << 7);
+                    
+                    checkFLAG = FLAGS_N | FLAGS_Z | FLAGS_C;
                     break;
                 }
                 default:
@@ -1391,23 +1452,47 @@ namespace ReNes {
             }
             
             // 修改寄存器标记
-            if (checkFLAG[__registers::Z]) // 限定最后的结果在8bit，则 0 == 0 可检查
+//            if (checkFLAG[__registers::Z]) // 限定最后的结果在8bit，则 0 == 0 可检查
+            if (checkFLAG & FLAGS_Z)
                 regs.P.set(__registers::Z, (int8_t)new_value == 0);
             
-            if (checkFLAG[__registers::N]) // 限定最后的结果在8bit，则小于0在负数表示范围
+//            if (checkFLAG[__registers::N]) // 限定最后的结果在8bit，则小于0在负数表示范围
+            if (checkFLAG & FLAGS_N)
                 regs.P.set(__registers::N, (int8_t)new_value < 0);
             
-            if (checkFLAG[__registers::V]) // 计算溢出，需要在符号计算情况下，更高的范围来判断
+//            if (checkFLAG[__registers::V]) // 计算溢出，需要在符号计算情况下，更高的范围来判断
+            if (checkFLAG & FLAGS_V)
                 regs.P.set(__registers::V, new_value < -128 || new_value > 127);
 
-            if (checkFLAG[__registers::C]) // 检查高位是否发生进位或借位，判断前后最高位的位置，不等则发生了错位
+//            if (checkFLAG[__registers::C]) // 检查高位是否发生进位或借位，判断前后最高位的位置，不等则发生了错位
+            if (checkFLAG & FLAGS_C)
             {
-//                if (old_value < 0 || new_value < 0)
-//                    log("fuck\n");
-                int c = highBit(old_value) != highBit(new_value);
-                regs.P.set(__registers::C, c);
+                if (op == CALCODE_LSR || op == CALCODE_ROR)
+                {
+                    // 最低位移进标志位C
+                    regs.P.set(__registers::C, old_value & 0x1);
+                }
+                else if (op == CALCODE_ASL || op == CALCODE_ROL)
+                {
+                    // 最高位移进标志位C
+                    regs.P.set(__registers::C, old_value & (0x1 << 7));
+                }
+                else
+                {
+                    // 暂时两种情况：
+                    // CALCODE_CP 比较是减运算，最高位发生改变的话，说明发生了借位
+                    // CALCODE_AD 相加运算，最高位会发生进位，比较最高位即可
+                    
+                    //                if (old_value < 0 || new_value < 0)
+                    //                    log("fuck\n");
+                    int c = highBit(old_value) != highBit(new_value);
+                    regs.P.set(__registers::C, c);
+                }
             }
             
+            
+            assert(flags == checkFLAG);
+                
 
             // 影响目标值
             if (applyToDST)
