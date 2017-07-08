@@ -682,8 +682,8 @@
         <scene sceneID="hIz-AP-VOD">
             <objects>
                 <viewController id="XfG-lQ-9wD" customClass="ViewController" sceneMemberID="viewController">
-                    <view key="view" wantsLayer="YES" id="m2S-Jp-Qdl">
-                        <rect key="frame" x="0.0" y="0.0" width="860" height="558"/>
+                    <view key="view" wantsLayer="YES" misplaced="YES" id="m2S-Jp-Qdl">
+                        <rect key="frame" x="0.0" y="0.0" width="920" height="558"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <subviews>
                             <scrollView horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" hasHorizontalScroller="NO" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="dum-Wx-ZIB">
@@ -698,6 +698,14 @@
                                             <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
                                             <size key="minSize" width="398" height="256"/>
                                             <size key="maxSize" width="684" height="10000000"/>
+                                            <attributedString key="textStorage">
+                                                <fragment content="123">
+                                                    <attributes>
+                                                        <font key="NSFont" size="12" name="Courier"/>
+                                                        <paragraphStyle key="NSParagraphStyle" alignment="natural" lineBreakMode="wordWrapping" baseWritingDirection="natural" tighteningFactorForTruncation="0.0"/>
+                                                    </attributes>
+                                                </fragment>
+                                            </attributedString>
                                             <color key="insertionPointColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                         </textView>
                                     </subviews>
@@ -717,9 +725,9 @@
                                 </scroller>
                             </scrollView>
                             <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" allowsCharacterPickerTouchBarItem="NO" translatesAutoresizingMaskIntoConstraints="NO" id="my7-70-8J6">
-                                <rect key="frame" x="438" y="415" width="404" height="123"/>
+                                <rect key="frame" x="438" y="415" width="464" height="123"/>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="400" id="hoO-Tz-wIP"/>
+                                    <constraint firstAttribute="width" constant="460" id="hoO-Tz-wIP"/>
                                     <constraint firstAttribute="height" constant="123" id="wrg-Za-gnG"/>
                                 </constraints>
                                 <textFieldCell key="cell" controlSize="mini" sendsActionOnEndEditing="YES" title="Multiline Label" id="vae-fM-IZ1">
@@ -729,7 +737,7 @@
                                 </textFieldCell>
                             </textField>
                             <customView translatesAutoresizingMaskIntoConstraints="NO" id="hsI-oI-CmB">
-                                <rect key="frame" x="440" y="298" width="400" height="97"/>
+                                <rect key="frame" x="440" y="298" width="460" height="97"/>
                                 <subviews>
                                     <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="9CY-2j-WiT">
                                         <rect key="frame" x="20" y="18" width="33" height="17"/>
@@ -793,7 +801,7 @@
                                         </connections>
                                     </button>
                                     <textField verticalHuggingPriority="750" allowsCharacterPickerTouchBarItem="NO" translatesAutoresizingMaskIntoConstraints="NO" id="auG-AK-Y5h">
-                                        <rect key="frame" x="312" y="61" width="68" height="16"/>
+                                        <rect key="frame" x="372" y="61" width="68" height="16"/>
                                         <constraints>
                                             <constraint firstAttribute="width" constant="68" id="eRp-Xq-fjN"/>
                                         </constraints>
@@ -822,26 +830,26 @@
                                 </constraints>
                             </customView>
                             <tabView type="bottomTabsBezelBorder" initialItem="kZq-Z6-BpL" translatesAutoresizingMaskIntoConstraints="NO" id="oOV-Ln-XTL">
-                                <rect key="frame" x="433" y="14" width="414" height="268"/>
+                                <rect key="frame" x="433" y="14" width="474" height="268"/>
                                 <font key="font" metaFont="system"/>
                                 <tabViewItems>
                                     <tabViewItem label="内存" identifier="0" id="kZq-Z6-BpL">
                                         <view key="view" id="Nf0-qg-rWV">
-                                            <rect key="frame" x="10" y="7" width="394" height="230"/>
+                                            <rect key="frame" x="10" y="7" width="454" height="230"/>
                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                             <subviews>
                                                 <scrollView horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" hasHorizontalScroller="NO" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="P0c-41-dWp">
-                                                    <rect key="frame" x="0.0" y="0.0" width="394" height="230"/>
+                                                    <rect key="frame" x="0.0" y="0.0" width="454" height="230"/>
                                                     <clipView key="contentView" id="eNF-KW-B3h">
-                                                        <rect key="frame" x="1" y="1" width="392" height="228"/>
+                                                        <rect key="frame" x="1" y="1" width="452" height="228"/>
                                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <subviews>
                                                             <textView importsGraphics="NO" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="Ejr-rM-gwe">
-                                                                <rect key="frame" x="0.0" y="0.0" width="593" height="228"/>
+                                                                <rect key="frame" x="0.0" y="0.0" width="653" height="228"/>
                                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                                 <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
-                                                                <size key="minSize" width="392" height="228"/>
-                                                                <size key="maxSize" width="599" height="10000000"/>
+                                                                <size key="minSize" width="452" height="228"/>
+                                                                <size key="maxSize" width="653" height="10000000"/>
                                                                 <color key="insertionPointColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                                             </textView>
                                                         </subviews>
@@ -852,7 +860,7 @@
                                                         <autoresizingMask key="autoresizingMask"/>
                                                     </scroller>
                                                     <scroller key="verticalScroller" verticalHuggingPriority="750" horizontal="NO" id="sdg-eD-5qp">
-                                                        <rect key="frame" x="377" y="1" width="16" height="228"/>
+                                                        <rect key="frame" x="437" y="1" width="16" height="228"/>
                                                         <autoresizingMask key="autoresizingMask"/>
                                                     </scroller>
                                                 </scrollView>
@@ -876,7 +884,7 @@
                                                     <rect key="frame" x="0.0" y="0.0" width="394" height="230"/>
                                                     <clipView key="contentView" id="T6Y-MZ-Nys">
                                                         <rect key="frame" x="1" y="1" width="392" height="228"/>
-                                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
                                                         <subviews>
                                                             <textView importsGraphics="NO" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="HTT-tX-tqy">
                                                                 <rect key="frame" x="0.0" y="0.0" width="392" height="228"/>
@@ -916,7 +924,7 @@
                                                     <rect key="frame" x="0.0" y="0.0" width="394" height="230"/>
                                                     <clipView key="contentView" id="MiV-rl-rsX">
                                                         <rect key="frame" x="1" y="1" width="392" height="228"/>
-                                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
                                                         <subviews>
                                                             <textView importsGraphics="NO" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="aix-nH-EPa">
                                                                 <rect key="frame" x="0.0" y="0.0" width="392" height="228"/>

@@ -53,20 +53,20 @@ using namespace ReNes;
     if (buffer == nil)
         return;
     
-    dispatch_async(dispatch_get_main_queue(), ^{
-        
-        @autoreleasepool {
-            
-            //        std::string str = std::string([_logView.string UTF8String]) + std::string([buffer UTF8String]);
-            
-            //        _logView.string = [NSString stringWithUTF8String:str.c_str()];
-            [[_logView textStorage] appendAttributedString:[[NSAttributedString alloc] initWithString:buffer]];
-            
-            [_logView scrollRangeToVisible: NSMakeRange(_logView.string.length, 0)];
-        }
-        
-
-    });
+//    dispatch_async(dispatch_get_main_queue(), ^{
+//        
+//        @autoreleasepool {
+//            
+//            //        std::string str = std::string([_logView.string UTF8String]) + std::string([buffer UTF8String]);
+//            
+//            //        _logView.string = [NSString stringWithUTF8String:str.c_str()];
+//            [[_logView textStorage] appendAttributedString:[[NSAttributedString alloc] initWithString:buffer]];
+//            
+//            [_logView scrollRangeToVisible: NSMakeRange(_logView.string.length, 0)];
+//        }
+//        
+//
+//    });
 }
 
 - (void) startNes
@@ -86,6 +86,13 @@ using namespace ReNes;
             _nes = new Nes();
             
             _nes->cpu_callback = [self](CPU* cpu){
+                
+                // 反汇编
+                static dispatch_once_t onceToken;
+                dispatch_once(&onceToken, ^{
+                    [self disassembly];
+                });
+                
                 
                 // 手动中断
                 //            @synchronized ((__bridge id)_nes)
@@ -150,6 +157,11 @@ using namespace ReNes;
 //            _logStringCache += buffer;
 //        }
 //    });
+    
+    _logView.font = [NSFont fontWithName:@"Courier" size:12];
+    _memView.font = [NSFont fontWithName:@"Courier" size:12];
+    _vramView.font = [NSFont fontWithName:@"Courier" size:12];
+    _sprramView.font = [NSFont fontWithName:@"Courier" size:12];
     
     [self startNes];
     
@@ -245,6 +257,61 @@ using namespace ReNes;
             
         }
     });
+}
+
+
+- (void) disassembly
+{
+    uint16_t pc = 0x8000;
+    uint8_t cmd;
+    
+    std::string dis;
+    do {
+        
+        Memory* mem = _nes->mem();
+        
+        // 从内存里面取出一条8bit指令，将PC移动到下一个内存地址
+        cmd = mem->read8bitData(pc);
+        
+        //    log("[%ld][%04X] cmd: %x => ", execCmdLine, pc, cmd);
+        
+        if (!SET_FIND(CMD_LIST, cmd))
+        {
+//            assert(!"未知的指令！");
+            break;
+        }
+        
+        auto info = CMD_LIST.at(cmd);
+        
+        auto str = cmd_str(info, pc, mem);
+        str = "[" + int_to_hex(pc) + "]\t\t" + str + "\n";
+//        printf("%s", str.c_str());
+        
+        dis += str;
+        
+        pc += info.bytes;
+        
+    }while (cmd != 0);
+    
+    
+    __block NSString* buffer = [NSString stringWithUTF8String:dis.c_str()];
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        
+        @autoreleasepool {
+            
+            //        std::string str = std::string([_logView.string UTF8String]) + std::string([buffer UTF8String]);
+            
+            _logView.string = buffer;
+//            [[_logView textStorage] appendAttributedString:[[NSAttributedString alloc] initWithString:buffer]];
+//            
+//            [_logView scrollRangeToVisible: NSMakeRange(_logView.string.length, 0)];
+        }
+        
+        
+    });
+    
+//    printf("%s\n", dis.c_str());
 }
 
 - (void) updateView

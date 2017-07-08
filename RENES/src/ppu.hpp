@@ -183,7 +183,7 @@ namespace ReNes {
             
             
             
-            std::function<void(int, int, int, uint8_t*, uint8_t*)> drawTile = [this, bkPaletteAddr, sprPaletteAddr](int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr)
+            std::function<void(int, int, int, uint8_t*, uint8_t*, bool, bool)> drawTile = [this, bkPaletteAddr, sprPaletteAddr](int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr, bool flipH, bool flipV)
             {
                 
                 for (int ty=0; ty<8; ty++)
@@ -204,7 +204,10 @@ namespace ReNes {
                             continue;
                         }
                         
-                        int pixelIndex = NES_MIN(y + ty, 239) * 32*8*3 + NES_MIN(x+(7-tx), 255) *3; // 最低位是右边第一像素，所以渲染顺序要从右往左
+                        int tx_ = flipH ? tx : 7-tx;
+                        int ty_ = flipV ? 7-ty : ty;
+                        
+                        int pixelIndex = NES_MIN(y + ty_, 239) * 32*8*3 + NES_MIN(x+tx_, 255) *3; // 最低位是右边第一像素，所以渲染顺序要从右往左
                         
                         RGB* rgb = (RGB*)&defaultPalette[systemPaletteUnitIndex*3];
                         
@@ -239,7 +242,7 @@ namespace ReNes {
                     // 前8字节(8x8) + 后8字节(8x8)
                     uint8_t* tileAddr = &bkPetternTableAddr[tileIndex * 16];
 
-                    drawTile(x*8, y*8, high2, tileAddr, bkPaletteAddr);
+                    drawTile(x*8, y*8, high2, tileAddr, bkPaletteAddr, false, false);
                     
                 }
             }
@@ -265,8 +268,11 @@ namespace ReNes {
                 uint8_t* tileAddr = &sprPetternTableAddr[spr->tileIndex * 16];
                 
                 int high2 = spr->info.get(0) | (spr->info.get(1) << 1);
+                bool flipH = spr->info.get(6);
+                bool flipV = spr->info.get(7);
+                
 //                int high2 = (spr->info.get(0) << 1) | spr->info.get(1);
-                drawTile(spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr);
+                drawTile(spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV);
             }
 
             
