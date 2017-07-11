@@ -83,7 +83,9 @@ namespace ReNes {
     
     enum CF{
         
-        CF_BCC,
+        CF_BCC, CF_BCS,
+        CF_BEQ,
+        CF_BNE, CF_BPL,
         CF_CLC, CF_CLD, CF_CLI,
         CF_CMP, CF_CPX, CF_CPY,
         CF_DEX, CF_DEY,
@@ -103,7 +105,7 @@ namespace ReNes {
         CF_ST,
 //        CF_IN,
 //        CF_CP,
-        CF_B,
+//        CF_B,
         CF_RTI,
         CF_JSR,
         CF_RTS,
@@ -321,13 +323,13 @@ namespace ReNes {
         /* (zeropage,X) ASL oper,X */ {0x16, {"ASL", CF_ASL, DST_M, ZERO_PAGE_X, PARAM_NONE, 2, 6, 131}},
         /* (absolute) ASL oper */ {0x0E, {"ASL", CF_ASL, DST_M, INDEXED_ABSOLUTE, PARAM_NONE, 3, 6, 131}},
         /* (absolute,X) ASL oper,X */ {0x1E, {"ASL", CF_ASL, DST_M, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 7, 131}},
-        /* (relative) BCC oper */ {0x90, {"BCC", CF_B, DST_REGS_P_C, RELATIVE, PARAM_0, 2, 2, 0}},
-        /* (relative) BCS oper */ {0xB0, {"BCS", CF_B, DST_REGS_P_C, RELATIVE, PARAM_1, 2, 2, 0}},
-        /* (relative) BEQ oper */ {0xF0, {"BEQ", CF_B, DST_REGS_P_Z, RELATIVE, PARAM_1, 2, 2, 0}},
+        /* (relative) BCC oper */ {0x90, {"BCC", CF_BCC, DST_REGS_P_C, RELATIVE, PARAM_0, 2, 2, 0}},
+        /* (relative) BCS oper */ {0xB0, {"BCS", CF_BCS, DST_REGS_P_C, RELATIVE, PARAM_1, 2, 2, 0}},
+        /* (relative) BEQ oper */ {0xF0, {"BEQ", CF_BEQ, DST_REGS_P_Z, RELATIVE, PARAM_1, 2, 2, 0}},
         /* (zeropage) BIT oper */ {0x24, {"BIT", CF_BIT, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3, 2}},
         /* (absolute) BIT oper */ {0x2C, {"BIT", CF_BIT, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 2}},
-        /* (relative) BNE oper */ {0xD0, {"BNE", CF_B, DST_REGS_P_Z, RELATIVE, PARAM_0, 2, 2, 0}},
-        /* (relative) BPL oper */ {0x10, {"BPL", CF_B, DST_REGS_P_N, RELATIVE, PARAM_0, 2, 2, 0}},
+        /* (relative) BNE oper */ {0xD0, {"BNE", CF_BNE, DST_REGS_P_Z, RELATIVE, PARAM_0, 2, 2, 0}},
+        /* (relative) BPL oper */ {0x10, {"BPL", CF_BPL, DST_REGS_P_N, RELATIVE, PARAM_0, 2, 2, 0}},
         /* (implied) BRK */ {0x00, {"BRK", CF_BRK, DST_NONE, IMPLIED, PARAM_NONE, 1, 7, 0}},
         /* (implied) CLC */ {0x18, {"CLC", CF_CLC, DST_REGS_P_C, IMPLIED, PARAM_NONE, 1, 2, 0}},
         /* (implied) CLD */ {0xD8, {"CLD", CF_CLD, DST_REGS_P_D, IMPLIED, PARAM_NONE, 1, 2, 0}},
@@ -606,7 +608,13 @@ namespace ReNes {
                         // Reset 不需要保存现场
                         if (_currentInterruptType != InterruptTypeReset)
                         {
-                            saveStatus(); // 保存现场
+//                            saveStatus(); // 保存现场
+                            
+                            auto& PC = regs.PC;
+                            PC --;
+                            push((PC >> 8) & 0xff);    /* Push return address onto the stack. */
+                            push(PC & 0xff);
+                            push(*(uint8_t*)&regs.P);
                         }
                         
                         // 设置中断屏蔽标志(I)防止新的中断进来
@@ -629,16 +637,12 @@ namespace ReNes {
             
             log("[%ld][%04X] cmd: %x => ", execCmdLine, regs.PC, cmd);
             
-            int jumpPC = 0;
-
             if (!SET_FIND(CMD_LIST, cmd))
             {
                 log("未知的指令！");
                 error = true;
                 return 0;
             }
-            
-            bool pushPC = false;
             
             auto info = CMD_LIST.at(cmd);
             {
@@ -685,6 +689,11 @@ namespace ReNes {
                     {
                         _mem->write8bitData(addr, src);
                     };
+                    
+                    std::function<uint16_t(uint16_t, int8_t)> REL_ADDR = [this](uint16_t addr, int8_t src)
+                    {
+                        return addr + src;
+                    };
 
                     std::function<bool()> IF_CARRY = [this]()
                     {
@@ -697,16 +706,56 @@ namespace ReNes {
                     };
                     
                     
+                    
+                    std::function<bool()> IF_ZERO = [this]()
+                    {
+                        return regs.P.get(__registers::Z);
+                    };
+                    
+                    std::function<bool()> IF_SIGN = [this]()
+                    {
+                        return regs.P.get(__registers::N);
+                    };
+                    
+                    
                     uint16_t address = 0;
                     int8_t src = 0;
                     {
                         if (mode != IMPLIED)
                         {
-                            address = addressingOnly(mode);
-//                            src = _mem->masterData()[address];
+                            address = addressingByMode(mode);
                             src = _mem->read8bitData(address, true);
                         }
                     }
+                    
+                    
+                    std::function<void(DST, uint8_t, AddressingMode)> valueToDST = [this, &address](DST dst, uint8_t value, AddressingMode mode)
+                    {
+                        switch (dst)
+                        {
+                            case DST_REGS_SP:
+                                regs.SP = value;
+                                break;
+                            case DST_REGS_A:
+                                regs.A = value;
+                                break;
+                            case DST_REGS_X:
+                                regs.X = value;
+                                break;
+                            case DST_REGS_Y:
+                                regs.Y = value;
+                                break;
+                            case DST_M:
+                                // 如果写入目标是一个内存地址，就需要进行寻址
+                                _mem->write8bitData(address, value);
+                                break;
+                            default:
+                                assert(!"error!");
+                                break;
+                        }
+                    };
+                    
+                    
 
                     
                     auto& AC = regs.A;
@@ -714,6 +763,12 @@ namespace ReNes {
                     auto& YR = regs.Y;
                     auto& SP = regs.SP;
                     auto& PC = regs.PC;
+                    
+                    
+                    
+                    // 移动PC指针到下一条指令位置
+                    PC += info.bytes;
+                    
                     
                     switch(info.cf)
                     {
@@ -735,6 +790,51 @@ namespace ReNes {
                             SET_ZERO(src);
                             
                             valueToDST(dst, src, mode);
+                            break;
+                        }
+                        case CF_BCC:
+                        {
+                            if (!IF_CARRY()) {
+//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                PC = REL_ADDR(PC, src);
+                            }
+                            
+                            break;
+                        }
+                        case CF_BCS:
+                        {
+                            if (IF_CARRY()) {
+//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                PC = REL_ADDR(PC, src);
+                            }
+                            
+                            break;
+                        }
+                        case CF_BEQ:
+                        {
+                            if (IF_ZERO()) {
+//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                PC = REL_ADDR(PC, src);
+                            }
+                            
+                            break;
+                        }
+                        case CF_BNE:
+                        {
+                            if (!IF_ZERO()) {
+//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                PC = REL_ADDR(PC, src);
+                            }
+                            
+                            break;
+                        }
+                        case CF_BPL:
+                        {
+                            if (!IF_SIGN()) {
+//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                PC = REL_ADDR(PC, src);
+                            }
+                            
                             break;
                         }
                         case CF_LSR:
@@ -1029,51 +1129,31 @@ namespace ReNes {
                             
                             break;
                         }
-                        
-                            
                         case CF_BRK:
                             // BRK 执行时，产生BRK中断
                             interrupts(InterruptTypeIRQs);
                             break;
                         case CF_JSR:
                         {
-                            pushPC = true;
+                            PC--;
+                            push((PC >> 8) & 0xff);    /* Push return address onto the stack. */
+                            push(PC & 0xff);
+                            PC = address;//(src);
+                            
+                            break;
                         }
                         case CF_JMP:
                         {
-                            int offset = addressingOnly(mode);//addressingValue(mode);
-                            
-                            log("跳转到 %04X\n", offset);
-                            
-                            jumpPC = offset;
-                            break;
-                        }
-                        case CF_B:
-                        {
-//                            int value = mode - IMMIDIATE_VALUE_0; // 得到具体数值
-                            
-                            assert(info.param != PARAM_NONE);
-                            int value = info.param - PARAM_0; // 得到具体数值
-                            int8_t offset = 0;
-                            
-                            if (valueFromDST(dst, mode) == value)
-                            {
-                                offset = addressingValue(mode);
-                            }
-                            
-                            log("%X == %X 则跳转到 %d\n", valueFromDST(dst, mode), value, offset);
-                            
-                            jumpPC = offset;
+                            PC = address;
                             break;
                         }
                         case CF_RTS:
                         {
-//                            if (regs.SP >= 2)
                             if (regs.SP <= 0xFD) // 255 - 2
                             {
-                                uint8_t PC_high = pop();
                                 uint8_t PC_low = pop();
-                                regs.PC = (PC_high << 8) + PC_low;
+                                uint8_t PC_high = pop();
+                                PC = (PC_high << 8) + PC_low + 1;
                             }
                             else
                             {
@@ -1088,10 +1168,10 @@ namespace ReNes {
                                 uint8_t data = pop();
                                 regs.P = *(bit8*)&data;
                                 
-                                uint8_t PC_high = pop();
                                 uint8_t PC_low = pop();
+                                uint8_t PC_high = pop();
                                 
-                                regs.PC = (PC_high << 8) + PC_low;
+                                regs.PC = (PC_high << 8) + PC_low + 1;
                             }
                             else
                             {
@@ -1113,54 +1193,6 @@ namespace ReNes {
             // 检查内存错误
             error = _mem->error;
             
-            if (info.cf != CF_RTI && info.cf != CF_RTS)
-            {
-                // 移动PC指针到下一条指令位置
-                regs.PC += info.bytes;
-                
-                // push PC
-                if (pushPC)
-                {
-                    push((const uint8_t*)&regs.PC, 2); // 移动到下一句指令才存储
-                    
-                    
-                }
-                
-//                uint16_t stack_addr = STACK_ADDR_OFFSET + regs.SP+1;
-//                
-//                int a = _mem->read8bitData(stack_addr);
-//                int b = _mem->read8bitData(stack_addr+1);
-//                
-//                if (a != 128)
-//                {
-//                    log("fuck\n");
-//                }
-
-                if (jumpPC != 0)
-                {
-                    // 检查调整类型：相对，绝对
-                    switch (info.mode)
-                    {
-                        case RELATIVE:
-                        case IMMIDIATE:
-                            // 相对跳转
-                            regs.PC += jumpPC;
-                            break;
-                        case INDEXED_ABSOLUTE:
-                        case INDIRECT:
-                            // 绝对跳转
-                            regs.PC = jumpPC;
-                            break;
-                        default:
-                            log("未知的指令！");
-                            error = true;
-                            break;
-                    }
-                    
-                    log("jmp %X\n", regs.PC);
-                }
-            }
-            
             log("P: %d\n", regs.P);
             
             execCmdLine ++;
@@ -1169,103 +1201,8 @@ namespace ReNes {
         }
         
     private:
-        
-        
-        
-        
-        
-//        std::function<uint8_t(DST)> valueFromDST = [this](DST dst) {
-        
-//        uint8_t valueFromRegs(DST dst) {
-//            
-//            if (dst == DST_M)
-//            {
-//                assert(!"不支持内存寻址！");
-//                return 0;
-//            }
-//
-//            // IMPLIED 进行内存寻址会报错，这里用来防止 dst == DST_M
-//            return valueFromDST(dst, IMPLIED);
-//        };
-        
-        uint8_t valueFromDST(DST dst, AddressingMode mode) {
-        
-            uint8_t dst_value;
-            switch (dst)
-            {
-                case DST_REGS_SP:
-                    dst_value = regs.SP;
-                    break;
-                case DST_REGS_A:
-                    dst_value = regs.A;
-                    break;
-                case DST_REGS_X:
-                    dst_value = regs.X;
-                    break;
-                case DST_REGS_Y:
-                    dst_value = regs.Y;
-                    break;
-                case DST_REGS_P_Z:
-                    dst_value = regs.P.get(__registers::__P::Z);
-                    break;
-                case DST_REGS_P_N:
-                    dst_value = regs.P.get(__registers::__P::N);
-                    break;
-                case DST_REGS_P_C:
-                    dst_value = regs.P.get(__registers::__P::C);
-                    break;
-                case DST_REGS_P_I:
-                    dst_value = regs.P.get(__registers::__P::I);
-                    break;
-                case DST_REGS_P_B:
-                    dst_value = regs.P.get(__registers::__P::B);
-                    break;
-                case DST_REGS_P_V:
-                    dst_value = regs.P.get(__registers::__P::V);
-                    break;
-                case DST_REGS_P_D:
-                    dst_value = regs.P.get(__registers::__P::D);
-                    break;
-                case DST_M:
-                    dst_value = addressingValue(mode);
-                    break;
-                default:
-                    assert(!"error!");
-                    break;
-            }
-            
-            return dst_value;
-        };
-        
-        void valueToDST(DST dst, uint8_t value, AddressingMode mode)
-        {
-            switch (dst)
-            {
-                case DST_REGS_SP:
-                    regs.SP = value;
-                    break;
-                case DST_REGS_A:
-                    regs.A = value;
-                    break;
-                case DST_REGS_X:
-                    regs.X = value;
-                    break;
-                case DST_REGS_Y:
-                    regs.Y = value;
-                    break;
-                case DST_M:
-                    // 如果写入目标是一个内存地址，就需要进行寻址
-                    _mem->write8bitData(addressingOnly(mode), value);
-                    break;
-                default:
-                    assert(!"error!");
-                    break;
-            }
-        }
-        
-//        std::function<uint8_t()> addressing = [this, &mode](){
-        
-        uint16_t addressingOnly(AddressingMode mode)
+
+        uint16_t addressingByMode(AddressingMode mode)
         {
             uint16_t dataAddr = regs.PC + 1; // 操作数位置 = PC + 1
             
@@ -1363,46 +1300,6 @@ namespace ReNes {
             return addr;
         }
         
-//        uint8_t addressingValue(AddressingMode mode)
-//        {
-//            return _mem->read8bitData(addressingOnly(mode));
-//        };
-        
-        int8_t addressingValue(AddressingMode mode)
-        {
-//            if (mode == IMMIDIATE_16bit)
-//            {
-//                return _mem->read16bitData(addressingOnly(mode));
-//            }
-//            else
-            {
-                return _mem->read8bitData(addressingOnly(mode));
-            }
-        };
-        
-        
-        
-
-        
-        
-        
-        
-        
-        // 入栈
-        void push(const uint8_t* addr, size_t length)
-        {
-            // 循环推入8bit数据
-            for (int i=0; i<length; i++)
-            {
-                uint16_t stack_addr = STACK_ADDR_OFFSET + regs.SP;
-                
-                _mem->write8bitData(stack_addr, *(addr+i));
-                
-//                regs.SP ++;
-                regs.SP --;
-            }
-        }
-        
         void push(uint8_t value)
         {
             uint16_t stack_addr = STACK_ADDR_OFFSET + regs.SP;
@@ -1413,19 +1310,11 @@ namespace ReNes {
         // 出栈
         uint8_t pop()
         {
-//            regs.SP --;
             regs.SP ++;
             return _mem->read8bitData(STACK_ADDR_OFFSET + regs.SP);
         }
         
-        // 保存现场
-        void saveStatus()
-        {
-            // 保存现场（把PC、 P两个寄存器压栈）
-            push((const uint8_t*)&regs.PC, 2);
-            push(*(uint8_t*)&regs.P);
-        }
-        
+
         
         
         Memory* _mem;
