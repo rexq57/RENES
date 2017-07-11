@@ -115,7 +115,7 @@ namespace ReNes {
             // 将图案表数据载入VRAM
             for (int i=0; i<vrom8kB_count; i++)
             {
-                const uint8_t* vromAddr = &rom[16]+1024*16*rom16kB_count;
+                const uint8_t* vromAddr = &rom[16+1024*16*rom16kB_count + 1024*8*i];
                 
                 memcpy(_ppu.vram()->masterData(), vromAddr, 1024*8);
             }

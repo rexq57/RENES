@@ -34,9 +34,9 @@ namespace ReNes {
         }
         
         // 读取数据
-        uint8_t read8bitData(uint16_t addr)
+        uint8_t read8bitData(uint16_t addr, bool master=false)
         {
-            auto data = *getRealAddr(addr, READ);
+            auto data = *getRealAddr(addr, master? MASTER : READ);
             
             // 处理2002,2005,2006读取，每次读取之后重置bit7
             switch (addr)
@@ -102,7 +102,8 @@ namespace ReNes {
         
         enum ACCESS{
             READ,
-            WRITE
+            WRITE,
+            MASTER
         };
 
         // 得到实际内存地址

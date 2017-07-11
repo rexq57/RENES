@@ -49,7 +49,6 @@ namespace ReNes {
         void set(uint8_t offset, int value)
         {
             assert(value == 0 || value == 1);
-            
             _data &= ~(0x1 << offset); // set 0
             _data |= ((value % 2) << offset);
         }
