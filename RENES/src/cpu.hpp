@@ -721,10 +721,19 @@ namespace ReNes {
                     uint16_t address = 0;
                     int8_t src = 0;
                     {
-                        if (mode != IMPLIED)
+                        switch(mode)
                         {
-                            address = addressingByMode(mode);
-                            src = _mem->read8bitData(address, true);
+                            case IMPLIED:
+                                break;
+                            case ACCUMULATOR:
+                            {
+                                src = regs.A;
+                                break;
+                            }
+                            default:
+                                address = addressingByMode(mode);
+                                src = _mem->read8bitData(address, true);
+                                break;
                         }
                     }
                     
@@ -1193,7 +1202,12 @@ namespace ReNes {
             // 检查内存错误
             error = _mem->error;
             
-            log("P: %d\n", regs.P);
+            log("P: %d - ", regs.P);
+            for (int i=0; i<8; i++)
+            {
+                log("%d ", regs.P.get(i));
+            }
+            log("\n");
             
             execCmdLine ++;
             
@@ -1222,11 +1236,11 @@ namespace ReNes {
                     addr = dataAddr;
                     break;
                 }
-                case ACCUMULATOR:
-                {
-                    addr = regs.A;
-                    break;
-                }
+//                case ACCUMULATOR:
+//                {
+//                    addr = regs.A;
+//                    break;
+//                }
                 case ZERO_PAGE:
                 {
                     addr = _mem->read8bitData(dataAddr);

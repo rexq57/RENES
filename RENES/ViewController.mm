@@ -11,7 +11,7 @@
 #include <string>
 #import "MyOpenGLView.h"
 #import <BlocksKit/BlocksKit.h>
-
+#import "PetternTableView.h"
 
 using namespace ReNes;
 
@@ -34,6 +34,7 @@ using namespace ReNes;
 @property (nonatomic) IBOutlet NSTextView* memView;
 @property (nonatomic) IBOutlet NSTextView* vramView;
 @property (nonatomic) IBOutlet NSTextView* sprramView;
+@property (nonatomic) IBOutlet PetternTableView* petternTableView;
 
 @property (nonatomic) IBOutlet NSTextField* stopedCmdAddrField;
 @property (nonatomic) IBOutlet NSTextField* stopedCmdLineField;
@@ -214,6 +215,23 @@ using namespace ReNes;
                     count = 0x100;
                     srcData = _nes->ppu()->sprram();
                     break;
+                case 3:
+                {
+                    uint8_t p[32];
+                    
+                    _nes->ppu()->petternTables(p);
+                    NSMutableArray<NSColor*>* arr = [NSMutableArray array];
+                    for (auto i : p)
+                    {
+                        const uint8_t* rgb = &DEFAULT_PALETTE[i*3];
+                        NSColor* color = [NSColor colorWithRed:rgb[0]/255.0 green:rgb[1]/255.0 blue:rgb[2]/255.0 alpha:1];
+                        
+                        [arr addObject:color];
+                    }
+                    _petternTableView.colors = arr;
+                    return;
+                    break;
+                }
                 default:
                     assert(!"error!");
                     break;
