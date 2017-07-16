@@ -348,15 +348,21 @@ namespace ReNes {
             {
                 for (int x=0; x<32; x++)
                 {
-                    // 一个属性4字节，作用在8x8 tile里，所以需要将tiles分成4x4个单元
-                    uint8_t* attributeAddr = &attributeTableAddr[(y % 8) * 4*4 + (x % 8)*4]; /* 一个属性行是4个属性，每个4字节，所以是4 x 4的字节数 */
-                    // 再细分到 4x4 tile内 (1/4 属性 1字节)
-                    uint8_t* attributeAddrFor4x4Tile = &attributeAddr[((y % 8) % 2) * 2*4  + ((x % 8) % 2)*1];/* 半个属性行只有 2 * 4 字节数 */
+                    // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
+                    uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(y / 4 * (32/4) + x / 4)];
+                    int bit = (y % 4) / 2 * 4 + (x % 4) / 2 * 2;
+                    int high2 = (attributeAddrFor4x4Tile >> bit) & 0x3;
                     
-                    // 再细分到属性内部决定该tile的bit位
-                    int bit = (((y%8)%2)%2) * 4 + (((x%8)%2)%2) * 2;
+                    
+//                    // 一个属性4字节，作用在8x8 tile里，所以需要将tiles分成4x4个单元
+//                    uint8_t* attributeAddr = &attributeTableAddr[(y % 8) * 4*4 + (x % 8)*4]; /* 一个属性行是4个属性，每个4字节，所以是4 x 4的字节数 */
+//                    // 再细分到 4x4 tile内 (1/4 属性 1字节)
+//                    uint8_t* attributeAddrFor4x4Tile = &attributeAddr[((y % 8) % 2) * 2*4  + ((x % 8) % 2)*1];/* 半个属性行只有 2 * 4 字节数 */
+//                    
+//                    // 再细分到属性内部决定该tile的bit位
+//                    int bit = (((y%8)%2)%2) * 4 + (((x%8)%2)%2) * 2;
                     // 在 bit 位取 2bit 作为该tile颜色的高2位
-                    int high2 = (*attributeAddrFor4x4Tile >> bit) & 0x3;
+//                    int high2 = (*attributeAddrFor4x4Tile >> bit) & 0x3;
                     
                     
                     int tileIndex = nameTableAddr[y*32 + x]; // 得到 bkg tile index
@@ -365,6 +371,17 @@ namespace ReNes {
                     // 确定在图案表里的tile地址，每个tile是8x8像素，占用16字节。
                     // 前8字节(8x8) + 后8字节(8x8)
                     uint8_t* tileAddr = &bkPetternTableAddr[tileIndex * 16];
+                    
+//                    if (y == 1 && x == 1)
+//                    {
+//                        printf("%d\n", tileAddr);
+//                        log("fuck 1,1\n");
+//                    }
+//                    if (y == 1 && x == 2)
+//                    {
+//                        printf("%d\n", tileAddr);
+//                        log("fuck 2,1\n");
+//                    }
 
                     drawTile(_buffer, x*8, y*8, high2, tileAddr, bkPaletteAddr, false, false);
                     
