@@ -131,6 +131,8 @@ namespace ReNes {
             _cpu.init(&_mem);
             _ppu.init(&_mem);
             
+            _isRunning = true;
+            
             // 控制器处理
             {
                 int dstWrite4016 = 0;
@@ -307,7 +309,11 @@ namespace ReNes {
         std::function<bool(CPU*)> cpu_callback;
         std::function<bool(PPU*)> ppu_callback;
         
+        bool isRunning() const {return _isRunning;};
+        
     private:
+        
+        bool _isRunning = false;
         
         // 硬件
         CPU _cpu;

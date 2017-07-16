@@ -29,6 +29,8 @@ using namespace ReNes;
     long _stopedCmdLine;
 }
 
+@property (nonatomic) NSString* filePath;
+
 @property (nonatomic) IBOutlet MyOpenGLView* displayView;
 @property (nonatomic) IBOutlet NSTabView* memTabView;
 @property (nonatomic) IBOutlet NSTextView* memView;
@@ -70,78 +72,96 @@ using namespace ReNes;
 //    });
 }
 
-- (void) startNes
+- (void) startNes:(NSString*) filePath
 {
-    // 异步
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        
-        @autoreleasepool {
-        
-            NSString* filePath = [[NSBundle mainBundle] pathForResource:@"OUR.NES" ofType:@""];
-            NSData* data = [NSData dataWithContentsOfFile:filePath];
+    void (^start)(NSString*) = ^(NSString* filePath){
+        // 异步
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             
-            if (_nes != 0)
-            {
-                delete _nes;
+            @autoreleasepool {
+                
+                //            NSString* filePath = [[NSBundle mainBundle] pathForResource:@"OUR.NES" ofType:@""];
+                NSData* data = [NSData dataWithContentsOfFile:filePath];
+                
+                if (_nes != 0)
+                {
+                    delete _nes;
+                }
+                _nes = new Nes();
+                
+                _nes->cpu_callback = [self](CPU* cpu){
+                    
+                    // 反汇编
+                    static dispatch_once_t onceToken;
+                    dispatch_once(&onceToken, ^{
+                        [self disassembly];
+                    });
+                    
+                    
+                    // 手动中断
+                    //            @synchronized ((__bridge id)_nes)
+                    {
+                        if (cpu == _nes->cpu())
+                        {
+                            if (!_keepNext || ((cpu->regs.PC == _stopedCmdAddr || cpu->execCmdLine == _stopedCmdLine) && log("自定义地址中断\n")))
+                                dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
+                        }
+                    }
+                    
+                    
+                    return true;
+                };
+                
+                _nes->ppu_callback = [self](PPU* ppu){
+                    
+                    //            @synchronized ((__bridge id)_nes)
+                    {
+                        if (ppu == _nes->ppu())
+                        {
+                            // 显示图片
+                            int width  = ppu->width();
+                            int height = ppu->height();
+                            uint8_t* srcBuffer = ppu->buffer();
+                            
+                            [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+                        }
+                    }
+                    return true;
+                };
+                
+                //        _nes->mem()->addWritingObserver(0x2000, [self](uint16_t addr, uint8_t value){
+                //
+                //            if (addr == 0x2000 && (*(bit8*)&value).get(7) == 1)
+                //            {
+                //                _keepNext = false;
+                //                log("fuck\n");
+                //            }
+                //        });
+                
+                _nes->setDebug(true);
+                _nes->loadRom((const uint8_t*)[data bytes], [data length]);
+                
+                _nes->run();
+                
             }
-            _nes = new Nes();
+        });
+    };
+    
+    // 停止，才重新启动
+    if (_nes)
+    {
+        _nes->stop([self, start](){
             
-            _nes->cpu_callback = [self](CPU* cpu){
-                
-                // 反汇编
-                static dispatch_once_t onceToken;
-                dispatch_once(&onceToken, ^{
-                    [self disassembly];
-                });
-                
-                
-                // 手动中断
-                //            @synchronized ((__bridge id)_nes)
-                {
-                    if (cpu == _nes->cpu())
-                    {
-                        if (!_keepNext || ((cpu->regs.PC == _stopedCmdAddr || cpu->execCmdLine == _stopedCmdLine) && log("自定义地址中断\n")))
-                            dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
-                    }
-                }
-                
-                
-                return true;
-            };
-            
-            _nes->ppu_callback = [self](PPU* ppu){
-                
-                //            @synchronized ((__bridge id)_nes)
-                {
-                    if (ppu == _nes->ppu())
-                    {
-                        // 显示图片
-                        int width  = ppu->width();
-                        int height = ppu->height();
-                        uint8_t* srcBuffer = ppu->buffer();
-                        
-                        [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
-                    }
-                }
-                return true;
-            };
-            
-            //        _nes->mem()->addWritingObserver(0x2000, [self](uint16_t addr, uint8_t value){
-            //
-            //            if (addr == 0x2000 && (*(bit8*)&value).get(7) == 1)
-            //            {
-            //                _keepNext = false;
-            //                log("fuck\n");
-            //            }
-            //        });
-            
-            _nes->setDebug(true);
-            _nes->loadRom((const uint8_t*)[data bytes], [data length]);
-            
-            _nes->run();
-            
-        }
-    });
+            start(self.filePath);
+        });
+        
+        _keepNext = false; // 拦截在第一次cmd之后
+        dispatch_semaphore_signal(_nextSem); // 不拦截下一句指令，顺利让cpu进入stop判断
+    }
+    else
+    {
+        start(self.filePath);
+    }
 }
 
 - (void)viewDidLoad {
@@ -164,7 +184,7 @@ using namespace ReNes;
     _vramView.font = [NSFont fontWithName:@"Courier" size:12];
     _sprramView.font = [NSFont fontWithName:@"Courier" size:12];
     
-    [self startNes];
+//    [self startNes];
     
     _nextSem = dispatch_semaphore_create(0);
     
@@ -296,6 +316,7 @@ using namespace ReNes;
         if (!SET_FIND(CMD_LIST, cmd))
         {
 //            assert(!"未知的指令！");
+            log("[%04X] cmd: %x => ", pc, cmd);
             break;
         }
         
@@ -334,6 +355,9 @@ using namespace ReNes;
 
 - (void) updateView
 {
+    if (_nes == 0 || !_nes->isRunning())
+        return;
+    
     // 打印寄存器
     [self updateRegisters];
     
@@ -411,17 +435,39 @@ A:%d X:%d Y:%d (%lf, %lf)\n\
 
 - (IBAction) resetButton:(id)sender
 {
-    // 停止，才重新启动
-    _nes->stop([self](){
-
-        [self startNes];
-    });
-
-    _keepNext = false; // 拦截在第一次cmd之后
-    dispatch_semaphore_signal(_nextSem); // 不拦截下一句指令，顺利让cpu进入stop判断
+    [self startNes:self.filePath];
 }
 
-
+- (IBAction) openRom:(id)sender
+{
+    //create open panel...
+    NSOpenPanel* openPanel = [NSOpenPanel openPanel];
+    
+    //set restrictions / allowances...
+    [openPanel setAllowsMultipleSelection: NO];
+    [openPanel setCanChooseDirectories:NO];
+    [openPanel setCanCreateDirectories:NO];
+    [openPanel setCanChooseFiles:YES];
+    //only allow images...
+    [openPanel setAllowedFileTypes:@[@"nes"]];
+    
+    //open panel as sheet on main window...
+    [openPanel beginSheetModalForWindow:self.view.window completionHandler:^(NSInteger result) {
+        
+        if (result == NSFileHandlingPanelOKButton) {
+            
+            //get url (should only be one due to restrictions)...
+            for( NSURL* URL in [openPanel URLs] ) {
+                
+//                NSError* err = nil;
+                
+                self.filePath = [URL path];
+                
+                [self startNes:self.filePath];
+            }
+        }
+    }];
+}
 
 
 

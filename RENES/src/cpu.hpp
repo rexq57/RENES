@@ -85,10 +85,11 @@ namespace ReNes {
         
         CF_BCC, CF_BCS,
         CF_BEQ,
-        CF_BNE, CF_BPL,
+        CF_BMI, CF_BNE, CF_BPL,
         CF_CLC, CF_CLD, CF_CLI,
         CF_CMP, CF_CPX, CF_CPY,
-        CF_DEX, CF_DEY,
+        CF_DEC, CF_DEX, CF_DEY,
+        CF_EOR,
         CF_LDA, CF_LDX, CF_LDY,
         
         CF_INX, CF_INY, CF_INC,
@@ -328,6 +329,7 @@ namespace ReNes {
         /* (relative) BEQ oper */ {0xF0, {"BEQ", CF_BEQ, DST_REGS_P_Z, RELATIVE, PARAM_1, 2, 2, 0}},
         /* (zeropage) BIT oper */ {0x24, {"BIT", CF_BIT, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3, 2}},
         /* (absolute) BIT oper */ {0x2C, {"BIT", CF_BIT, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 2}},
+        /* (relative) BMI oper */ {0x30, {"BMI", CF_BMI, DST_REGS_P_N, RELATIVE, PARAM_1, 2, 2, 0}},
         /* (relative) BNE oper */ {0xD0, {"BNE", CF_BNE, DST_REGS_P_Z, RELATIVE, PARAM_0, 2, 2, 0}},
         /* (relative) BPL oper */ {0x10, {"BPL", CF_BPL, DST_REGS_P_N, RELATIVE, PARAM_0, 2, 2, 0}},
         /* (implied) BRK */ {0x00, {"BRK", CF_BRK, DST_NONE, IMPLIED, PARAM_NONE, 1, 7, 0}},
@@ -348,8 +350,20 @@ namespace ReNes {
         /* (immidiate) CPY #oper */ {0xC0, {"CPY", CF_CPY, DST_REGS_Y, IMMIDIATE, PARAM_NONE, 2, 2, 131}},
         /* (zeropage) CPY oper */ {0xC4, {"CPY", CF_CPY, DST_REGS_Y, ZERO_PAGE, PARAM_NONE, 2, 3, 131}},
         /* (absolute) CPY oper */ {0xCC, {"CPY", CF_CPY, DST_REGS_Y, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 131}},
+        /* (zeropage) DEC oper */ {0xC6, {"DEC", CF_DEY, DST_M, ZERO_PAGE, PARAM_NONE, 2, 5, 130}},
+        /* (zeropage,X) DEC oper,X */ {0xD6, {"DEC", CF_DEY, DST_M, ZERO_PAGE_X, PARAM_NONE, 2, 6, 130}},
+        /* (absolute) DEC oper */ {0xCE, {"DEC", CF_DEY, DST_M, INDEXED_ABSOLUTE, PARAM_NONE, 3, 3, 130}},
+        /* (absolute,X) DEC oper,X */ {0xDE, {"DEC", CF_DEY, DST_M, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 7, 130}},
         /* (implied) DEX */ {0xCA, {"DEX", CF_DEX, DST_REGS_X, IMPLIED, PARAM_NONE, 1, 2, 130}},
         /* (implied) DEY */ {0x88, {"DEY", CF_DEY, DST_REGS_Y, IMPLIED, PARAM_NONE, 1, 2, 130}},
+        /* (immidiate) EOR #oper */ {0x49, {"EOR", CF_EOR, DST_REGS_A, IMMIDIATE, PARAM_NONE, 2, 2, 130}},
+        /* (zeropage) EOR oper */ {0x45, {"EOR", CF_EOR, DST_REGS_A, ZERO_PAGE, PARAM_NONE, 2, 3, 130}},
+        /* (zeropage,X) EOR oper,X */ {0x55, {"EOR", CF_EOR, DST_REGS_A, ZERO_PAGE_X, PARAM_NONE, 2, 4, 130}},
+        /* (absolute) EOR oper */ {0x4D, {"EOR", CF_EOR, DST_REGS_A, INDEXED_ABSOLUTE, PARAM_NONE, 3, 4, 130}},
+        /* (absolute,X) EOR oper,X */ {0x5D, {"EOR", CF_EOR, DST_REGS_A, INDEXED_ABSOLUTE_X, PARAM_NONE, 3, 4, 130}},
+        /* (absolute,Y) EOR oper,Y */ {0x59, {"EOR", CF_EOR, DST_REGS_A, INDEXED_ABSOLUTE_Y, PARAM_NONE, 3, 4, 130}},
+        /* ((indirect,X)) EOR (oper,X) */ {0x41, {"EOR", CF_EOR, DST_REGS_A, INDIRECT_X_INDEXED, PARAM_NONE, 2, 6, 130}},
+        /* ((indirect),Y) EOR (oper),Y */ {0x51, {"EOR", CF_EOR, DST_REGS_A, INDIRECT_INDEXED_Y, PARAM_NONE, 2, 5, 130}},
         /* (zeropage) INC oper */ {0xE6, {"INC", CF_INC, DST_M, ZERO_PAGE, PARAM_NONE, 2, 5, 130}},
         /* (zeropage,X) INC oper,X */ {0xF6, {"INC", CF_INC, DST_M, ZERO_PAGE_X, PARAM_NONE, 2, 6, 130}},
         /* (absolute) INC oper */ {0xEE, {"INC", CF_INC, DST_M, INDEXED_ABSOLUTE, PARAM_NONE, 3, 6, 130}},
@@ -433,7 +447,6 @@ namespace ReNes {
         /* (implied) TXA */ {0x8A, {"TXA", CF_TXA, DST_REGS_A, IMPLIED, PARAM_REGS_X, 1, 2, 130}},
         /* (implied) TXS */ {0x9A, {"TXS", CF_TXS, DST_REGS_SP, IMPLIED, PARAM_REGS_X, 1, 2, 130}},
         /* (implied) TYA */ {0x98, {"TYA", CF_TYA, DST_REGS_A, IMPLIED, PARAM_REGS_Y, 1, 2, 130}},
-        
     };
     
     static
@@ -828,6 +841,15 @@ namespace ReNes {
                             
                             break;
                         }
+                        case CF_BMI:
+                        {
+                            if (IF_SIGN()) {
+//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                PC = REL_ADDR(PC, src);
+                            }
+                            
+                            break;
+                        }
                         case CF_BNE:
                         {
                             if (!IF_ZERO()) {
@@ -844,6 +866,14 @@ namespace ReNes {
                                 PC = REL_ADDR(PC, src);
                             }
                             
+                            break;
+                        }
+                        case CF_EOR:
+                        {
+                            src ^= AC;
+                            SET_SIGN(src);
+                            SET_ZERO(src);
+                            AC = src;
                             break;
                         }
                         case CF_LSR:
@@ -946,6 +976,15 @@ namespace ReNes {
                             SET_CARRY((YR - src) < 0x100);
                             SET_SIGN(src);
                             SET_ZERO(src &= 0xff);
+                            
+                            break;
+                        }
+                        case CF_DEC:
+                        {
+                            src = (src - 1) & 0xff;
+                            SET_SIGN(src);
+                            SET_ZERO(src);
+                            STORE(address, (src));
                             
                             break;
                         }

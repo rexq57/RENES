@@ -811,6 +811,16 @@
                                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                         </textFieldCell>
                                     </textField>
+                                    <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="aWe-R5-4AA">
+                                        <rect key="frame" x="374" y="18" width="66" height="17"/>
+                                        <buttonCell key="cell" type="roundRect" title="打开nes文件" bezelStyle="roundedRect" alignment="center" controlSize="mini" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="yuu-3k-Q9K">
+                                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                            <font key="font" size="9" name=".PingFangSC-Regular"/>
+                                        </buttonCell>
+                                        <connections>
+                                            <action selector="openRom:" target="XfG-lQ-9wD" id="Z6c-15-Tvt"/>
+                                        </connections>
+                                    </button>
                                 </subviews>
                                 <constraints>
                                     <constraint firstItem="auG-AK-Y5h" firstAttribute="top" secondItem="hsI-oI-CmB" secondAttribute="top" constant="20" id="DQL-DH-O8A"/>
@@ -818,8 +828,10 @@
                                     <constraint firstAttribute="bottom" secondItem="9CY-2j-WiT" secondAttribute="bottom" constant="20" id="I74-g9-L7K"/>
                                     <constraint firstItem="i9o-DB-KkO" firstAttribute="leading" secondItem="fSW-01-Cg2" secondAttribute="trailing" constant="10" id="Jhr-jm-3ge"/>
                                     <constraint firstItem="k5N-kg-0gb" firstAttribute="leading" secondItem="9CY-2j-WiT" secondAttribute="trailing" constant="20" id="Las-gX-vtd"/>
+                                    <constraint firstAttribute="bottom" secondItem="aWe-R5-4AA" secondAttribute="bottom" constant="20" id="NQl-fU-h5o"/>
                                     <constraint firstAttribute="bottom" secondItem="KzD-1P-ebo" secondAttribute="bottom" constant="20" id="SzO-4O-je2"/>
                                     <constraint firstItem="KzD-1P-ebo" firstAttribute="leading" secondItem="5pg-2O-Rfc" secondAttribute="trailing" constant="20" id="Yzf-Mf-qop"/>
+                                    <constraint firstAttribute="trailing" secondItem="aWe-R5-4AA" secondAttribute="trailing" constant="20" id="aG0-Kh-pdz"/>
                                     <constraint firstItem="i9o-DB-KkO" firstAttribute="top" secondItem="hsI-oI-CmB" secondAttribute="top" constant="20" id="aVw-fD-v6Y"/>
                                     <constraint firstAttribute="trailing" secondItem="auG-AK-Y5h" secondAttribute="trailing" constant="20" id="azF-e1-IxF"/>
                                     <constraint firstItem="k5N-kg-0gb" firstAttribute="centerY" secondItem="9CY-2j-WiT" secondAttribute="centerY" id="bOi-lo-KYq"/>
@@ -884,7 +896,7 @@
                                                     <rect key="frame" x="0.0" y="0.0" width="454" height="230"/>
                                                     <clipView key="contentView" id="T6Y-MZ-Nys">
                                                         <rect key="frame" x="1" y="1" width="452" height="228"/>
-                                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
                                                         <subviews>
                                                             <textView importsGraphics="NO" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="HTT-tX-tqy">
                                                                 <rect key="frame" x="0.0" y="0.0" width="452" height="228"/>
@@ -924,7 +936,7 @@
                                                     <rect key="frame" x="0.0" y="0.0" width="454" height="230"/>
                                                     <clipView key="contentView" id="MiV-rl-rsX">
                                                         <rect key="frame" x="1" y="1" width="452" height="228"/>
-                                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                        <autoresizingMask key="autoresizingMask"/>
                                                         <subviews>
                                                             <textView importsGraphics="NO" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="aix-nH-EPa">
                                                                 <rect key="frame" x="0.0" y="0.0" width="452" height="228"/>

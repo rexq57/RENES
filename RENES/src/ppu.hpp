@@ -242,7 +242,7 @@ namespace ReNes {
             std::function<void(uint16_t, uint8_t*)> readingObserver = [this](uint16_t addr, uint8_t* value)
             {
                 switch (addr) {
-                    case 2002:
+                    case 0x2002:
                         _w = 0;
                         break;
                     default:
@@ -348,7 +348,7 @@ namespace ReNes {
             {
                 for (int x=0; x<32; x++)
                 {
-                    // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
+                    // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节（）
                     uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(y / 4 * (32/4) + x / 4)];
                     int bit = (y % 4) / 2 * 4 + (x % 4) / 2 * 2;
                     int high2 = (attributeAddrFor4x4Tile >> bit) & 0x3;
