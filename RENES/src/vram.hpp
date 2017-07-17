@@ -4,7 +4,6 @@
 #include <map>
 #include "type.hpp"
 
-#define SET_FIND(s, v) (s.find(v) != s.end())
 
 namespace ReNes {
     

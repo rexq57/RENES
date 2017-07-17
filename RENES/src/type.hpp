@@ -84,4 +84,7 @@ namespace ReNes {
 #ifndef NES_MIN
 #define NES_MIN(a, b) __min(a, b)
 #endif
+    
+#define VECTOR_FIND(s, v) (std::find(s.begin(), s.end(), v) != s.end())
+#define SET_FIND(s, v) (s.find(v) != s.end())
 }

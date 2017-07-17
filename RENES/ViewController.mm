@@ -89,14 +89,13 @@ using namespace ReNes;
                 }
                 _nes = new Nes();
                 
-                _nes->cpu_callback = [self](CPU* cpu){
+                _nes->willRunning = [self](){
                     
                     // 反汇编
-                    static dispatch_once_t onceToken;
-                    dispatch_once(&onceToken, ^{
-                        [self disassembly];
-                    });
-                    
+                    [self disassembly];
+                };
+                
+                _nes->cpu_callback = [self](CPU* cpu){
                     
                     // 手动中断
                     //            @synchronized ((__bridge id)_nes)
@@ -138,7 +137,7 @@ using namespace ReNes;
                 //            }
                 //        });
                 
-                _nes->setDebug(true);
+                _nes->setDebug(false);
                 _nes->loadRom((const uint8_t*)[data bytes], [data length]);
                 
                 _nes->run();
@@ -300,7 +299,7 @@ using namespace ReNes;
 
 - (void) disassembly
 {
-    uint16_t pc = 0x8000;
+    int pc = 0x8000;
     uint8_t cmd;
     
     std::string dis;
@@ -316,21 +315,28 @@ using namespace ReNes;
         if (!SET_FIND(CMD_LIST, cmd))
         {
 //            assert(!"未知的指令！");
-            log("[%04X] cmd: %x => ", pc, cmd);
-            break;
+//            log("[%04X] cmd: %x => ", pc, cmd);
+//            break;
+            
+            std::string str = std::to_string(cmd);
+            str = "[" + int_to_hex(pc) + "]\t\t" + str + "\n";
+            dis += str;
+            pc ++;
+        }
+        else
+        {
+            auto info = CMD_LIST.at(cmd);
+            std::string str = cmd_str(info, pc, mem);
+            str = "[" + int_to_hex(pc) + "]\t\t" + str + "\n";
+            //        printf("%s", str.c_str());
+            
+            dis += str;
+            pc += info.bytes;
         }
         
-        auto info = CMD_LIST.at(cmd);
         
-        auto str = cmd_str(info, pc, mem);
-        str = "[" + int_to_hex(pc) + "]\t\t" + str + "\n";
-//        printf("%s", str.c_str());
         
-        dis += str;
-        
-        pc += info.bytes;
-        
-    }while (cmd != 0);
+    }while (pc < 0x8000 + 1024*32);
     
     
     __block NSString* buffer = [NSString stringWithUTF8String:dis.c_str()];

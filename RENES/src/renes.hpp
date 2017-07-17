@@ -132,6 +132,8 @@ namespace ReNes {
             _ppu.init(&_mem);
             
             _isRunning = true;
+            if (willRunning)
+                willRunning();
             
             // 控制器处理
             {
@@ -308,6 +310,7 @@ namespace ReNes {
         
         std::function<bool(CPU*)> cpu_callback;
         std::function<bool(PPU*)> ppu_callback;
+        std::function<void()> willRunning;
         
         bool isRunning() const {return _isRunning;};
         

@@ -4,7 +4,7 @@
 #include <map>
 #include "type.hpp"
 
-#define SET_FIND(s, v) (s.find(v) != s.end())
+
 
 namespace ReNes {
 
@@ -77,6 +77,11 @@ namespace ReNes {
         {
             *getRealAddr(addr, WRITE) = value;
             
+//            if ((addr == 0x0100 + 0xfe || addr == 0x0100 + 0xff))
+//            {
+//                log("fuck\n");
+//            }
+            
             // 检查地址监听
             if (SET_FIND(addrWritingObserver, addr))
             {
@@ -116,6 +121,8 @@ namespace ReNes {
             {
                 fixedAddr = 0x2000 + (addr % 8);
             }
+            
+            
             
             
             // 2000 2001 只写
