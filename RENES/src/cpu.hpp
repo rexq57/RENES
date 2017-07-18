@@ -87,7 +87,7 @@ namespace ReNes {
         
         CF_BCC, CF_BCS,
         CF_BEQ,
-        CF_BMI, CF_BNE, CF_BPL,
+        CF_BMI, CF_BNE, CF_BPL, CF_BVC, CF_BVS,
         CF_CLC, CF_CLD, CF_CLI,
         CF_CMP, CF_CPX, CF_CPY,
         CF_DEC, CF_DEX, CF_DEY,
@@ -115,24 +115,20 @@ namespace ReNes {
         CF_AND,
         CF_JMP,
         
-//        CF_SE,
-//        CF_CL,
-//        CF_T,
-        
         CF_DE,
         CF_SBC,
         CF_ADC,
         
         CF_BIT,
         
-//        CF_OR,
+        CF_NOP,
         
         CF_ASL, // 累加器寻址，算数左移
         CF_LSR,
         
         CF_PHA,
         CF_PHP,
-        CF_PLA,
+        CF_PLA, CF_PLP,
         CF_ROL,
         CF_ROR,
     };
@@ -349,6 +345,7 @@ namespace ReNes {
         /* (relative) BNE oper */ {0xD0, {"BNE", CF_BNE, RELATIVE, 2, 2, 0}},
         /* (relative) BPL oper */ {0x10, {"BPL", CF_BPL, RELATIVE, 2, 2, 0}},
         /* (implied) BRK */ {0x00, {"BRK", CF_BRK, IMPLIED, 1, 7, 0}},
+        /* (relative) BVC oper */ {0x70, {"BVS", CF_BVS, RELATIVE, 2, 2, 0}},
         /* (implied) CLC */ {0x18, {"CLC", CF_CLC, IMPLIED, 1, 2, 0}},
         /* (implied) CLD */ {0xD8, {"CLD", CF_CLD, IMPLIED, 1, 2, 0}},
         /* (implied) CLI */ {0x58, {"CLI", CF_CLI, IMPLIED, 1, 2, 0}},
@@ -412,6 +409,7 @@ namespace ReNes {
         /* (zeropage,X) LSR oper,X */ {0x56, {"LSR", CF_LSR, ZERO_PAGE_X, 2, 6, 3}},
         /* (absolute) LSR oper */ {0x4E, {"LSR", CF_LSR, INDEXED_ABSOLUTE, 3, 6, 3}},
         /* (absolute,X) LSR oper,X */ {0x5E, {"LSR", CF_LSR, INDEXED_ABSOLUTE_X, 3, 7, 3}},
+        /* (implied) NOP */ {0xEA, {"NOP", CF_NOP, IMPLIED, 1, 2, 0}},
         /* (immidiate) ORA #oper */ {0x09, {"ORA", CF_ORA, IMMIDIATE, 2, 2, 130}},
         /* (zeropage) ORA oper */ {0x05, {"ORA", CF_ORA, ZERO_PAGE, 2, 3, 130}},
         /* (zeropage,X) ORA oper,X */ {0x15, {"ORA", CF_ORA, ZERO_PAGE_X, 2, 4, 130}},
@@ -423,7 +421,7 @@ namespace ReNes {
         /* (implied) PHA */ {0x48, {"PHA", CF_PHA, IMPLIED, 1, 3, 0}},
         /* (implied) PHP */ {0x08, {"PHP", CF_PHP, IMPLIED, 1, 3, 0}},
         /* (implied) PLA */ {0x68, {"PLA", CF_PLA, IMPLIED, 1, 4, 130}},
-        /* (implied) PHP */ {0x28, {"PHP", CF_PHP, IMPLIED, 1, 4, 0}},
+        /* (implied) PHP */ {0x28, {"PLP", CF_PLP, IMPLIED, 1, 4, 0}},
         /* (accumulator) ROL A */ {0x2A, {"ROL", CF_ROL, ACCUMULATOR, 1, 2, 131}},
         /* (zeropage) ROL oper */ {0x26, {"ROL", CF_ROL, ZERO_PAGE, 2, 5, 131}},
         /* (zeropage,X) ROL oper,X */ {0x36, {"ROL", CF_ROL, ZERO_PAGE_X, 2, 6, 131}},
@@ -689,14 +687,17 @@ namespace ReNes {
             auto info = CMD_LIST.at(cmd);
             {
 //                auto dst = info.dst;
-                DST dst;
+                DST dst = DST_NONE;
                 AddressingMode mode = info.mode;
                 
                 auto str = cmd_str(info, regs.PC, _mem);
                 log("%s\n", str.c_str());
                 
                 {
-                  
+                    std::function<void(uint8_t)> SET_SR = [this](uint8_t src)
+                    {
+                        regs.P = *(bit8*)&src;
+                    };
                     
                     std::function<void(int)> SET_CARRY = [this](int src)
                     {
@@ -758,6 +759,11 @@ namespace ReNes {
                     std::function<bool()> IF_SIGN = [this]()
                     {
                         return regs.P.get(__registers::N);
+                    };
+                    
+                    std::function<bool()> IF_OVERFLOW = [this]()
+                    {
+                        return regs.P.get(__registers::V);
                     };
                     
                     
@@ -839,6 +845,8 @@ namespace ReNes {
                         }
                         case CF_ASL:
                         {
+                            assert(dst != DST_NONE);
+                            
                             SET_CARRY(src & 0x80);
                             src <<= 1;
                             src &= 0xff;
@@ -896,6 +904,24 @@ namespace ReNes {
                         case CF_BPL:
                         {
                             if (!IF_SIGN()) {
+//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                PC = REL_ADDR(PC, src);
+                            }
+                            
+                            break;
+                        }
+                        case CF_BVC:
+                        {
+                            if (!IF_OVERFLOW()) {
+//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                PC = REL_ADDR(PC, src);
+                            }
+                            
+                            break;
+                        }
+                        case CF_BVS:
+                        {
+                            if (IF_OVERFLOW()) {
 //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
                                 PC = REL_ADDR(PC, src);
                             }
@@ -1095,6 +1121,10 @@ namespace ReNes {
                             
                             break;
                         }
+                        case CF_NOP:
+                        {
+                            break;
+                        }
                         case CF_ORA:
                         {
                             src |= AC;
@@ -1119,6 +1149,13 @@ namespace ReNes {
                             src = pop();
                             SET_SIGN(src);    /* Change sign and zero flag accordingly. */
                             SET_ZERO(src);
+                            
+                            break;
+                        }
+                        case CF_PLP:
+                        {
+                            src = pop();
+                            SET_SR((src));
                             
                             break;
                         }

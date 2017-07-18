@@ -330,11 +330,16 @@ namespace ReNes {
             
             std::function<void(uint8_t*, int, int, int, uint8_t*, uint8_t*, bool, bool)> drawTile = [this, bkPaletteAddr, sprPaletteAddr](uint8_t* buffer, int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr, bool flipH, bool flipV)
             {
-                
                 for (int ty=0; ty<8; ty++)
                 {
+                    if (y + ty < 0)
+                        continue;
+                    
                     for (int tx=0; tx<8; tx++)
                     {
+                        if (x + tx < 0)
+                            continue;
+                        
                         // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
                         int low0 = ((bit8*)&tileAddr[ty])->get(tx);
                         int low1 = ((bit8*)&tileAddr[ty+8])->get(tx);
@@ -362,37 +367,6 @@ namespace ReNes {
                 }
             };
             
-            std::function<void(uint8_t*, int, int, int, uint8_t*, uint8_t*, bool, bool)> drawTileLine = [this, bkPaletteAddr, sprPaletteAddr](uint8_t* buffer, int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr, bool flipH, bool flipV)
-            {
-                int ty = 0;
-                for (int tx=0; tx<8; tx++)
-                {
-                    // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
-                    int low0 = ((bit8*)&tileAddr[ty])->get(tx);
-                    int low1 = ((bit8*)&tileAddr[ty+8])->get(tx);
-                    int low2 = low0 | (low1 << 1);
-                    
-                    int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
-                    
-                    int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
-                    
-                    // 如果绘制精灵，而且当前颜色引用到背景透明色（背景调色板第一位），就不绘制
-                    if (paletteAddr == sprPaletteAddr && systemPaletteUnitIndex == bkPaletteAddr[0])
-                    {
-                        continue;
-                    }
-                    
-                    int tx_ = flipH ? tx : 7-tx;
-                    int ty_ = flipV ? 7-ty : ty;
-                    
-                    int pixelIndex = (NES_MIN(y + ty_, 239) * 32*8 + NES_MIN(x+tx_, 255)) * 3; // 最低位是右边第一像素，所以渲染顺序要从右往左
-                    
-                    RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
-                    
-                    *(RGB*)&buffer[pixelIndex] = *rgb;
-                }
-            };
-            
             
             /*
              0x2001 > write
@@ -413,12 +387,20 @@ namespace ReNes {
             bool showBg = _mask->get(3) == 1;
             bool showSp = _mask->get(4) == 1;
             
-//            _v = 0;
-            auto& v = _v;
 
-            
-            v = _t;
-            
+            /*
+             
+             VRAM
+             
+             yyy NN YYYYY XXXXX
+             ||| || ||||| +++++-- coarse X scroll
+             ||| || +++++-------- coarse Y scroll
+             ||| ++-------------- nametable select
+             +++----------------- fine Y scroll
+             
+             */
+
+            const auto& v = _t;
             
             // 从 _t 中取出tile坐标偏移
             int bg_offset_x = v & 0x1F;
@@ -427,13 +409,17 @@ namespace ReNes {
             int bg_t_y = (v >> 12) & 0x7;
             int bg_base = (v >> 10) & 0x3;
             
-#if 0
+//            printf("%d\n", bg_base);
+            
             // 绘制背景
-            for (int bg_y=0; bg_y<30; bg_y++) // 只显示 30/30 行tile
+            int tiles_y = bg_t_y == 0 ? 30 : 31;
+            int tiles_x = bg_t_x == 0 ? 32 : 33;
+
+            for (int bg_y=0; bg_y<tiles_y; bg_y++) // 只显示 30/30 行tile
             {
                 int y = (bg_y+bg_offset_y) % 30;
-
-                for (int bg_x=0; bg_x<32; bg_x++)
+                
+                for (int bg_x=0; bg_x<tiles_x; bg_x++)
                 {
                     int x = (bg_x+bg_offset_x) % 32;
                     
@@ -450,93 +436,11 @@ namespace ReNes {
                     
                     if (showBg)
                     {
-                        drawTile(_buffer, bg_x*8, bg_y*8, high2, tileAddr, bkPaletteAddr, false, false);
+                        drawTile(_buffer, bg_x*8-bg_t_x, bg_y*8-bg_t_y, high2, tileAddr, bkPaletteAddr, false, false);
                     }
                 }
             }
-            
-//            bg_offset_y = 0;
-//            for (int bg_y=0; bg_y<30; bg_y++) // 只显示 30/30 行tile
-            
-//            v = 0;
-#else
-            /*
-             
-             VRAM
-             
-             yyy NN YYYYY XXXXX
-             ||| || ||||| +++++-- coarse X scroll
-             ||| || +++++-------- coarse Y scroll
-             ||| ++-------------- nametable select
-             +++----------------- fine Y scroll
-             
-             */
-            
-            
-            
-//            printf("%d %d - %d,%d (%d)\n", bg_offset_x, bg_offset_y, bg_t_x, bg_t_y, bg_base);
-            
-            // 模拟扫描线
-            for (int y=0; y<240; y++)
-            {
-                int ti = ((v >> 5) & 0x1F) * 8 + ((v >> 12) & 0x1F) + bg_t_y;
-                int bg_y = ti/8;
-                int ty = (bg_y+bg_offset_y) % 30; // 计算瓦片坐标
-                
-                for (int bg_x=0; bg_x<32; bg_x++)
-                {
-                    //                    int x = (bg_x+bg_offset_x) % 32;
-                    
-                    int tx = (v & 0x1F);
-                    
-                    
-                    // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
-                    uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(ty / 4 * (32/4) + tx / 4)];
-                    int bit = (ty % 4) / 2 * 4 + (tx % 4) / 2 * 2;
-                    int high2 = (attributeAddrFor4x4Tile >> bit) & 0x3;
-                    
-                    int tileIndex = nameTableAddr[ty*32 + tx]; // 得到 bkg tile index
-                    
-                    // 确定在图案表里的tile地址，每个tile是8x8像素，占用16字节。
-                    // 前8字节(8x8) + 后8字节(8x8)
-                    if (showBg)
-                    {
-                        uint8_t* tileAddr = &bkPetternTableAddr[tileIndex * 16 + ti % 8];
-                        drawTileLine(_buffer, bg_x*8, y, high2, tileAddr, bkPaletteAddr, false, false);
-                    }
-                    
-                    if ((v & 0x1F) == 31)
-                    {
-                        v &= ~0x1F;
-                        v ^= 0x0400; // bit10状态切换
-                    }
-                    else
-                    {
-                        v ++;
-                    }
-                }
-                
-                if ((v & 0x7000) != 0x7000)        // if fine Y < 7
-                {
-                    v += 0x1000;                      // increment fine Y
-                }
-                else
-                {
-                    v &= ~0x7000;                     // fine Y = 0
-                    int y = (v & 0x03E0) >> 5;        // let y = coarse Y
-                    if (y == 29)
-                    {
-                        y = 0;                          // coarse Y = 0
-                        v ^= 0x0800;                    // switch vertical nametable
-                    }
-                    else if (y == 31)
-                        y = 0;                          // coarse Y = 0, nametable not switched
-                    else
-                        y ++;                         // increment coarse Y
-                    v = (v & ~0x03E0) | (y << 5);     // put coarse Y back into v
-                }
-            }
-#endif
+
             
             
             
