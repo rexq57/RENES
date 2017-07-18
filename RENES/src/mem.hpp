@@ -61,18 +61,6 @@ namespace ReNes {
             return data;
         }
         
-        // 写入数据
-//        void writeData(uint16_t addr, const uint8_t* data_addr, size_t length)
-//        {
-//            memcpy(_data + addr, data_addr, length);
-//            
-//            // 检查地址监听
-//            if (SET_FIND(addrWritingObserver, addr))
-//            {
-//                addrWritingObserver.at(addr)(addr, value);
-//            }
-//        }
-        
         void write8bitData(uint16_t addr, uint8_t value)
         {
             *getRealAddr(addr, WRITE) = value;

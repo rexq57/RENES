@@ -77,6 +77,13 @@ namespace ReNes {
         return  a > b ? b : a;
     }
     
+    template <typename T>
+    inline T const& __clamp (T const& x, T const& l, T const& u)
+    {
+        // if a < b then use b else use a
+        return (x)<(l)?(l):((x)>(u)?(u):(x));
+    }
+    
 #ifndef NES_MAX
 #define NES_MAX(a, b) __max(a, b)
 #endif
@@ -84,6 +91,11 @@ namespace ReNes {
 #ifndef NES_MIN
 #define NES_MIN(a, b) __min(a, b)
 #endif
+    
+#ifndef NES_CLAMP
+#define NES_CLAMP(x,l,u) __clamp(x,l,u)
+#endif
+    
     
 #define VECTOR_FIND(s, v) (std::find(s.begin(), s.end(), v) != s.end())
 #define SET_FIND(s, v) (s.find(v) != s.end())

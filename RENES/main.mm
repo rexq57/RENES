@@ -22,6 +22,7 @@ size_t highBit(uint8_t a) {
 
 int main(int argc, const char * argv[]) {
     
+//    printf("%x\n", 0xf0ff ^ 0xff);
 
     // 测试shader
 //    CGPoint size = {480, 640};
