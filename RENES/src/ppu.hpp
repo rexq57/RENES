@@ -80,7 +80,8 @@ namespace ReNes {
     public:
         
         bit8* io_regs; // I/O 寄存器, 8 x 8bit
-        bit8* _mask;
+        bit8* mask_regs;    // PPU屏蔽寄存器
+        bit8* status_regs;  // PPU状态寄存器
         
 //        uint8_t VRAM[1024*16]; // 16kb
         
@@ -115,7 +116,8 @@ namespace ReNes {
         {
             _mem = mem;
             io_regs = (bit8*)mem->getIORegsAddr(); // 直接映射地址，不走mem请求，因为mem读写请求模拟了内存访问限制，那部分是留给cpu访问的
-            _mask = (bit8*)&mem->masterData()[0x2001];
+            mask_regs = (bit8*)&io_regs[1];
+            status_regs = (bit8*)&io_regs[2];
             
             std::function<void(uint16_t, uint8_t)> writtingObserver = [this](uint16_t addr, uint8_t value){
                 
@@ -258,6 +260,11 @@ namespace ReNes {
                 switch (addr) {
                     case 0x2002: // 读取 0x2002会重置 _w 状态
                         _w = 0;
+                        status_regs->set(7, 0);
+                        break;
+                    case 0x2007:
+                        // 据说第一次读取的值是无效的，会缓冲到下一次读取才返回
+                        *value = _vram.read8bitData(_v);
                         break;
                     default:
                         assert(!"error!");
@@ -265,7 +272,35 @@ namespace ReNes {
                 }
             };
             
+            /*
+             
+             Status ($2002) < read
+             
+             7  bit  0
+             ---- ----
+             VSO. ....
+             |||| ||||
+             |||+-++++- Least significant bits previously written into a PPU register
+             |||        (due to register not being updated for this address)
+             ||+------- Sprite overflow. The intent was for this flag to be set
+             ||         whenever more than eight sprites appear on a scanline, but a
+             ||         hardware bug causes the actual behavior to be more complicated
+             ||         and generate false positives as well as false negatives; see
+             ||         PPU sprite evaluation. This flag is set during sprite
+             ||         evaluation and cleared at dot 1 (the second dot) of the
+             ||         pre-render line.
+             |+-------- Sprite 0 Hit.  Set when a nonzero pixel of sprite 0 overlaps
+             |          a nonzero background pixel; cleared at dot 1 of the pre-render
+             |          line.  Used for raster timing.
+             +--------- Vertical blank has started (0: not in vblank; 1: in vblank).
+             Set at dot 1 of line 241 (the line *after* the post-render
+             line); cleared after reading $2002 and at dot 1 of the
+             pre-render line.
+             
+             */
+            
             mem->addReadingObserver(0x2002, readingObserver);
+            mem->addReadingObserver(0x2007, readingObserver);
             
             // 精灵读写监听
             mem->addWritingObserver(0x2003, writtingObserver);
@@ -285,6 +320,8 @@ namespace ReNes {
         {
             // clear
             memset(_buffer, 0, width()*height()*3);
+            
+            status_regs->set(7, 0);
             
             /*
              0x2000 > write
@@ -326,10 +363,13 @@ namespace ReNes {
             uint8_t* sprPaletteAddr = &_vram.masterData()[0x3F10]; // 精灵调色板地址
             
             
+            const static RGB* pTRANSPARENT_RGB = (RGB*)&DEFAULT_PALETTE[bkPaletteAddr[0]*3];
+
             
-            
-            std::function<void(uint8_t*, int, int, int, uint8_t*, uint8_t*, bool, bool)> drawTile = [this, bkPaletteAddr, sprPaletteAddr](uint8_t* buffer, int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr, bool flipH, bool flipV)
+            std::function<void(uint8_t*, int, int, int, uint8_t*, uint8_t*, bool, bool, bool)> drawTile = [this, bkPaletteAddr, sprPaletteAddr](uint8_t* buffer, int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr, bool flipH, bool flipV, bool hitChecking)
             {
+                bool isSprite = paletteAddr == sprPaletteAddr;
+                
                 for (int ty=0; ty<8; ty++)
                 {
                     if (y + ty < 0)
@@ -350,7 +390,7 @@ namespace ReNes {
                         int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
                         
                         // 如果绘制精灵，而且当前颜色引用到背景透明色（背景调色板第一位），就不绘制
-                        if (paletteAddr == sprPaletteAddr && systemPaletteUnitIndex == bkPaletteAddr[0])
+                        if (isSprite && systemPaletteUnitIndex == bkPaletteAddr[0])
                         {
                             continue;
                         }
@@ -362,7 +402,15 @@ namespace ReNes {
                         
                         RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
                         
-                        *(RGB*)&buffer[pixelIndex] = *rgb;
+                        auto* pb = (RGB*)&buffer[pixelIndex];
+                        
+                        // 当前背景色不是透明色，就发生碰撞！
+                        if (hitChecking && x+tx != 255 && pb != pTRANSPARENT_RGB)
+                        {
+                            status_regs->set(6, 1);
+                        }
+                        
+                        *pb = *rgb;
                     }
                 }
             };
@@ -384,8 +432,8 @@ namespace ReNes {
              +--------- Emphasize blue*
              
              */
-            bool showBg = _mask->get(3) == 1;
-            bool showSp = _mask->get(4) == 1;
+            bool showBg = mask_regs->get(3) == 1;
+            bool showSp = mask_regs->get(4) == 1;
             
 
             /*
@@ -436,7 +484,7 @@ namespace ReNes {
                     
                     if (showBg)
                     {
-                        drawTile(_buffer, bg_x*8-bg_t_x, bg_y*8-bg_t_y, high2, tileAddr, bkPaletteAddr, false, false);
+                        drawTile(_buffer, bg_x*8-bg_t_x, bg_y*8-bg_t_y, high2, tileAddr, bkPaletteAddr, false, false, false);
                     }
                 }
             }
@@ -458,13 +506,13 @@ namespace ReNes {
                 bool flipV = spr->info.get(7);
                 
                 if (showSp)
-                    drawTile(_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV);
+                    drawTile(_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0);
             }
             
 
             
             // 绘制完成，等于发生了 VBlank，需要设置 2002 第7位
-            io_regs[2].set(7, 1);
+            status_regs->set(7, 1);
         }
         
         int width()

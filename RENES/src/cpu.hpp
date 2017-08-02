@@ -518,6 +518,8 @@ namespace ReNes {
             
         }regs;
         
+        std::set<std::string> usedCmds;
+        
         bool error; // 错误标记
         
         long execCmdLine = 0;
@@ -683,6 +685,7 @@ namespace ReNes {
             if (cmd == 0x91)
                 log("fuck\n");
             
+//            usedCmds.insert();
             
             auto info = CMD_LIST.at(cmd);
             {

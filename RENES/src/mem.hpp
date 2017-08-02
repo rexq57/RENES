@@ -3,7 +3,7 @@
 
 #include <map>
 #include "type.hpp"
-
+#include <vector>
 
 
 namespace ReNes {
@@ -38,14 +38,13 @@ namespace ReNes {
         {
             auto data = *getRealAddr(addr, master? MASTER : READ);
             
-            // 处理2002,2005,2006读取，每次读取之后重置bit7
-            switch (addr)
-            {
-                case 0x2002:
-                case 0x2005:
-                case 0x2006:
-                    ((bit8*)&_data[addr])->set(7, 0);
-            }
+            // 处理2005,2006读取，每次读取之后重置bit7
+//            switch (addr)
+//            {
+//                case 0x2005:
+//                case 0x2006:
+//                    ((bit8*)&_data[addr])->set(7, 0);
+//            }
             
             process8bitReadingEvent(addr, &data);
 
@@ -98,6 +97,10 @@ namespace ReNes {
             WRITE,
             MASTER
         };
+        
+        const std::vector<uint16_t> WRITE_ONLY = {
+            0x2000, 0x2001, 0x2003, 0x2005, 0x2006, 0x4014
+        };
 
         // 得到实际内存地址
         uint8_t* getRealAddr(uint16_t addr, ACCESS access)
@@ -117,7 +120,7 @@ namespace ReNes {
             // 2002 只读
             
             // 非法读取
-            if (access == READ && (addr == 0x2000 || addr == 0x2001))
+            if (access == READ && VECTOR_FIND(WRITE_ONLY, addr))
             {
                 log("该内存只能写!\n");
                 error = true;
