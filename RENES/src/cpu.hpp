@@ -20,15 +20,6 @@ namespace ReNes {
     
     #define STACK_ADDR_OFFSET 0x0100
     
-    size_t highBit(uint8_t a) {
-        size_t bits=0;
-        while (a!=0) {
-            ++bits;
-            a>>=1;
-        };
-        return bits;
-    }
-    
 
     // 寻址模式
     // IMMIDIATE = 立即，INDEXED = 间接，跳转时 RELATIVE = 相对8bit，ABSOLUTE = 16bit
@@ -281,7 +272,8 @@ namespace ReNes {
             {
                 // 将跳转地址计算出来
                 int addr = 0;
-                const static std::vector<const char*> JMP_STR = {
+//                const static std::vector<const char*> JMP_STR = {
+                const static char* JMP_STR[] = {
                     "BCC",
                     "BCS",
                     "BMI",
@@ -291,7 +283,8 @@ namespace ReNes {
                     "BVC",
                     "BVS"
                 };
-                if (VECTOR_FIND(JMP_STR, cmd))
+//                if (VECTOR_FIND(JMP_STR, cmd))
+                if (ARRAY_FIND(JMP_STR, cmd))
                 {
                     addr = pc + info.bytes;
                     res = std::string("#") + int_to_hex((uint16_t)(immidiate_value + addr)) + "("+std::to_string(immidiate_value)+")";
@@ -489,6 +482,8 @@ namespace ReNes {
     // 2A03
     struct CPU {
         
+        bool debug = false;
+        
         struct __registers {
             
             // 3个特殊功能寄存器: PC寄存器(Program Counter)，SP寄存器(Stack Pointer)，P寄存器(Processor Status)
@@ -609,7 +604,7 @@ namespace ReNes {
             auto& YR = regs.Y;
             auto& SP = regs.SP;
             auto& PC = regs.PC;
-            auto& SR = regs.P;
+            auto& SR = *(uint8*)&regs.P;
             
             // 检查中断和处理中断
             _mutex.lock();
@@ -648,7 +643,7 @@ namespace ReNes {
                         {
                             // 保存现场
                             
-                            auto& PC = regs.PC;
+//                            auto& PC = regs.PC;
                             PC --;
                             push((PC >> 8) & 0xff);    /* Push return address onto the stack. */
                             push(PC & 0xff);
@@ -661,7 +656,8 @@ namespace ReNes {
                         // 取消中断标记
                         _currentInterruptType = InterruptTypeNone;
                         
-                        regs.PC = interruptHandlerAddr;
+//                        regs.PC = interruptHandlerAddr;
+                        PC = interruptHandlerAddr;
                     }
                 }
             }
@@ -693,8 +689,11 @@ namespace ReNes {
                 DST dst = DST_NONE;
                 AddressingMode mode = info.mode;
                 
-                auto str = cmd_str(info, regs.PC, _mem);
-                log("%s\n", str.c_str());
+                if (this->debug)
+                {
+                    auto str = cmd_str(info, regs.PC, _mem);
+                    log("%s\n", str.c_str());
+                }
                 
                 {
                     std::function<void(uint8_t)> SET_SR = [this](uint8_t src)

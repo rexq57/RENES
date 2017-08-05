@@ -11,7 +11,7 @@ namespace ReNes {
     static std::function<void(const char*)> g_callback;
     static bool g_logEnabled = false;
     
-    bool log(const char* format, ...)
+    bool _log(const char* format, ...)
     {
         if (!g_logEnabled)
             return true;
@@ -33,6 +33,7 @@ namespace ReNes {
         return true;
     }
     
+    #define log(...) _log(__VA_ARGS__)
     
     void setLogCallback(std::function<void(const char*)> callback)
     {
@@ -96,7 +97,18 @@ namespace ReNes {
 #define NES_CLAMP(x,l,u) __clamp(x,l,u)
 #endif
     
+    template <typename T, typename V>
+    bool array_find(const T arr, size_t count, const V& val)
+    {
+        for (int i=0; i<count; i++)
+        {
+            if (arr[i] == val)
+                return true;
+        }
+        return false;
+    }
     
-#define VECTOR_FIND(s, v) (std::find(s.begin(), s.end(), v) != s.end())
+#define ARRAY_FIND(s, v) array_find(s, sizeof(s)/sizeof(*s), v)
+//#define VECTOR_FIND(s, v) (std::find(s.begin(), s.end(), v) != s.end())
 #define SET_FIND(s, v) (s.find(v) != s.end())
 }

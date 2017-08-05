@@ -7,6 +7,10 @@
 
 
 namespace ReNes {
+    
+    const uint16_t MEMORY_WRITE_ONLY[] = {
+        0x2000, 0x2001, 0x2003, 0x2005, 0x2006, 0x4014
+    };
 
     struct Memory{
 
@@ -98,9 +102,10 @@ namespace ReNes {
             MASTER
         };
         
-        const std::vector<uint16_t> WRITE_ONLY = {
-            0x2000, 0x2001, 0x2003, 0x2005, 0x2006, 0x4014
-        };
+//        const std::vector<uint16_t> WRITE_ONLY = {
+//        const static uint16_t WRITE_ONLY[] = {
+//            0x2000, 0x2001, 0x2003, 0x2005, 0x2006, 0x4014
+//        };
 
         // 得到实际内存地址
         uint8_t* getRealAddr(uint16_t addr, ACCESS access)
@@ -120,7 +125,8 @@ namespace ReNes {
             // 2002 只读
             
             // 非法读取
-            if (access == READ && VECTOR_FIND(WRITE_ONLY, addr))
+//            if (access == READ && VECTOR_FIND(WRITE_ONLY, addr))
+            if (access == READ && ARRAY_FIND(MEMORY_WRITE_ONLY, addr))
             {
                 log("该内存只能写!\n");
                 error = true;

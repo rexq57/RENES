@@ -114,6 +114,8 @@ namespace ReNes {
         
         void init(Memory* mem)
         {
+            printf("%x %x\n", this, &_mem);
+            
             _mem = mem;
             io_regs = (bit8*)mem->getIORegsAddr(); // 直接映射地址，不走mem请求，因为mem读写请求模拟了内存访问限制，那部分是留给cpu访问的
             mask_regs = (bit8*)&io_regs[1];
@@ -158,7 +160,7 @@ namespace ReNes {
                     {
                         if (_sprramWritingEnabled)
                         {
-                            _sprram[_dstAddr2004++] = value;
+                            _sprram[_dstAddr2004++ % 256] = value;
 //                            _dstWrite2003 = 0;
                         }
                         
@@ -321,7 +323,7 @@ namespace ReNes {
             // clear
             memset(_buffer, 0, width()*height()*3);
             
-            status_regs->set(7, 0);
+//            status_regs->set(7, 0);
             
             /*
              0x2000 > write
@@ -375,14 +377,18 @@ namespace ReNes {
                     if (y + ty < 0)
                         continue;
                     
+                    int ty_ = flipV ? 7-ty : ty;
+                    
                     for (int tx=0; tx<8; tx++)
                     {
                         if (x + tx < 0)
                             continue;
+                     
+                        int tx_ = flipH ? tx : 7-tx;
                         
                         // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
-                        int low0 = ((bit8*)&tileAddr[ty])->get(tx);
-                        int low1 = ((bit8*)&tileAddr[ty+8])->get(tx);
+                        int low0 = ((bit8*)&tileAddr[ty_])->get(tx_);
+                        int low1 = ((bit8*)&tileAddr[ty_+8])->get(tx_);
                         int low2 = low0 | (low1 << 1);
                         
                         int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
@@ -395,17 +401,14 @@ namespace ReNes {
                             continue;
                         }
                         
-                        int tx_ = flipH ? tx : 7-tx;
-                        int ty_ = flipV ? 7-ty : ty;
-                        
-                        int pixelIndex = (NES_MIN(y + ty_, 239) * 32*8 + NES_MIN(x+tx_, 255)) * 3; // 最低位是右边第一像素，所以渲染顺序要从右往左
+                        int pixelIndex = (NES_MIN(y + ty, 239) * 32*8 + NES_MIN(x+tx, 255)) * 3; // 最低位是右边第一像素，所以渲染顺序要从右往左
                         
                         RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
                         
                         auto* pb = (RGB*)&buffer[pixelIndex];
                         
                         // 当前背景色不是透明色，就发生碰撞！
-                        if (hitChecking && x+tx != 255 && pb != pTRANSPARENT_RGB)
+                        if (hitChecking && x+tx_ != 255 && pb != pTRANSPARENT_RGB)
                         {
                             status_regs->set(6, 1);
                         }

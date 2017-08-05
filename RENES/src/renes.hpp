@@ -34,8 +34,6 @@ namespace ReNes {
             // 执行绘图
             ppu->draw();
             
-            usleep(1000 * (1000/60));
-            
         }while(callback());
     }
     
@@ -219,9 +217,13 @@ namespace ReNes {
                     if (dd > 0)
                     {
                         usleep(dd / 1000);
+                        
+//                        t0 = std::chrono::system_clock::now();
                     }
-                    
-                    t0 = t1; // 记录当前时间
+//                    else
+                    {
+                        t0 = t1; // 记录当前时间
+                    }
                     
                     
                     return cpu_callback(&_cpu) && !_stoped;
@@ -230,16 +232,31 @@ namespace ReNes {
             
             std::thread ppu_thread;
             {
+                const double p_t = pow(10, 9) / 60;
+                
                 auto t0=std::chrono::system_clock::now();
                 
-                ppu_thread = std::thread(ppu_working, &_ppu, [this, &t0](){
+                ppu_thread = std::thread(ppu_working, &_ppu, [this, &t0, &p_t](){
                     
                     auto t1=std::chrono::system_clock::now();
-                    auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0); // 实际花费实际，纳秒
+                    auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0); // 实际花费时间，纳秒
                     double d_t = d.count() * ns;
                     
+                    double dd = p_t - d_t; // 纳秒差
+                    
                     _renderTime = d_t;
-                    t0 = t1; // 记录当前时间
+                    
+                    if (dd > 0)
+                    {
+                        usleep(dd / 1000);
+                        
+                        t0 = std::chrono::system_clock::now();
+                    }
+                    else
+                    {
+                        t0 = t1; // 记录当前时间
+                    }
+                    
                     
                     _cpu.interrupts(CPU::InterruptTypeNMI); // 每次VBlank发生在最后一行，就是绘制完一帧的时候
                     

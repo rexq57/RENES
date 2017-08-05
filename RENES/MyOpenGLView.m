@@ -50,6 +50,9 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
     GLint _uniformTexture;
     GLint _attribPosition;
     GLint _attribTextureCoordinate;
+    
+    CGSize _lastSize;
+    uint8_t* _buffer;
 }
 
 @property (copy) void(^updateData)();
@@ -236,14 +239,33 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
     @synchronized (self) {
         
         @autoreleasepool {
-        
-            NSData* dt = [NSData dataWithBytes:data length:(int)size.width*(int)size.height*3];
             
-            __weak MyOpenGLView* unsafe_self = self;
-            self.updateData = ^() {
+            size_t len = (int)size.width*(int)size.height*3;
+            
+            if (!CGSizeEqualToSize(_lastSize, size))
+            {
+                if (_buffer)
+                    free(_buffer);
                 
-                [unsafe_self _updateRGBData:(uint8_t*)[dt bytes] size:size];
-            };
+                _buffer = (uint8_t*)malloc(len);
+                
+                _lastSize = size;
+            }
+        
+//            NSData* dt = [NSData dataWithBytes:data length:len];
+            memcpy(_buffer, data, len);
+            
+            if (self.updateData == nil)
+            {
+                __weak MyOpenGLView* unsafe_self = self;
+                uint8_t* buffer = _buffer;
+                self.updateData = ^() {
+                    
+                    //                [unsafe_self _updateRGBData:(uint8_t*)[dt bytes] size:size];
+                    [unsafe_self _updateRGBData:buffer size:size];
+                };
+            }
+            
             
             dispatch_async(dispatch_get_main_queue(), ^{
                 
