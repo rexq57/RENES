@@ -119,6 +119,30 @@ int main(int argc, const char * argv[]) {
         
         TIME_END
     }
+    
+    {
+        TIME_START
+        
+        std::vector<int> arr;
+        for (int i=0; i<10000; i++)
+        {
+            arr.push_back(i);
+        }
+        
+        TIME_END
+    }
+    
+    {
+        TIME_START
+        
+        std::vector<int> arr(10000);
+        for (int i=0; i<10000; i++)
+        {
+            arr[i] = i;
+        }
+        
+        TIME_END
+    }
 
     // 测试shader
 //    CGPoint size = {480, 640};

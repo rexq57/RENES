@@ -286,6 +286,7 @@ namespace ReNes {
         {
             this->debug = debug;
             
+            _cpu.debug = debug;
             setLogEnabled(debug);
             
             log("设置debug模式: %d\n", debug);

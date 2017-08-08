@@ -147,7 +147,13 @@ namespace ReNes {
                 
                 // 接收来自2007的数据
                 switch (addr) {
-  
+                        
+                    case 0x2000:
+                    {
+                        _t &= ~(0x3 << 10);
+                        _t |= ((value & 0x3) << 10);
+                        break;
+                    }
                     case 0x2003:
                     {
                         dstAddrWriting(_dstWrite2003, _dstAddr2004tmp, _dstAddr2004);
@@ -216,14 +222,13 @@ namespace ReNes {
                         
                         if (_w == 0)
                         {
-                            // 低6位写入 _t 的8~14位 并将15位置零
+                            // 低6位写入 _t 的8~13位 并将14位置零
                             _t &= 0xFF;
                             _t |= (value & 0x3F) << 8;
                         }
                         else
                         {
                             // 将8位全部写入 _t 的低8位
-//                            _t &= (0xFF << 8);
                             _t &= ~0xFF;
                             _t |= (value & 0xFF);
                             
@@ -238,7 +243,7 @@ namespace ReNes {
                     }
                     case 0x2007:
                     {
-                        // 在每一次向$2007写数据后，地址会根据$2000的第二个bit位增加1或者32
+                        // 在每一次向$2007写数据后，地址会根据$2000的2bit位增加1或者32
                         _vram.write8bitData(_v, value);
                         _v += io_regs[0].get(2) == 0 ? 1 : 32;
                         
@@ -266,7 +271,12 @@ namespace ReNes {
                         break;
                     case 0x2007:
                         // 据说第一次读取的值是无效的，会缓冲到下一次读取才返回
-                        *value = _vram.read8bitData(_v);
+//                        if (!_firstRead2007)
+                        {
+                            *value = _vram.read8bitData(_v);
+                        }
+                        _firstRead2007 = false;
+//                        _v += io_regs[0].get(2) == 0 ? 1 : 32;
                         break;
                     default:
                         assert(!"error!");
@@ -301,7 +311,9 @@ namespace ReNes {
              
              */
             
-            mem->addReadingObserver(0x2002, readingObserver);
+            mem->addWritingObserver(0x2000, writtingObserver); // 写
+            mem->addReadingObserver(0x2002, readingObserver); // 读
+            
             mem->addReadingObserver(0x2007, readingObserver);
             
             // 精灵读写监听
@@ -323,7 +335,7 @@ namespace ReNes {
             // clear
             memset(_buffer, 0, width()*height()*3);
             
-//            status_regs->set(7, 0);
+            status_regs->set(7, 0); // 清除 vblank
             
             /*
              0x2000 > write
@@ -584,6 +596,8 @@ namespace ReNes {
         int _w = 0;
         int _x; // 3bit 精细 x 滚动
         
+        
+        bool _firstRead2007 = true;
         
         int _dstWrite2003 = 0;
         uint16_t _dstAddr2004tmp = 0;

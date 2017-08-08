@@ -40,7 +40,7 @@ namespace ReNes {
         // 读取数据
         uint8_t read8bitData(uint16_t addr, bool master=false)
         {
-            auto data = *getRealAddr(addr, master? MASTER : READ);
+            auto* data = getRealAddr(addr, master? MASTER : READ);
             
             // 处理2005,2006读取，每次读取之后重置bit7
 //            switch (addr)
@@ -50,9 +50,9 @@ namespace ReNes {
 //                    ((bit8*)&_data[addr])->set(7, 0);
 //            }
             
-            process8bitReadingEvent(addr, &data);
+            process8bitReadingEvent(addr, data);
 
-            return data;
+            return *data;
         }
         
         uint16_t read16bitData(uint16_t addr) 

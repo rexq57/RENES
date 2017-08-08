@@ -102,8 +102,16 @@ using namespace ReNes;
                     {
                         if (cpu == _nes->cpu())
                         {
-                            if (!_keepNext || ((cpu->regs.PC == _stopedCmdAddr || cpu->execCmdLine == _stopedCmdLine) && log("自定义地址中断\n")))
+                            if (!_keepNext)
+                            {
                                 dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
+                            }
+                            else if ((cpu->regs.PC == _stopedCmdAddr || cpu->execCmdLine == _stopedCmdLine))
+                            {
+                                _nes->setDebug(true);
+                                log("自定义地址中断\n");
+                                dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
+                            }
                         }
                     }
                     
