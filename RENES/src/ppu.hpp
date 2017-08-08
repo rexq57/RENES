@@ -271,12 +271,12 @@ namespace ReNes {
                         break;
                     case 0x2007:
                         // 据说第一次读取的值是无效的，会缓冲到下一次读取才返回
-//                        if (!_firstRead2007)
+                        if (!_firstRead2007)
                         {
                             *value = _vram.read8bitData(_v);
                         }
                         _firstRead2007 = false;
-//                        _v += io_regs[0].get(2) == 0 ? 1 : 32;
+                        _v += io_regs[0].get(2) == 0 ? 1 : 32;
                         break;
                     default:
                         assert(!"error!");

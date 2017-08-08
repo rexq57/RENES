@@ -784,7 +784,17 @@ namespace ReNes {
                             }
                             default:
                                 address = addressingByMode(mode);
-                                src = _mem->read8bitData(address, true);
+//                                src = _mem->read8bitData(address, true);
+                                
+                                const static CF _noSrcAccess[] = {
+                                    CF_STA, CF_STX, CF_STY
+                                };
+                                
+                                if (!ARRAY_FIND(_noSrcAccess, info.cf))
+                                {
+                                    src = _mem->read8bitData(address, true);
+                                }
+                                
                                 dst = DST_M;
                                 break;
                         }

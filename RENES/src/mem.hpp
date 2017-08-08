@@ -38,9 +38,9 @@ namespace ReNes {
         }
         
         // 读取数据
-        uint8_t read8bitData(uint16_t addr, bool master=false)
+        uint8_t read8bitData(uint16_t addr, bool event=false)
         {
-            auto* data = getRealAddr(addr, master? MASTER : READ);
+            auto data = *getRealAddr(addr, READ);
             
             // 处理2005,2006读取，每次读取之后重置bit7
 //            switch (addr)
@@ -50,11 +50,21 @@ namespace ReNes {
 //                    ((bit8*)&_data[addr])->set(7, 0);
 //            }
             
-            process8bitReadingEvent(addr, data);
+            // master访问不处理事件，或者是 0x4016 接口（0x4016属于特殊接口，映射控制器的值）
+//            if (!master || addr == 0x4016)
+            if (event)
+            {
+                // 检查地址监听
+                if (SET_FIND(addr8bitReadingObserver, addr))
+                {
+                    addr8bitReadingObserver.at(addr)(addr, &data);
+                }
+            }
 
-            return *data;
+            return data;
         }
         
+        // 16bit读取访问属于直接访问，没有事件处理
         uint16_t read16bitData(uint16_t addr) 
         {
             uint16_t data = *(uint16_t*)getRealAddr(addr, READ);
@@ -145,14 +155,6 @@ namespace ReNes {
             return _data + fixedAddr;
         }
         
-        void process8bitReadingEvent(uint16_t addr, uint8_t* data)
-        {
-            // 检查地址监听
-            if (SET_FIND(addr8bitReadingObserver, addr))
-            {
-                addr8bitReadingObserver.at(addr)(addr, data);
-            }
-        }
         
         uint8_t* _data = 0;
         
