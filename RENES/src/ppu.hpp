@@ -188,13 +188,13 @@ namespace ReNes {
                         }
                         else
                         {
-                            // 低3位写入 _t 高3位
+                            // 低3位写入 _t 12~14位
                             // 高5位写入 _t 位5~9
                             
 //                            printf("2005 %d -> %d\n", value, _t);
                             
                             _t &= ~0x73E0; // 清理 111 0011 1110 0000
-                            _t |= ((value & 0x7) << 12) | ((value & 0xF8) << 2);
+                            _t |= ((value & 0x7) << 12) | ((value >> 3) << 5);
                             
                             
                             
@@ -235,6 +235,7 @@ namespace ReNes {
                             _v = _t; // 第二次写入会覆盖 _v
                             
 //                            printf("%x\n", _v);
+                            _firstRead2007 = true; // 每次_v生效，忽略从2007读取的第一个字节
                         }
                         _w = 1 - _w;
                         
@@ -247,7 +248,10 @@ namespace ReNes {
                         _vram.write8bitData(_v, value);
                         _v += io_regs[0].get(2) == 0 ? 1 : 32;
                         
-//                        printf("2007 %x\n", _v);
+//                        if (value == 0x39)
+//                            printf("fuck\n");
+//                        printf("2007 %x <= %d\n", _v, value);
+//                        printf("2007 %x == %d\n", _v, _vram.read8bitData(_v));
                         
                         break;
                     }
@@ -274,9 +278,11 @@ namespace ReNes {
                         if (!_firstRead2007)
                         {
                             *value = _vram.read8bitData(_v);
+//                            printf("读取 2007 %x - %d\n", _v, *value);
+                            _v += io_regs[0].get(2) == 0 ? 1 : 32;
                         }
                         _firstRead2007 = false;
-                        _v += io_regs[0].get(2) == 0 ? 1 : 32;
+                        
                         break;
                     default:
                         assert(!"error!");

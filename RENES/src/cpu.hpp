@@ -669,6 +669,7 @@ namespace ReNes {
             // 从内存里面取出一条8bit指令，将PC移动到下一个内存地址
             uint8_t cmd = _mem->read8bitData(regs.PC);
             
+            
             log("[%ld][%04X] cmd: %x => ", execCmdLine, regs.PC, cmd);
             
             if (!SET_FIND(CMD_LIST, cmd))
