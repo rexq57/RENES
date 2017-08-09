@@ -58,7 +58,16 @@ namespace ReNes {
             // 处理调色板镜像
             if (addr >= 0x3F20 && addr <= 0x3FFF)
             {
-                fixedAddr = 0x3F00 + (addr % 0x20);
+                fixedAddr = 0x3F00 + ((addr-0x3F20) % 0x20);
+            }
+            else if (addr >= 0x3000 && addr <= 0x3EFF)
+            {
+                fixedAddr = 0x2000 + (addr - 0x3000);
+            }
+            else if (addr > 0x3FFF)
+            {
+                fixedAddr = addr % 0x4000;
+                printf("fix %x -> %x\n", addr, fixedAddr);
             }
 
             return _data + fixedAddr;

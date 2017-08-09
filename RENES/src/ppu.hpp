@@ -235,7 +235,7 @@ namespace ReNes {
                             _v = _t; // 第二次写入会覆盖 _v
                             
 //                            printf("%x\n", _v);
-                            _firstRead2007 = true; // 每次_v生效，忽略从2007读取的第一个字节
+                            _2007ReadingStep = 0; // 每次_v生效，忽略从2007读取的第一个字节
                         }
                         _w = 1 - _w;
                         
@@ -253,6 +253,8 @@ namespace ReNes {
 //                        printf("2007 %x <= %d\n", _v, value);
 //                        printf("2007 %x == %d\n", _v, _vram.read8bitData(_v));
                         
+//                        _2007ReadingStep = 2;
+                        
                         break;
                     }
                     case 0x4014:
@@ -266,7 +268,7 @@ namespace ReNes {
                 }
             };
             
-            std::function<void(uint16_t, uint8_t*)> readingObserver = [this](uint16_t addr, uint8_t* value)
+            std::function<void(uint16_t, uint8_t*, bool*)> readingObserver = [this](uint16_t addr, uint8_t* value, bool* cancel)
             {
                 switch (addr) {
                     case 0x2002: // 读取 0x2002会重置 _w 状态
@@ -274,14 +276,26 @@ namespace ReNes {
                         status_regs->set(7, 0);
                         break;
                     case 0x2007:
+                        
+//                        printf("读取 2007 %x - ", _v);
+                        
                         // 据说第一次读取的值是无效的，会缓冲到下一次读取才返回
-                        if (!_firstRead2007)
+                        if (_2007ReadingStep == 0)
                         {
-                            *value = _vram.read8bitData(_v);
-//                            printf("读取 2007 %x - %d\n", _v, *value);
-                            _v += io_regs[0].get(2) == 0 ? 1 : 32;
+                            *cancel = true; // 取消这次操作
                         }
-                        _firstRead2007 = false;
+                        else
+                        {
+                            *value = _2007ReadingCache;
+                            _2007ReadingStep = 1;
+                        }
+                        
+                        _2007ReadingCache = _vram.read8bitData(_v);
+                        _v += io_regs[0].get(2) == 0 ? 1 : 32;
+                        
+//                        printf("%d\n", *value);
+                        
+                        
                         
                         break;
                     default:
@@ -603,7 +617,8 @@ namespace ReNes {
         int _x; // 3bit 精细 x 滚动
         
         
-        bool _firstRead2007 = true;
+        int _2007ReadingStep = 0;
+        uint8_t _2007ReadingCache = 0;
         
         int _dstWrite2003 = 0;
         uint16_t _dstAddr2004tmp = 0;

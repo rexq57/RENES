@@ -964,9 +964,9 @@ CPUTest				;Test Aritmethic operations
    bne   .CPUError1R
 
    clc
-   sed
-   lda   #$08
-   adc   #$08
+   sed			;D=1
+   lda   #$08		;a=$8
+   adc   #$08		;a=a+$8+C
    cmp   #$10
    cld
    bne   .CPUError1D
@@ -3414,7 +3414,7 @@ PPUTest
    ldx   #$30		;0xA6D3
    stx   $04		;在内存0x04位置写入标记48，对应到vram 0x2021的48
    ldy   #10		;接下来读取比较的次数
-   lda   $2007		;第一次从2007读取数据，需要跳过!!!重要!!!
+   lda   $2007		;第一次从2007读取数据，缓存到2007
 
    lda   #$21		;Where the msg prints.
    sta   $02
@@ -3449,7 +3449,7 @@ PPUTest
    inx
    cpx   #$35		;跳过$35
    bne   .PPUWriteLoop1
-   lda   $2007		;移动到下一个位置
+   lda   $2007		;首次读取，移动到下一个位置
    inx			;$35+1
 .PPUWriteLoop1_1
    stx   $2007		;写入$36
@@ -3472,9 +3472,9 @@ PPUTest
    ldx   #$36		;0xA72D
    stx   $04		;存入内存0x04
    ldy   #04		;y=4
-   lda   $2007		;0x2046+1 a=0
-   lda   $2007		;0x2047+1 a=$36
-   cmp   #0
+   lda   $2007		;0x2046+0 设置了2006，这里算作第一次读取，缓存到2007内存
+   lda   $2007		;0x2046+1 a=0 第二次读取从内存中返回，地址不增加
+   cmp   #0		;这里刚好还是比较2046的值，0==0，正常
    bne   .PPUError1
 .PPUReadLoop1
    lda   $2007		;0xA73D
@@ -3495,37 +3495,37 @@ PPUTest
    jsr   WriteError
 
 ;-----------------------------
-.PPUTest2
-   lda   #$20
+.PPUTest2		;在0x2060位置写入 30 31 32 33 34 35 36 37 38 39
+   lda   #$20		;0xA754
    sta   $2006
    lda   #$60
-   sta   $2006
+   sta   $2006		;2006 = 0x2060
    lda   $2007
 
    ldx   #$30
 .PPUWriteLoop2
-   stx   $2007
+   stx   $2007		;0xA763 [0x2060]
    inx
    cpx   #$3a
    bne   .PPUWriteLoop2
 
 
-   lda   #$20
+   lda   #$20		;0xA76B
    sta   $2006
    lda   #$61
-   sta   $2006
+   sta   $2006		;2006 = 0x2061
 
-   ldx   #$30
-   stx   $04
-   ldy   #9
-   lda   $2007
+   ldx   #$30		;x=$30
+   stx   $04		;[0x04] = $30
+   ldy   #9		;y=9
+   lda   $2007		;a=? 第一次读取，无效
 
-   lda   #$22		; Where the msg prints.
-   sta   $02
-   lda   #$3b
-   sta   $03
+   lda   #$22		; Where the msg prints. a = $22
+   sta   $02		;[0x02]=$22
+   lda   #$3b		;a=$3b
+   sta   $03		;[0x03]=$3
 .PPUReadLoop2
-   lda   $2007
+   lda   $2007		;0xA786
    cmp   $04
    bne   .PPUError2
    inc   $04
@@ -3542,10 +3542,10 @@ PPUTest
    jsr   WriteError
 ;-----------------------------
 .PPUTest3
-   lda   #$20
+   lda   #$20		;0xA79D
    sta   $2006
    lda   #$81
-   sta   $2006
+   sta   $2006		;2006 = 0x2081
 
    ldx   #$30
 .PPUWriteLoop3
@@ -3554,7 +3554,7 @@ PPUTest
    cpx   #$39
    bne   .PPUWriteLoop3
 
-   ldx   $2007
+   ldx   $2007		;0xA7B1
    lda   #$20
    sta   $2006
    lda   #$8a
@@ -3569,7 +3569,7 @@ PPUTest
    ldx   #$30
    stx   $04
    ldy   #10
-   lda   $2007
+   lda   $2007		;0xA7D1
 
    lda   #$22		; Where the msg prints.
    sta   $02
@@ -3593,7 +3593,7 @@ PPUTest
    jsr   WriteError
 ;-----------------------------
 .PPUTest4
-   lda   #$20
+   lda   #$20		;0xA7F3
    sta   $2006
    lda   #$A1
    sta   $2006
@@ -3645,14 +3645,14 @@ PPUTest
    jsr   WriteError
 ;----------------------------------
 .PPUTest5
-   lda   #$30
+   lda   #$30		;0xA847
    sta   $2006
    lda   #$C1
-   sta   $2006
+   sta   $2006		;2006 = 0x30C1 映射到 0x20C1
 
    ldx   #$30
 .PPUWriteLoop5
-   stx   $2007
+   stx   $2007		;0xA853
    inx
    cpx   #$3a
    bne   .PPUWriteLoop5
@@ -3690,46 +3690,46 @@ PPUTest
    jsr   WriteError
 ;----------------------------------
 .PPUTest6
-   lda   #$3E		;Where to print test pattern.
+   lda   #$3E		;Where to print test pattern. 0xA88D
    sta   $2006
    lda   #$E1
-   sta   $2006
+   sta   $2006		;2006 = 0x3EE1
 
-   lda   #$04		;Set 32 byte increment for PPU.
-   sta   $2000
+   lda   #$04		;Set 32 byte increment for PPU. a = 0x4
+   sta   $2000		;[2000] = 0x4
 
-   ldx   #$88
+   ldx   #$88		;x=$88
 .PPUIncLoop6
+   lda   $2007		;0xA89E
    lda   $2007
-   lda   $2007
-   dex
+   dex			;x--
    bne   .PPUIncLoop6
 
-   lda   #$00		;Set 1 byte increment for PPU.
+   lda   #$00		;Set 1 byte increment for PPU. 0xA8A7
    sta   $2000
 
 
    ldx   #$30
 .PPUWriteLoop6
-   stx   $2007
+   stx   $2007		;0xA8AE
    inx
    cpx   #$3a
    bne   .PPUWriteLoop6
 
-   lda   #$20		;Where to read pattern.
+   lda   #$20		;Where to read pattern. 0xA8B6
    sta   $2006
    lda   #$E1
-   sta   $2006
+   sta   $2006		;2006 = 0x20E1
 
-   ldx   #$30
-   stx   $04
-   ldy   #10
-   lda   $2007
+   ldx   #$30		;x = $30
+   stx   $04		;[0x04] = $30
+   ldy   #10		;y = 10
+   lda   $2007		;
 
-   lda   #$22		;Where the msg prints.
-   sta   $02
-   lda   #$BB
-   sta   $03
+   lda   #$22		;Where the msg prints. a = $22
+   sta   $02		;[0x02] = $22
+   lda   #$BB		;a = $BB
+   sta   $03		;[0x03] = a
 .PPUReadLoop6
    lda   $2007
    cmp   $04

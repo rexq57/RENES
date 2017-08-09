@@ -173,7 +173,7 @@ namespace ReNes {
                         
                 });
                 
-                _mem.addReadingObserver(0x4016, [this, &dstWrite4016, &dstAddr4016](uint16_t addr, uint8_t* value){
+                _mem.addReadingObserver(0x4016, [this, &dstWrite4016, &dstAddr4016](uint16_t addr, uint8_t* value, bool* cancel){
                     
                     if (dstAddr4016 == 0x100)
                     {

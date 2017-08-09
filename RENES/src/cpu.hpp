@@ -79,7 +79,7 @@ namespace ReNes {
         CF_BCC, CF_BCS,
         CF_BEQ,
         CF_BMI, CF_BNE, CF_BPL, CF_BVC, CF_BVS,
-        CF_CLC, CF_CLD, CF_CLI,
+        CF_CLC, CF_CLD, CF_CLI, CF_CLV,
         CF_CMP, CF_CPX, CF_CPY,
         CF_DEC, CF_DEX, CF_DEY,
         CF_EOR,
@@ -338,10 +338,12 @@ namespace ReNes {
         /* (relative) BNE oper */ {0xD0, {"BNE", CF_BNE, RELATIVE, 2, 2, 0}},
         /* (relative) BPL oper */ {0x10, {"BPL", CF_BPL, RELATIVE, 2, 2, 0}},
         /* (implied) BRK */ {0x00, {"BRK", CF_BRK, IMPLIED, 1, 7, 0}},
+        /* (relative) BVC oper */ {0x50, {"BVC", CF_BVC, RELATIVE, 2, 2, 0}},
         /* (relative) BVC oper */ {0x70, {"BVS", CF_BVS, RELATIVE, 2, 2, 0}},
         /* (implied) CLC */ {0x18, {"CLC", CF_CLC, IMPLIED, 1, 2, 0}},
         /* (implied) CLD */ {0xD8, {"CLD", CF_CLD, IMPLIED, 1, 2, 0}},
         /* (implied) CLI */ {0x58, {"CLI", CF_CLI, IMPLIED, 1, 2, 0}},
+        /* (implied) CLV */ {0xB8, {"CLV", CF_CLV, IMPLIED, 1, 2, 0}},
         /* (immidiate) CMP #oper */ {0xC9, {"CMP", CF_CMP, IMMIDIATE, 2, 2, 131}},
         /* (zeropage) CMP oper */ {0xC5, {"CMP", CF_CMP, ZERO_PAGE, 2, 3, 131}},
         /* (zeropage,X) CMP oper,X */ {0xD5, {"CMP", CF_CMP, ZERO_PAGE_X, 2, 4, 131}},
@@ -456,6 +458,7 @@ namespace ReNes {
         /* (implied) TXA */ {0x8A, {"TXA", CF_TXA, IMPLIED, 1, 2, 130}},
         /* (implied) TXS */ {0x9A, {"TXS", CF_TXS, IMPLIED, 1, 2, 130}},
         /* (implied) TYA */ {0x98, {"TYA", CF_TYA, IMPLIED, 1, 2, 130}},
+
     };
     
     static
@@ -679,8 +682,8 @@ namespace ReNes {
                 return 0;
             }
             
-            if (cmd == 0x91)
-                log("fuck\n");
+//            if (cmd == 0x91)
+//                log("fuck\n");
             
 //            usedCmds.insert();
             
@@ -769,6 +772,7 @@ namespace ReNes {
                         return regs.P.get(__registers::V);
                     };
                     
+                    bool cancelOpt = false;
                     
                     uint16_t address = 0;
                     int8_t src = 0;
@@ -793,7 +797,7 @@ namespace ReNes {
                                 
                                 if (!ARRAY_FIND(_noSrcAccess, info.cf))
                                 {
-                                    src = _mem->read8bitData(address, true);
+                                    src = _mem->read8bitData(address, true, &cancelOpt);
                                 }
                                 
                                 dst = DST_M;
@@ -840,486 +844,495 @@ namespace ReNes {
                     // 移动PC指针到下一条指令位置
                     PC += info.bytes;
                     
-                    
-                    switch(info.cf)
+                    if (!cancelOpt)
                     {
-                        case CF_NON:
+                        switch(info.cf)
                         {
-                            break;
-                        }
-                        case CF_AND:
-                        {
-                            src &= AC;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            AC = src;
-                            
-                            break;
-                        }
-                        case CF_ASL:
-                        {
-                            assert(dst != DST_NONE);
-                            
-                            SET_CARRY(src & 0x80);
-                            src <<= 1;
-                            src &= 0xff;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            
-                            valueToDST(dst, src, mode);
-                            break;
-                        }
-                        case CF_BCC:
-                        {
-                            if (!IF_CARRY()) {
-//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
-                                PC = REL_ADDR(PC, src);
-                            }
-                            
-                            break;
-                        }
-                        case CF_BCS:
-                        {
-                            if (IF_CARRY()) {
-//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
-                                PC = REL_ADDR(PC, src);
-                            }
-                            
-                            break;
-                        }
-                        case CF_BEQ:
-                        {
-                            if (IF_ZERO()) {
-//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
-                                PC = REL_ADDR(PC, src);
-                            }
-                            
-                            break;
-                        }
-                        case CF_BMI:
-                        {
-                            if (IF_SIGN()) {
-//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
-                                PC = REL_ADDR(PC, src);
-                            }
-                            
-                            break;
-                        }
-                        case CF_BNE:
-                        {
-                            if (!IF_ZERO()) {
-//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
-                                PC = REL_ADDR(PC, src);
-                            }
-                            
-                            break;
-                        }
-                        case CF_BPL:
-                        {
-                            if (!IF_SIGN()) {
-//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
-                                PC = REL_ADDR(PC, src);
-                            }
-                            
-                            break;
-                        }
-                        case CF_BVC:
-                        {
-                            if (!IF_OVERFLOW()) {
-//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
-                                PC = REL_ADDR(PC, src);
-                            }
-                            
-                            break;
-                        }
-                        case CF_BVS:
-                        {
-                            if (IF_OVERFLOW()) {
-//                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
-                                PC = REL_ADDR(PC, src);
-                            }
-                            
-                            break;
-                        }
-                        case CF_EOR:
-                        {
-                            src ^= AC;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            AC = src;
-                            break;
-                        }
-                        case CF_LSR:
-                        {
-                            SET_CARRY(src & 0x01);
-                            src >>= 1;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            
-                            valueToDST(dst, src, mode);
-                            break;
-                        }
-                        case CF_ROL:
-                        {
-                            src <<= 1;
-                            if (IF_CARRY()) src |= 0x1;
-                            SET_CARRY((src<<1) > 0xff);
-                            src &= 0xff;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            
-                            valueToDST(dst, src, mode);
-                            break;
-                        }
-                        case CF_ROR:
-                        {
-                            if (IF_CARRY()) src |= 0x100;
-                            SET_CARRY(src & 0x01);
-                            src >>= 1;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            
-                            valueToDST(dst, src, mode);
-                            break;
-                        }
-                        case CF_ADC:
-                        {
-                            unsigned int temp = src + AC + (IF_CARRY() ? 1 : 0);
-                            SET_ZERO(temp & 0xff);    /* This is not valid in decimal mode */
-                            if (IF_DECIMAL()) {
-                                if (((AC & 0xf) + (src & 0xf) + (IF_CARRY() ? 1 : 0)) > 9) temp += 6;
-                                SET_SIGN(temp);
-                                SET_OVERFLOW(!((AC ^ src) & 0x80) && ((AC ^ temp) & 0x80));
-                                if (temp > 0x99) temp += 96;
-                                SET_CARRY(temp > 0x99);
-                            } else {
-                                SET_SIGN(temp);
-                                SET_OVERFLOW(!((AC ^ src) & 0x80) && ((AC ^ temp) & 0x80));
-                                SET_CARRY(temp > 0xff);
-                            }
-                            AC = ((uint8_t) temp);
-                            break;
-                        }
-                        case CF_BIT:
-                        {
-                            SET_SIGN(src);
-                            SET_OVERFLOW(0x40 & src);    /* Copy bit 6 to OVERFLOW flag. */
-                            SET_ZERO(src & AC);
-                            break;
-                        }
-                        case CF_CLC:
-                        {
-                            SET_CARRY((0));
-                            
-                            break;
-                        }
-                        case CF_CLD:
-                        {
-                            SET_DECIMAL((0));
-                            
-                            break;
-                        }
-                        case CF_CLI:
-                        {
-                            SET_INTERRUPT((0));
-                            
-                            break;
-                        }
-                        case CF_CMP:
-                        {
-                            src = AC - src;
-                            SET_CARRY((AC - src) < 0x100);
-                            SET_SIGN(src);
-                            SET_ZERO(src &= 0xff);
-                            
-                            break;
-                        }
-                        case CF_CPX:
-                        {
-                            src = XR - src;
-                            SET_CARRY((XR - src) < 0x100);
-                            SET_SIGN(src);
-                            SET_ZERO(src &= 0xff);
-                            
-                            break;
-                        }
-                        case CF_CPY:
-                        {
-                            src = YR - src;
-                            SET_CARRY((YR - src) < 0x100);
-                            SET_SIGN(src);
-                            SET_ZERO(src &= 0xff);
-                            
-                            break;
-                        }
-                        case CF_DEC:
-                        {
-                            src = (src - 1) & 0xff;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            STORE(address, (src));
-                            
-                            break;
-                        }
-                        case CF_DEX:
-                        {
-                            unsigned src = XR;
-                            src = (src - 1) & 0xff;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            XR = (src);
-                            
-                            break;
-                        }
-                        case CF_DEY:
-                        {
-                            unsigned src = YR;
-                            src = (src - 1) & 0xff;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            YR = (src);
-                            
-                            break;
-                        }
-                        case CF_INC:
-                        {
-                            src = (src + 1) & 0xff;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            STORE(address, (src));
-                            
-                            break;
-                        }
-                        case CF_INX:
-                        {
-                            unsigned src = XR;
-                            src = (src + 1) & 0xff;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            XR = (src);
-                            
-                            break;
-                        }
-                        case CF_INY:
-                        {
-                            unsigned src = YR;
-                            src = (src + 1) & 0xff;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            YR = (src);
-                            
-                            break;
-                        }
-                        case CF_LDA:
-                        {
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            AC = (src);
-                            
-                            break;
-                        }
-                        case CF_LDX:
-                        {
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            XR = (src);
-                            
-                            break;
-                        }
-                        case CF_LDY:
-                        {
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            YR = (src);
-                            
-                            break;
-                        }
-                        case CF_NOP:
-                        {
-                            break;
-                        }
-                        case CF_ORA:
-                        {
-                            src |= AC;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            AC = src;
-                            
-                            break;
-                        }
-                        case CF_PHA:
-                        {
-                            push(regs.A);
-                            break;
-                        }
-                        case CF_PHP:
-                        {
-                            push(*(uint8_t*)&SR);
-                            break;
-                        }
-                        case CF_PLA:
-                        {
-                            src = pop();
-                            SET_SIGN(src);    /* Change sign and zero flag accordingly. */
-                            SET_ZERO(src);
-                            
-                            break;
-                        }
-                        case CF_PLP:
-                        {
-                            src = pop();
-                            SET_SR((src));
-                            
-                            break;
-                        }
-                        case CF_SBC:
-                        {
-                            unsigned int temp = AC - src - (IF_CARRY() ? 0 : 1);
-                            SET_SIGN(temp);
-                            SET_ZERO(temp & 0xff);    /* Sign and Zero are invalid in decimal mode */
-                            SET_OVERFLOW(((AC ^ temp) & 0x80) && ((AC ^ src) & 0x80));
-                            if (IF_DECIMAL()) {
-                                if ( ((AC & 0xf) - (IF_CARRY() ? 0 : 1)) < (src & 0xf)) /* EP */ temp -= 6;
-                                if (temp > 0x99) temp -= 0x60;
-                            }
-                            SET_CARRY(temp < 0x100);
-                            AC = (temp & 0xff);
-                            break;
-                        }
-                        case CF_SEC:
-                        {
-                            SET_CARRY((1));
-                            break;
-                        }
-                        case CF_SED:
-                        {
-                            SET_DECIMAL((1));
-                            break;
-                        }
-                        case CF_SEI:
-                        {
-                            SET_INTERRUPT((1));
-                            break;
-                        }
-                        case CF_STA:
-                        {
-                            STORE(address, (AC));
-                            
-                            break;
-                        }
-                        case CF_STX:
-                        {
-                            STORE(address, (XR));
-                            
-                            break;
-                        }
-                        case CF_STY:
-                        {
-                            STORE(address, (YR));
-                            
-                            break;
-                        }
-                        case CF_TAX:
-                        {
-                            unsigned src = AC;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            XR = (src);
-                            
-                            break;
-                        }
-                        case CF_TAY:
-                        {
-                            unsigned src = AC;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            YR = (src);
-                            
-                            break;
-                        }
-                        case CF_TXA:
-                        {
-                            unsigned src = XR;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            AC = (src);
-                            
-                            break;
-                        }
-                        case CF_TXS:
-                        {
-                            unsigned src = XR;
-                            SP = (src);
-                            
-                            break;
-                        }
-                        case CF_TYA:
-                        {
-                            unsigned src = YR;
-                            SET_SIGN(src);
-                            SET_ZERO(src);
-                            AC = (src);
-                            
-                            break;
-                        }
-                        case CF_BRK:
-                            // BRK 执行时，产生BRK中断
-                            interrupts(InterruptTypeIRQs);
-                            break;
-                        case CF_JSR:
-                        {
-                            PC--;
-                            push((PC >> 8) & 0xff);    /* Push return address onto the stack. */
-                            push(PC & 0xff);
-                            PC = address;//(src);
-                            
-                            break;
-                        }
-                        case CF_JMP:
-                        {
-                            PC = address;
-                            break;
-                        }
-                        case CF_RTS:
-                        {
-                            if (regs.SP <= 0xFD) // 255 - 2
+                            case CF_NON:
                             {
-                                uint8_t PC_low = pop();
-                                uint8_t PC_high = pop();
-                                PC = (PC_high << 8) + PC_low + 1;
+                                break;
                             }
-                            else
+                            case CF_AND:
                             {
-                                assert(!"error!");
-                            }
-                            break;
-                        }
-                        case CF_RTI:
-                        {
-                            if (regs.SP <= 0xFC) // 255-3
-                            {
-                                uint8_t data = pop();
-                                regs.P = *(bit8*)&data;
+                                src &= AC;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                AC = src;
                                 
-                                uint8_t PC_low = pop();
-                                uint8_t PC_high = pop();
-                                
-                                regs.PC = (PC_high << 8) + PC_low + 1;
+                                break;
                             }
-                            else
+                            case CF_ASL:
                             {
-                                assert(!"error!");
+                                assert(dst != DST_NONE);
+                                
+                                SET_CARRY(src & 0x80);
+                                src <<= 1;
+                                src &= 0xff;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                
+                                valueToDST(dst, src, mode);
+                                break;
                             }
-                            
-                            break;
+                            case CF_BCC:
+                            {
+                                if (!IF_CARRY()) {
+                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                    PC = REL_ADDR(PC, src);
+                                }
+                                
+                                break;
+                            }
+                            case CF_BCS:
+                            {
+                                if (IF_CARRY()) {
+                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                    PC = REL_ADDR(PC, src);
+                                }
+                                
+                                break;
+                            }
+                            case CF_BEQ:
+                            {
+                                if (IF_ZERO()) {
+                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                    PC = REL_ADDR(PC, src);
+                                }
+                                
+                                break;
+                            }
+                            case CF_BMI:
+                            {
+                                if (IF_SIGN()) {
+                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                    PC = REL_ADDR(PC, src);
+                                }
+                                
+                                break;
+                            }
+                            case CF_BNE:
+                            {
+                                if (!IF_ZERO()) {
+                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                    PC = REL_ADDR(PC, src);
+                                }
+                                
+                                break;
+                            }
+                            case CF_BPL:
+                            {
+                                if (!IF_SIGN()) {
+                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                    PC = REL_ADDR(PC, src);
+                                }
+                                
+                                break;
+                            }
+                            case CF_BVC:
+                            {
+                                if (!IF_OVERFLOW()) {
+                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                    PC = REL_ADDR(PC, src);
+                                }
+                                
+                                break;
+                            }
+                            case CF_BVS:
+                            {
+                                if (IF_OVERFLOW()) {
+                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+                                    PC = REL_ADDR(PC, src);
+                                }
+                                
+                                break;
+                            }
+                            case CF_EOR:
+                            {
+                                src ^= AC;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                AC = src;
+                                break;
+                            }
+                            case CF_LSR:
+                            {
+                                SET_CARRY(src & 0x01);
+                                src >>= 1;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                
+                                valueToDST(dst, src, mode);
+                                break;
+                            }
+                            case CF_ROL:
+                            {
+                                src <<= 1;
+                                if (IF_CARRY()) src |= 0x1;
+                                SET_CARRY((src<<1) > 0xff);
+                                src &= 0xff;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                
+                                valueToDST(dst, src, mode);
+                                break;
+                            }
+                            case CF_ROR:
+                            {
+                                if (IF_CARRY()) src |= 0x100;
+                                SET_CARRY(src & 0x01);
+                                src >>= 1;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                
+                                valueToDST(dst, src, mode);
+                                break;
+                            }
+                            case CF_ADC:
+                            {
+                                unsigned int temp = src + AC + (IF_CARRY() ? 1 : 0);
+                                SET_ZERO(temp & 0xff);    /* This is not valid in decimal mode */
+                                if (IF_DECIMAL()) {
+                                    if (((AC & 0xf) + (src & 0xf) + (IF_CARRY() ? 1 : 0)) > 9) temp += 6;
+                                    SET_SIGN(temp);
+                                    SET_OVERFLOW(!((AC ^ src) & 0x80) && ((AC ^ temp) & 0x80));
+                                    if (temp > 0x99) temp += 96;
+                                    SET_CARRY(temp > 0x99);
+                                } else {
+                                    SET_SIGN(temp);
+                                    SET_OVERFLOW(!((AC ^ src) & 0x80) && ((AC ^ temp) & 0x80));
+                                    SET_CARRY(temp > 0xff);
+                                }
+                                AC = ((uint8_t) temp);
+                                break;
+                            }
+                            case CF_BIT:
+                            {
+                                SET_SIGN(src);
+                                SET_OVERFLOW(0x40 & src);    /* Copy bit 6 to OVERFLOW flag. */
+                                SET_ZERO(src & AC);
+                                break;
+                            }
+                            case CF_CLC:
+                            {
+                                SET_CARRY((0));
+                                
+                                break;
+                            }
+                            case CF_CLD:
+                            {
+                                SET_DECIMAL((0));
+                                
+                                break;
+                            }
+                            case CF_CLI:
+                            {
+                                SET_INTERRUPT((0));
+                                
+                                break;
+                            }
+                            case CF_CLV:
+                            {
+                                SET_OVERFLOW((0));
+                                
+                                break;
+                            }
+                            case CF_CMP:
+                            {
+                                src = AC - src;
+                                SET_CARRY((AC - src) < 0x100);
+                                SET_SIGN(src);
+                                SET_ZERO(src &= 0xff);
+                                
+                                break;
+                            }
+                            case CF_CPX:
+                            {
+                                src = XR - src;
+                                SET_CARRY((XR - src) < 0x100);
+                                SET_SIGN(src);
+                                SET_ZERO(src &= 0xff);
+                                
+                                break;
+                            }
+                            case CF_CPY:
+                            {
+                                src = YR - src;
+                                SET_CARRY((YR - src) < 0x100);
+                                SET_SIGN(src);
+                                SET_ZERO(src &= 0xff);
+                                
+                                break;
+                            }
+                            case CF_DEC:
+                            {
+                                src = (src - 1) & 0xff;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                STORE(address, (src));
+                                
+                                break;
+                            }
+                            case CF_DEX:
+                            {
+                                unsigned src = XR;
+                                src = (src - 1) & 0xff;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                XR = (src);
+                                
+                                break;
+                            }
+                            case CF_DEY:
+                            {
+                                unsigned src = YR;
+                                src = (src - 1) & 0xff;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                YR = (src);
+                                
+                                break;
+                            }
+                            case CF_INC:
+                            {
+                                src = (src + 1) & 0xff;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                STORE(address, (src));
+                                
+                                break;
+                            }
+                            case CF_INX:
+                            {
+                                unsigned src = XR;
+                                src = (src + 1) & 0xff;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                XR = (src);
+                                
+                                break;
+                            }
+                            case CF_INY:
+                            {
+                                unsigned src = YR;
+                                src = (src + 1) & 0xff;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                YR = (src);
+                                
+                                break;
+                            }
+                            case CF_LDA:
+                            {
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                AC = (src);
+                                
+                                break;
+                            }
+                            case CF_LDX:
+                            {
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                XR = (src);
+                                
+                                break;
+                            }
+                            case CF_LDY:
+                            {
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                YR = (src);
+                                
+                                break;
+                            }
+                            case CF_NOP:
+                            {
+                                break;
+                            }
+                            case CF_ORA:
+                            {
+                                src |= AC;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                AC = src;
+                                
+                                break;
+                            }
+                            case CF_PHA:
+                            {
+                                push(regs.A);
+                                break;
+                            }
+                            case CF_PHP:
+                            {
+                                push(*(uint8_t*)&SR);
+                                break;
+                            }
+                            case CF_PLA:
+                            {
+                                src = pop();
+                                SET_SIGN(src);    /* Change sign and zero flag accordingly. */
+                                SET_ZERO(src);
+                                
+                                break;
+                            }
+                            case CF_PLP:
+                            {
+                                src = pop();
+                                SET_SR((src));
+                                
+                                break;
+                            }
+                            case CF_SBC:
+                            {
+                                unsigned int temp = AC - src - (IF_CARRY() ? 0 : 1);
+                                SET_SIGN(temp);
+                                SET_ZERO(temp & 0xff);    /* Sign and Zero are invalid in decimal mode */
+                                SET_OVERFLOW(((AC ^ temp) & 0x80) && ((AC ^ src) & 0x80));
+                                if (IF_DECIMAL()) {
+                                    if ( ((AC & 0xf) - (IF_CARRY() ? 0 : 1)) < (src & 0xf)) /* EP */ temp -= 6;
+                                    if (temp > 0x99) temp -= 0x60;
+                                }
+                                SET_CARRY(temp < 0x100);
+                                AC = (temp & 0xff);
+                                break;
+                            }
+                            case CF_SEC:
+                            {
+                                SET_CARRY((1));
+                                break;
+                            }
+                            case CF_SED:
+                            {
+                                SET_DECIMAL((1));
+                                break;
+                            }
+                            case CF_SEI:
+                            {
+                                SET_INTERRUPT((1));
+                                break;
+                            }
+                            case CF_STA:
+                            {
+                                STORE(address, (AC));
+                                
+                                break;
+                            }
+                            case CF_STX:
+                            {
+                                STORE(address, (XR));
+                                
+                                break;
+                            }
+                            case CF_STY:
+                            {
+                                STORE(address, (YR));
+                                
+                                break;
+                            }
+                            case CF_TAX:
+                            {
+                                unsigned src = AC;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                XR = (src);
+                                
+                                break;
+                            }
+                            case CF_TAY:
+                            {
+                                unsigned src = AC;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                YR = (src);
+                                
+                                break;
+                            }
+                            case CF_TXA:
+                            {
+                                unsigned src = XR;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                AC = (src);
+                                
+                                break;
+                            }
+                            case CF_TXS:
+                            {
+                                unsigned src = XR;
+                                SP = (src);
+                                
+                                break;
+                            }
+                            case CF_TYA:
+                            {
+                                unsigned src = YR;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                AC = (src);
+                                
+                                break;
+                            }
+                            case CF_BRK:
+                                // BRK 执行时，产生BRK中断
+                                interrupts(InterruptTypeIRQs);
+                                break;
+                            case CF_JSR:
+                            {
+                                PC--;
+                                push((PC >> 8) & 0xff);    /* Push return address onto the stack. */
+                                push(PC & 0xff);
+                                PC = address;//(src);
+                                
+                                break;
+                            }
+                            case CF_JMP:
+                            {
+                                PC = address;
+                                break;
+                            }
+                            case CF_RTS:
+                            {
+                                if (regs.SP <= 0xFD) // 255 - 2
+                                {
+                                    uint8_t PC_low = pop();
+                                    uint8_t PC_high = pop();
+                                    PC = (PC_high << 8) + PC_low + 1;
+                                }
+                                else
+                                {
+                                    assert(!"error!");
+                                }
+                                break;
+                            }
+                            case CF_RTI:
+                            {
+                                if (regs.SP <= 0xFC) // 255-3
+                                {
+                                    uint8_t data = pop();
+                                    regs.P = *(bit8*)&data;
+                                    
+                                    uint8_t PC_low = pop();
+                                    uint8_t PC_high = pop();
+                                    
+                                    regs.PC = (PC_high << 8) + PC_low + 1;
+                                }
+                                else
+                                {
+                                    assert(!"error!");
+                                }
+                                
+                                break;
+                            }
+                                
+                            default:
+                                log("未知的指令！");
+                                error = true;
+                                break;
+                                
                         }
-                        
-                        default:
-                            log("未知的指令！");
-                            error = true;
-                            break;
-                            
                     }
+                    
                 }
             }
             

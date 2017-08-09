@@ -38,7 +38,7 @@ namespace ReNes {
         }
         
         // 读取数据
-        uint8_t read8bitData(uint16_t addr, bool event=false)
+        uint8_t read8bitData(uint16_t addr, bool event=false, bool* cancel = 0)
         {
             auto data = *getRealAddr(addr, READ);
             
@@ -52,12 +52,19 @@ namespace ReNes {
             
             // master访问不处理事件，或者是 0x4016 接口（0x4016属于特殊接口，映射控制器的值）
 //            if (!master || addr == 0x4016)
+            
+            bool tmp;
+            if (cancel == 0)
+                cancel = &tmp;
+            else
+                *cancel = false;
+            
             if (event)
             {
                 // 检查地址监听
                 if (SET_FIND(addr8bitReadingObserver, addr))
                 {
-                    addr8bitReadingObserver.at(addr)(addr, &data);
+                    addr8bitReadingObserver.at(addr)(addr, &data, cancel);
                 }
             }
 
@@ -97,7 +104,7 @@ namespace ReNes {
         }
         
         // 添加读取监听者
-        void addReadingObserver(uint16_t addr, std::function<void(uint16_t, uint8_t*)> callback)
+        void addReadingObserver(uint16_t addr, std::function<void(uint16_t, uint8_t*, bool*)> callback)
         {
             addr8bitReadingObserver[addr] = callback;
         }
@@ -159,7 +166,7 @@ namespace ReNes {
         uint8_t* _data = 0;
         
         
-        std::map<uint16_t, std::function<void(uint16_t, uint8_t*)>> addr8bitReadingObserver;
+        std::map<uint16_t, std::function<void(uint16_t, uint8_t*, bool*)>> addr8bitReadingObserver;
         std::map<uint16_t, std::function<void(uint16_t, uint8_t)>> addrWritingObserver;
     };
 }
