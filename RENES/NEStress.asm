@@ -774,7 +774,7 @@ CPUTest				;Test Aritmethic operations
    sta   OVERFLOWF
 
 .CPULoop00
-   clv
+   clv			;0x96B3
    lda   #$82
    cmp   #4
    beq   .CPUError00Z
@@ -790,7 +790,7 @@ CPUTest				;Test Aritmethic operations
    bvc   .CPUError00V
    bcc   .CPUError00C
 
-   cmp   #$7f
+   cmp   #$7f		;0x96CE
    beq   .CPUError00Z
    bpl   .CPUError00N
    bvc   .CPUError00V
@@ -963,13 +963,13 @@ CPUTest				;Test Aritmethic operations
    cmp   #$23
    bne   .CPUError1R
 
-   clc
+   clc			;0x97FD
    sed			;D=1
    lda   #$08		;a=$8
    adc   #$08		;a=a+$8+C
-   cmp   #$10
+   cmp   #$10		;Z=!(a-$10) 相等: Z=1, 前提C=0 不相等: Z=0, 前提C=1
    cld
-   bne   .CPUError1D
+   bne   .CPUError1D	;Z=0
 
 .CPUOk1
    jsr   WriteOk

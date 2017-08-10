@@ -775,7 +775,7 @@ namespace ReNes {
                     bool cancelOpt = false;
                     
                     uint16_t address = 0;
-                    int8_t src = 0;
+                    unsigned int src = 0;
                     {
                         switch(mode)
                         {
@@ -783,7 +783,7 @@ namespace ReNes {
                                 break;
                             case ACCUMULATOR:
                             {
-                                src = regs.A;
+                                src = (int8_t)AC;
                                 dst = DST_REGS_A;
                                 break;
                             }
@@ -797,7 +797,7 @@ namespace ReNes {
                                 
                                 if (!ARRAY_FIND(_noSrcAccess, info.cf))
                                 {
-                                    src = _mem->read8bitData(address, true, &cancelOpt);
+                                    src = (int8_t)_mem->read8bitData(address, true, &cancelOpt);
                                 }
                                 
                                 dst = DST_M;
@@ -806,21 +806,21 @@ namespace ReNes {
                     }
                     
                     
-                    std::function<void(DST, uint8_t, AddressingMode)> valueToDST = [this, &address](DST dst, uint8_t value, AddressingMode mode)
+                    std::function<void(DST, uint8_t, AddressingMode)> valueToDST = [this, &address, &AC, &XR, &YR, &SP](DST dst, uint8_t value, AddressingMode mode)
                     {
                         switch (dst)
                         {
                             case DST_REGS_SP:
-                                regs.SP = value;
+                                SP = value;
                                 break;
                             case DST_REGS_A:
-                                regs.A = value;
+                                AC = value;
                                 break;
                             case DST_REGS_X:
-                                regs.X = value;
+                                XR = value;
                                 break;
                             case DST_REGS_Y:
-                                regs.Y = value;
+                                YR = value;
                                 break;
                             case DST_M:
                                 // 如果写入目标是一个内存地址，就需要进行寻址
@@ -1039,7 +1039,7 @@ namespace ReNes {
                             case CF_CMP:
                             {
                                 src = AC - src;
-                                SET_CARRY((AC - src) < 0x100);
+                                SET_CARRY(src < 0x100);
                                 SET_SIGN(src);
                                 SET_ZERO(src &= 0xff);
                                 
@@ -1048,7 +1048,7 @@ namespace ReNes {
                             case CF_CPX:
                             {
                                 src = XR - src;
-                                SET_CARRY((XR - src) < 0x100);
+                                SET_CARRY(src < 0x100);
                                 SET_SIGN(src);
                                 SET_ZERO(src &= 0xff);
                                 
@@ -1057,7 +1057,7 @@ namespace ReNes {
                             case CF_CPY:
                             {
                                 src = YR - src;
-                                SET_CARRY((YR - src) < 0x100);
+                                SET_CARRY(src < 0x100);
                                 SET_SIGN(src);
                                 SET_ZERO(src &= 0xff);
                                 
