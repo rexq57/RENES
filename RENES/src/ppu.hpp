@@ -287,7 +287,6 @@ namespace ReNes {
                         else
                         {
                             *value = _2007ReadingCache;
-                            _2007ReadingStep = 1;
                         }
                         
                         _2007ReadingCache = _vram.read8bitData(_v);
@@ -295,7 +294,7 @@ namespace ReNes {
                         
 //                        printf("%d\n", *value);
                         
-                        
+                        _2007ReadingStep = 1;
                         
                         break;
                     default:
@@ -355,7 +354,9 @@ namespace ReNes {
             // clear
             memset(_buffer, 0, width()*height()*3);
             
+            
             status_regs->set(7, 0); // 清除 vblank
+            status_regs->set(6, 0);
             
             /*
              0x2000 > write
@@ -443,6 +444,7 @@ namespace ReNes {
                         if (hitChecking && x+tx_ != 255 && pb != pTRANSPARENT_RGB)
                         {
                             status_regs->set(6, 1);
+                            _clearHitAtNextVblankEnd = 1;
                         }
                         
                         *pb = *rgb;
@@ -517,7 +519,7 @@ namespace ReNes {
                     // 前8字节(8x8) + 后8字节(8x8)
                     uint8_t* tileAddr = &bkPetternTableAddr[tileIndex * 16];
                     
-                    if (showBg)
+//                    if (showBg)
                     {
                         drawTile(_buffer, bg_x*8-bg_t_x, bg_y*8-bg_t_y, high2, tileAddr, bkPaletteAddr, false, false, false);
                     }
@@ -525,7 +527,30 @@ namespace ReNes {
             }
 
             
-            
+            /*
+             
+             7  bit  0
+             ---- ----
+             VSO. ....
+             |||| ||||
+             |||+-++++- Least significant bits previously written into a PPU register
+             |||        (due to register not being updated for this address)
+             ||+------- Sprite overflow. The intent was for this flag to be set
+             ||         whenever more than eight sprites appear on a scanline, but a
+             ||         hardware bug causes the actual behavior to be more complicated
+             ||         and generate false positives as well as false negatives; see
+             ||         PPU sprite evaluation. This flag is set during sprite
+             ||         evaluation and cleared at dot 1 (the second dot) of the
+             ||         pre-render line.
+             |+-------- Sprite 0 Hit.  Set when a nonzero pixel of sprite 0 overlaps
+             |          a nonzero background pixel; cleared at dot 1 of the pre-render
+             |          line.  Used for raster timing.
+             +--------- Vertical blank has started (0: not in vblank; 1: in vblank).
+             Set at dot 1 of line 241 (the line *after* the post-render
+             line); cleared after reading $2002 and at dot 1 of the
+             pre-render line.
+             
+             */
             
             // 绘制精灵
             for (int i=0; i<64; i++)
@@ -540,7 +565,7 @@ namespace ReNes {
                 bool flipH = spr->info.get(6);
                 bool flipV = spr->info.get(7);
                 
-                if (showSp)
+//                if (showSp)
                     drawTile(_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0);
             }
             
@@ -548,6 +573,8 @@ namespace ReNes {
             
             // 绘制完成，等于发生了 VBlank，需要设置 2002 第7位
             status_regs->set(7, 1);
+            
+            
         }
         
         int width()
@@ -626,7 +653,7 @@ namespace ReNes {
         
         bool _sprramWritingEnabled = false;
         
-
+        int _clearHitAtNextVblankEnd = 1;
         
         uint8_t* _buffer = 0;
         

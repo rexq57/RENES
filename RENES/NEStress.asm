@@ -3062,7 +3062,7 @@ CPUTest6			;Test Misc CPU operations
    lda   #$04		;a=4
    sta   $07		;[0x07]=4
    pha				;push(a)
-   plp				;Pull SR - Clear SVDIZC. 中断禁止
+   plp				;Pull SR - Clear SVDIZC.
    brk				;The BRK! 0xA4D1
 ;--------------
    nop				;The BRK's return address is +1.
@@ -3388,9 +3388,9 @@ PPUTest
    lda   #$21
    sta   $2006
 
-   ldx   #$30
+   ldx   #$30		; 0xA6BF
 .PPUWriteLoop0
-   stx   $2007		;0xA6BF, 在0x2021开始写入 30 31 32 33 34 35 36 37 38 39 一共10个16进制数
+   stx   $2007		; 0xA6C1, 在0x2021开始写入 30 31 32 33 34 35 36 37 38 39 一共10个16进制数
    inx
    cpx   #$3a
    bne   .PPUWriteLoop0
@@ -3414,7 +3414,7 @@ PPUTest
    lda   $2007		;0xA6E4
    cmp   $04		;与内存0x04位置的数进行比较，会比较10次
    bne   .PPUError0	;如果不相同，就出错
-   inc   $04
+   inc   $04		;0xA6EB
    dey
    bne   .PPUReadLoop0
 
