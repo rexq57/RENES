@@ -342,6 +342,10 @@ using namespace ReNes;
             pc += info.bytes;
         }
         
+        if (cmd == 0) // brk 下一句地址+1
+        {
+            pc ++;
+        }
         
         
     }while (pc < 0x8000 + 1024*32);

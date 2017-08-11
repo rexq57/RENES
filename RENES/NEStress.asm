@@ -966,8 +966,8 @@ CPUTest				;Test Aritmethic operations
    clc			;0x97FD
    sed			;D=1
    lda   #$08		;a=$8
-   adc   #$08		;a=a+$8+C
-   cmp   #$10		;Z=!(a-$10) 相等: Z=1, 前提C=0 不相等: Z=0, 前提C=1
+   adc   #$08		;0x9801 a=a+$8+C
+   cmp   #$10		;0x9803 Z=!(a-$10) 相等: Z=1, 前提C=0 不相等: Z=0, 前提C=1
    cld
    bne   .CPUError1D	;Z=0
 
@@ -1436,22 +1436,22 @@ CPUTest				;Test Aritmethic operations
 .CPULoop10
    bit   OVERFLOWF			;Set V-Flag.
    sec
-   lda   #$02
-   lsr
+   lda   #$02		
+   lsr			;0x9AE9
    beq   .CPUError10Z
    bmi   .CPUError10N
    bvc   .CPUError10V
    bcs   .CPUError10C
 
    clv
-   lsr
+   lsr			;0x9AF3
    bne   .CPUError10Z
    bmi   .CPUError10N
    bvs   .CPUError10V
    bcc   .CPUError10C
 
    lda   #$C2
-   lsr
+   lsr			;0x9AFE
    beq   .CPUError10Z
    bmi   .CPUError10N
    bvs   .CPUError10V
@@ -2591,7 +2591,7 @@ CPUTest4			;Test Address CPU operations
    lda   #$21		;Where the msg prints.
    sta   $02
    lda   #$12
-   sta   $03
+   sta   $03		;0xA1EC
 
 
    lda   #0
@@ -2601,18 +2601,18 @@ CPUTest4			;Test Address CPU operations
    sta   $06
    lda   #$45
    sta   $07
-   ldx   #$04
+   ldx   #$04		;x=$4
 
-   lda   $01,x
+   lda   $01,x		;0xA1FF
    bne   .CPUError42
    bmi   .CPUError42
-   lda   $02,x
+   lda   $02,x		;a=[0x02+0x4]
    cmp   #$93
-   bne   .CPUError42
+   bne   .CPUError42	;
    ldx   #$08
-   lda   $FE,x
+   lda   $FE,x		;a=[0xFE+0x4]
    cmp   #$93
-   bne   .CPUError42W
+   bne   .CPUError42W	;0xA211
    ldx   #$FE
    lda   $08,x
    beq   .CPUError42W
@@ -2875,17 +2875,17 @@ CPUTest4			;Test Address CPU operations
    sta   $200
    lda   #>JmpStep2
    sta   $201
-   jmp   ($200)
+   jmp   ($200)		;0xA3CF
    lda   #0
-   beq   .CPUError49
+   beq   .CPUError49	;0xA3D4
 JmpStep2
-   lda   #>JmpTstOk
-   sta   $200
-   lda   #<JmpTstOk
-   sta   $2FF
-   lda   #>JmpTstFail
-   sta   $300
-   jmp   ($2FF)
+   lda   #>JmpTstOk	;0xA3D6 a=-2
+   sta   $200		;[0x200]=-2
+   lda   #<JmpTstOk	;0xA3DB: a=&ok
+   sta   $2FF		;0xA3DD: [0x2FF]=&ok
+   lda   #>JmpTstFail	;0xA3E0: a=&fail
+   sta   $300		;[0x300]=&fail (0xFC00)
+   jmp   ($2FF)		;0xA3E5 6502 JMP Indirect bug，如果操作数低位是0xFF，那么间接寻址的高位地址在操作数-0xFF的位置，如果没有处理，这里的高位读取到$300位置，会跳转到0xFC00，发生错误
 
 
 CPUOk49
@@ -2893,7 +2893,7 @@ CPUOk49
    inc   SCORE
    jmp   .CPUTest50
 CPUError49W
-   jsr   WriteErrorW
+   jsr   WriteErrorW	;0xA3F0
    jmp   .CPUTest50
 .CPUError49
    jsr   WriteError
@@ -2903,7 +2903,7 @@ CPUError49W
    sta   $02
    lda   #$12
    sta   $03
-   clv
+   clv			;0xA401
 
    jsr   .JsrTst1
 .JsrDummy
@@ -3022,31 +3022,26 @@ CPUTest6			;Test Misc CPU operations
 ;-----------------------------
 .CPUTest60			;Test SR
    lda   #$20		;Where the msg prints.
-   sta   $02
+   sta   $02		;[0x02]=$20
    lda   #$D1
-   sta   $03
+   sta   $03		;0xA49B: [0x03]=$D1
 
    lda   #$FF
-   pha
-   plp
-   php
-   pla
-   cmp   #$FF
+   pha			;push(0xFF)
+   plp			;P=pop()
+   php			;push(P)
+   pla			;a=pop()
+   cmp   #$FF		;0xA4A3
    bne   .CPUError60
 
-   lda   #$00
-   pha
-   plp
-   php				; This actually sets the B flag.
-   sei
-   pla
-;   tay
-   cmp   #$30
-;   and   #$10
+   lda   #$04		;a=4
+   pha			;push(a)
+   plp			;p=pop()
+   php				; This actually sets the B flag. push(p) // P入栈需要设置副本第4、5bit为1，而自身不变(https://wiki.nesdev.com/w/index.php/CPU_status_flag_behavior)
+   sei			;中断禁止 
+   pla			;a=pop()
+   cmp   #$34		;0xA4AE: 正常情况是 a==$34
    bne   .CPUError60
-;   tya
-;   cmp   #$20
-;   bne   .CPUError60
 
 .CPUOk60
    jsr   WriteOk
@@ -3062,27 +3057,22 @@ CPUTest6			;Test Misc CPU operations
    lda   #$20		;Where the msg prints.
    sta   $02
    lda   #$F1
-   sta   $03
+   sta   $03		;0xA4C9
 
-   lda   #$00
-   sta   $07
-   pha				;Push A
-   plp				;Pull SR - Clear SVDIZC.
-   brk				;The BRK!
+   lda   #$04		;a=4
+   sta   $07		;[0x07]=4
+   pha				;push(a)
+   plp				;Pull SR - Clear SVDIZC. 中断禁止
+   brk				;The BRK! 0xA4D1
 ;--------------
    nop				;The BRK's return address is +1.
-   php				;Push SR - B should be set, I should be clear.
-   sei
-   pla				;Pull A
-   tay
-   and   #$04
-   bne   .CPUError61I
-   tya
-   and   #$10
-   beq   .CPUError61B
+   php				;Push SR - B should be set, I should be clear. push(4 & 0x30)
+   pla				;pop(a) $34
+   and   #$10		;0xA4D5 $34 & $10 == $10
+   beq   .CPUError61I
    lda   $07		; Load SR from inside Interrupt
-   and   #$10
-   beq   .CPUError61B
+   and   #$10		;0xA4DB
+   beq   .CPUError61B	;0xA4DD
    lda   $07		; Load SR from inside Interrupt
    and   #$04
    beq   .CPUError61I
@@ -3131,7 +3121,7 @@ CPUTest6			;Test Misc CPU operations
    lda   #$21		;Where the msg prints.
    sta   $02
    lda   #$11
-   sta   $03
+   sta   $03		;0xA524
 
    brk				;The BRK!
 ;--------------
@@ -3152,28 +3142,28 @@ CPUTest6			;Test Misc CPU operations
    lda   #$21		;Where the msg prints.
    sta   $02
    lda   #$31
-   sta   $03
+   sta   $03		;0xA53E
 
    lda   #$55
-   tsx
-   pha
-   cmp   $100,x
+   tsx			
+   pha			;push(a)
+   cmp   $100,x		;0xA544
    bne   .CPUError63
-   pla
+   pla			;a=pop()
    lda   #$AA
    tsx
-   pha
-   cmp   $100,x
+   pha			;push($AA)
+   cmp   $100,x		;0xA54E
    bne   .CPUError63
-   lda   #$AA
-   sta   $0100
-   lda   #$55
-   sta   $0200
-   ldx   #$FE
-   txs
-   pla
-   pla
-   cmp   #$AA
+   lda   #$AA		;a=$AA
+   sta   $0100		;[0x100]=$AA
+   lda   #$55		;a=$55
+   sta   $0200		;[0x200]=$55
+   ldx   #$FE		;0xA55D: x=$FE
+   txs			;SP=$FE
+   pla			;a=pop()
+   pla			;a=pop()
+   cmp   #$AA		;0xA562
    bne   .CPUError63W
 
 
@@ -3191,7 +3181,7 @@ CPUTest6			;Test Misc CPU operations
    lda   #$21		;Where the msg prints.
    sta   $02
    lda   #$51
-   sta   $03
+   sta   $03		;0xA57D
 
    ldx   #$06			;To write 7 x $100 bytes, from $0100 to $07FF.
    ldy   #$07			;To write 7 x $100 bytes, from $0100 to $07FF.
@@ -3276,12 +3266,12 @@ CPUTest6			;Test Misc CPU operations
    lda   #$FF
    sta   $0203
 
-   lda   $0200
+   lda   $0200		;0xA602
    cmp   #$55
    bne   .CPUError65
    lda   $0A00
    cmp   #$55
-   bne   .CPUError65
+   bne   .CPUError65	;0xA60E
    lda   $0A03
    cmp   #$FF
    bne   .CPUError65
@@ -4506,11 +4496,11 @@ NESWriterS SUBROUTINE	;S as in Safe
 .WriteLoopS
    lda $2002
    bpl .WriteLoopS		;Wait for vertical blanking interval
-   jsr NESWriter0
+   jsr NESWriter0	;0xAE0B
    lda   #$00
    sta   $2005
    sta   $2005
-   rts
+   rts			;0xAE16
 ;--------------------------------------------------
 NESWriter0 SUBROUTINE
 ;--------------------------------------------------------------------------
@@ -4531,7 +4521,7 @@ NESWriter0 SUBROUTINE
 .WriteLoop
    iny
    bne   .WriteChr
-   inc   $01
+   inc   $01			;0xAE31
    bne   .WriteChr
 .WriteEnd
    rts
@@ -4817,11 +4807,12 @@ NMI_Routine SUBROUTINE
 ;                ! Here ends the VBlank routines !
 ;--------------------------------------------------------
 IRQ_Routine
-   pha				;Push A
-   php				;Push SR
-   pla				;Pull SR to A
-   sta   $07		;Save SR in $7
-   pla				;Pull A
+   sei		;0xB1CC
+   pha				;Push A		push(4)
+   php				;Push SR	push($34)
+   pla				;Pull SR to A	a=$34 pop()
+   sta   $07		;Save SR in $7	[0x07]=$34
+   pla				;Pull A	a=$4 pop()
    rti
 
 

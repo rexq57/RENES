@@ -33,7 +33,13 @@ namespace ReNes {
         return true;
     }
     
+#define NES_DEBUG
+    
+#ifdef NES_DEBUG
     #define log(...) _log(__VA_ARGS__)
+#else
+   #define log(...)
+#endif
     
     void setLogCallback(std::function<void(const char*)> callback)
     {

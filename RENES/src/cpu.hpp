@@ -91,7 +91,7 @@ namespace ReNes {
         
         CF_SEC, CF_SED, CF_SEI,
         CF_STA, CF_STX, CF_STY,
-        CF_TAX, CF_TAY, CF_TXA, CF_TXS, CF_TYA,
+        CF_TAX, CF_TAY, CF_TXA, CF_TSX, CF_TXS, CF_TYA,
         
         
         CF_BRK,
@@ -291,7 +291,7 @@ namespace ReNes {
                 }
                 else
                 {
-                    res = std::string("#") + int_to_hex((uint16_t)(immidiate_value + addr));
+                    res = std::string("#") + int_to_hex((uint8_t)(immidiate_value + addr));
                 }
                 
             }
@@ -455,10 +455,10 @@ namespace ReNes {
         /* (absolute) STY oper */ {0x8C, {"STY", CF_STY, INDEXED_ABSOLUTE, 3, 4, 0}},
         /* (implied) TAX */ {0xAA, {"TAX", CF_TAX, IMPLIED, 1, 2, 130}},
         /* (implied) TAY */ {0xA8, {"TAY", CF_TAY, IMPLIED, 1, 2, 130}},
+        /* (implied) TSX */ {0xBA, {"TSX", CF_TSX, IMPLIED, 1, 2, 130}},
         /* (implied) TXA */ {0x8A, {"TXA", CF_TXA, IMPLIED, 1, 2, 130}},
         /* (implied) TXS */ {0x9A, {"TXS", CF_TXS, IMPLIED, 1, 2, 130}},
         /* (implied) TYA */ {0x98, {"TYA", CF_TYA, IMPLIED, 1, 2, 130}},
-
     };
     
     static
@@ -543,13 +543,12 @@ namespace ReNes {
             
             error = false;
             
-//            _currentInterruptType = InterruptTypeReset; // 复位中断
-            
-            interrupts(InterruptTypeReset);
+            interrupts(InterruptTypeReset); // 复位中断
         }
         
         enum InterruptType{
             InterruptTypeNone,
+            InterruptTypeBreak,
             InterruptTypeIRQs,
             InterruptTypeNMI,
             InterruptTypeReset
@@ -577,6 +576,9 @@ namespace ReNes {
                         }
                         case InterruptTypeReset:
                             // 不可屏蔽中断
+                            hasInterrupts = true;
+                            break;
+                        case InterruptTypeBreak:
                             hasInterrupts = true;
                             break;
                         case InterruptTypeIRQs:
@@ -628,6 +630,7 @@ namespace ReNes {
                             {InterruptTypeNMI, {0xFFFA, 0xFFFB}},
                             {InterruptTypeReset, {0xFFFC, 0xFFFD}},
                             {InterruptTypeIRQs, {0xFFFE, 0xFFFF}},
+                            {InterruptTypeBreak, {0xFFFE, 0xFFFF}},
                         };
                         
                         ADDR2 addr2 = handler[_currentInterruptType];
@@ -647,11 +650,43 @@ namespace ReNes {
                             // 保存现场
                             
 //                            auto& PC = regs.PC;
-                            PC --;
+//                            PC --;
+                            
+                            if (_currentInterruptType == InterruptTypeBreak)
+                            {
+                                PC ++; // break 返回地址会+1，所以这里先增加
+//                                printf("break 入栈PC %x\n", PC);
+                            }
+                            
                             push((PC >> 8) & 0xff);    /* Push return address onto the stack. */
                             push(PC & 0xff);
-                            push(*(uint8_t*)&regs.P);
+//                            push(*(uint8_t*)&regs.P);
+//                            SET_BREAK((1));             /* Set BFlag before pushing */
+                            
+                            
+                            // 在推入之前修改状态
+                            switch(_currentInterruptType)
+                            {
+                                case InterruptTypeBreak:
+                                {
+                                    push(SR | 0x30); // 4,5 = 1
+                                    
+//                                    printf("break 入栈P %x\n", SR | 0x30);
+                                    break;
+                                }
+                                case InterruptTypeNMI:
+                                case InterruptTypeIRQs:
+                                {
+                                    push(SR | 0x10); // 4 = 1
+                                    break;
+                                }
+                                default:
+                                    break;
+                            }
+                            
+//                            push(SR);
                         }
+                        
                         
                         // 设置中断屏蔽标志(I)防止新的中断进来
                         regs.P.set(__registers::I, 1);
@@ -702,6 +737,9 @@ namespace ReNes {
                 {
                     std::function<void(uint8_t)> SET_SR = [this](uint8_t src)
                     {
+                        // 忽略4/5位
+                        src &= ~0x30;
+                        
                         regs.P = *(bit8*)&src;
                     };
                     
@@ -719,6 +757,9 @@ namespace ReNes {
                     {
                         regs.P.set(__registers::I, src != 0 ? 1 : 0);
                     };
+                    
+                    
+                    
                     
                     std::function<void(int8_t)> SET_SIGN = [this](int8_t src)
                     {
@@ -783,11 +824,12 @@ namespace ReNes {
                                 break;
                             case ACCUMULATOR:
                             {
-                                src = (int8_t)AC;
+                                src = (uint8_t)AC;
                                 dst = DST_REGS_A;
                                 break;
                             }
                             default:
+                                
                                 address = addressingByMode(mode);
 //                                src = _mem->read8bitData(address, true);
                                 
@@ -797,7 +839,7 @@ namespace ReNes {
                                 
                                 if (!ARRAY_FIND(_noSrcAccess, info.cf))
                                 {
-                                    src = (int8_t)_mem->read8bitData(address, true, &cancelOpt);
+                                    src = (uint8_t)_mem->read8bitData(address, true, &cancelOpt);
                                 }
                                 
                                 dst = DST_M;
@@ -968,7 +1010,7 @@ namespace ReNes {
                             {
                                 src <<= 1;
                                 if (IF_CARRY()) src |= 0x1;
-                                SET_CARRY((src<<1) > 0xff);
+                                SET_CARRY(src > 0xff);
                                 src &= 0xff;
                                 SET_SIGN(src);
                                 SET_ZERO(src);
@@ -991,13 +1033,14 @@ namespace ReNes {
                             {
                                 unsigned int temp = src + AC + (IF_CARRY() ? 1 : 0);
                                 SET_ZERO(temp & 0xff);    /* This is not valid in decimal mode */
-                                if (IF_DECIMAL()) {
-                                    if (((AC & 0xf) + (src & 0xf) + (IF_CARRY() ? 1 : 0)) > 9) temp += 6;
-                                    SET_SIGN(temp);
-                                    SET_OVERFLOW(!((AC ^ src) & 0x80) && ((AC ^ temp) & 0x80));
-                                    if (temp > 0x99) temp += 96;
-                                    SET_CARRY(temp > 0x99);
-                                } else {
+//                                if (IF_DECIMAL()) {
+//                                    if (((AC & 0xf) + (src & 0xf) + (IF_CARRY() ? 1 : 0)) > 9) temp += 6;
+//                                    SET_SIGN(temp);
+//                                    SET_OVERFLOW(!((AC ^ src) & 0x80) && ((AC ^ temp) & 0x80));
+//                                    if (temp > 0x99) temp += 96;
+//                                    SET_CARRY(temp > 0x99);
+//                                } else
+                                {
                                     SET_SIGN(temp);
                                     SET_OVERFLOW(!((AC ^ src) & 0x80) && ((AC ^ temp) & 0x80));
                                     SET_CARRY(temp > 0xff);
@@ -1160,12 +1203,14 @@ namespace ReNes {
                             }
                             case CF_PHA:
                             {
-                                push(regs.A);
+                                push(AC);
                                 break;
                             }
                             case CF_PHP:
                             {
-                                push(*(uint8_t*)&SR);
+//                                push(*(uint8_t*)&SR);
+                                src = SR | 0x30; // P入栈需要设置副本第4、5bit为1，而自身不变(https://wiki.nesdev.com/w/index.php/CPU_status_flag_behavior)
+                                push(src);
                                 break;
                             }
                             case CF_PLA:
@@ -1173,6 +1218,8 @@ namespace ReNes {
                                 src = pop();
                                 SET_SIGN(src);    /* Change sign and zero flag accordingly. */
                                 SET_ZERO(src);
+                                
+                                AC = src;
                                 
                                 break;
                             }
@@ -1189,10 +1236,10 @@ namespace ReNes {
                                 SET_SIGN(temp);
                                 SET_ZERO(temp & 0xff);    /* Sign and Zero are invalid in decimal mode */
                                 SET_OVERFLOW(((AC ^ temp) & 0x80) && ((AC ^ src) & 0x80));
-                                if (IF_DECIMAL()) {
-                                    if ( ((AC & 0xf) - (IF_CARRY() ? 0 : 1)) < (src & 0xf)) /* EP */ temp -= 6;
-                                    if (temp > 0x99) temp -= 0x60;
-                                }
+//                                if (IF_DECIMAL()) {
+//                                    if ( ((AC & 0xf) - (IF_CARRY() ? 0 : 1)) < (src & 0xf)) /* EP */ temp -= 6;
+//                                    if (temp > 0x99) temp -= 0x60;
+//                                }
                                 SET_CARRY(temp < 0x100);
                                 AC = (temp & 0xff);
                                 break;
@@ -1248,6 +1295,15 @@ namespace ReNes {
                                 
                                 break;
                             }
+                            case CF_TSX:
+                            {
+                                unsigned src = SP;
+                                SET_SIGN(src);
+                                SET_ZERO(src);
+                                XR = (src);
+                                
+                                break;
+                            }
                             case CF_TXA:
                             {
                                 unsigned src = XR;
@@ -1274,9 +1330,21 @@ namespace ReNes {
                                 break;
                             }
                             case CF_BRK:
+                            {
                                 // BRK 执行时，产生BRK中断
-                                interrupts(InterruptTypeIRQs);
+                                interrupts(InterruptTypeBreak);
+                                
+//                                PC++;
+//                                push((PC >> 8) & 0xff);    /* Push return address onto the stack. */
+//                                push(PC & 0xff);
+//                                SET_BREAK((1));             /* Set BFlag before pushing */
+//                                push(SR);
+//                                SET_INTERRUPT((1));
+//                                PC = (LOAD(0xFFFE) | (LOAD(0xFFFF) << 8));
+
+                                
                                 break;
+                            }
                             case CF_JSR:
                             {
                                 PC--;
@@ -1289,38 +1357,51 @@ namespace ReNes {
                             case CF_JMP:
                             {
                                 PC = address;
+//                                PC = (src);
                                 break;
                             }
                             case CF_RTS:
                             {
-                                if (regs.SP <= 0xFD) // 255 - 2
+                                // 允许溢出 https://wiki.nesdev.com/w/index.php/Stack
+//                                if (regs.SP <= 0xFD) // 255 - 2
                                 {
-                                    uint8_t PC_low = pop();
-                                    uint8_t PC_high = pop();
-                                    PC = (PC_high << 8) + PC_low + 1;
+//                                    uint8_t PC_low = pop();
+//                                    uint8_t PC_high = pop();
+//                                    PC = (PC_high << 8) + PC_low + 1;
+                                    src = pop();
+                                    src += ((pop()) << 8) + 1;    /* Load return address from stack and add 1. */
+                                    PC = (src);
                                 }
-                                else
-                                {
-                                    assert(!"error!");
-                                }
+//                                else
+//                                {
+//                                    assert(!"error!");
+//                                }
                                 break;
                             }
                             case CF_RTI:
                             {
-                                if (regs.SP <= 0xFC) // 255-3
+//                                if (regs.SP <= 0xFC) // 255-3
                                 {
-                                    uint8_t data = pop();
-                                    regs.P = *(bit8*)&data;
+                                    src = pop();
+//                                    regs.P = *(bit8*)&data;
+//                                    printf("P出栈 %x\n", src);
                                     
-                                    uint8_t PC_low = pop();
-                                    uint8_t PC_high = pop();
+                                    SET_SR(src);
+                                    src = pop();
+                                    src |= (pop() << 8);
+                                    PC = (src);
                                     
-                                    regs.PC = (PC_high << 8) + PC_low + 1;
+//                                    printf("PC出栈 %x\n", PC);
+                                    
+//                                    uint8_t PC_low = pop();
+//                                    uint8_t PC_high = pop();
+//                                    
+//                                    regs.PC = (PC_high << 8) + PC_low + 1;
                                 }
-                                else
-                                {
-                                    assert(!"error!");
-                                }
+//                                else
+//                                {
+//                                    assert(!"error!");
+//                                }
                                 
                                 break;
                             }
@@ -1354,6 +1435,11 @@ namespace ReNes {
         }
         
     private:
+        
+        void SET_BREAK(int src)
+        {
+            regs.P.set(__registers::B, src != 0 ? 1 : 0);
+        };
 
         uint16_t addressingByMode(AddressingMode mode)
         {
@@ -1387,12 +1473,12 @@ namespace ReNes {
                 }
                 case ZERO_PAGE_X:
                 {
-                    addr = _mem->read8bitData(dataAddr) + regs.X;
+                    addr = (_mem->read8bitData(dataAddr) + regs.X) % 0x100; // [0, 255] 循环
                     break;
                 }
                 case ZERO_PAGE_Y:
                 {
-                    addr = _mem->read8bitData(dataAddr) + regs.Y;
+                    addr = (_mem->read8bitData(dataAddr) + regs.Y) % 0x100;
                     break;
                 }
                 case INDEXED_ABSOLUTE:
@@ -1412,12 +1498,23 @@ namespace ReNes {
                 }
                 case INDIRECT:
                 {
-                    addr = _mem->read16bitData(_mem->read16bitData(dataAddr));
+                    auto oper = _mem->read16bitData(dataAddr);
+                    
+                    // 6502 JMP Indirect bug
+                    if ((oper & 0xff) == 0xff && _mem->masterData()[regs.PC] == 0x6C) // 低字节是0xFF，高位就从当前页读取
+                    {
+                        addr = _mem->read8bitData(oper) | (_mem->read8bitData(oper-0xff) << 8);
+                    }
+                    else
+                    {
+                        addr = _mem->read16bitData(oper);
+                    }
+                    
                     break;
                 }
                 case INDIRECT_X_INDEXED:
                 {
-                    addr = _mem->read16bitData(_mem->read8bitData(dataAddr) + regs.X);
+                    addr = _mem->read16bitData((_mem->read8bitData(dataAddr) + regs.X) % 0x100);
                     break;
                 }
                 case INDIRECT_INDEXED_Y:

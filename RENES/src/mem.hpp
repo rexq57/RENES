@@ -134,7 +134,11 @@ namespace ReNes {
             {
                 fixedAddr = 0x2000 + (addr % 8);
             }
-            
+            // 2KB internal RAM 镜像
+            else if (addr >= 0x0800 && addr <= 0x1FFF)
+            {
+                fixedAddr = addr % 0x0800;
+            }
             
             
             

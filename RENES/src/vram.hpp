@@ -67,7 +67,7 @@ namespace ReNes {
             else if (addr > 0x3FFF)
             {
                 fixedAddr = addr % 0x4000;
-                printf("fix %x -> %x\n", addr, fixedAddr);
+//                printf("fix %x -> %x\n", addr, fixedAddr);
             }
 
             return _data + fixedAddr;
