@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="12120" systemVersion="16F73" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
+<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="12120" systemVersion="16G29" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
     <dependencies>
         <deployment identifier="macosx"/>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="12120"/>
@@ -896,7 +896,7 @@
                                                     <rect key="frame" x="0.0" y="0.0" width="454" height="230"/>
                                                     <clipView key="contentView" id="T6Y-MZ-Nys">
                                                         <rect key="frame" x="1" y="1" width="452" height="228"/>
-                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <subviews>
                                                             <textView importsGraphics="NO" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="HTT-tX-tqy">
                                                                 <rect key="frame" x="0.0" y="0.0" width="452" height="228"/>
@@ -936,7 +936,7 @@
                                                     <rect key="frame" x="0.0" y="0.0" width="454" height="230"/>
                                                     <clipView key="contentView" id="MiV-rl-rsX">
                                                         <rect key="frame" x="1" y="1" width="452" height="228"/>
-                                                        <autoresizingMask key="autoresizingMask"/>
+                                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <subviews>
                                                             <textView importsGraphics="NO" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="aix-nH-EPa">
                                                                 <rect key="frame" x="0.0" y="0.0" width="452" height="228"/>
@@ -984,6 +984,23 @@
                                             </constraints>
                                         </view>
                                     </tabViewItem>
+                                    <tabViewItem label="卷轴" identifier="4" id="w56-E2-7wp">
+                                        <view key="view" id="9aP-Gg-ZFm">
+                                            <rect key="frame" x="10" y="7" width="454" height="230"/>
+                                            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                            <subviews>
+                                                <openGLView useAuxiliaryDepthBufferStencil="NO" allowOffline="YES" translatesAutoresizingMaskIntoConstraints="NO" id="jZg-Q1-4iA" customClass="MyOpenGLView">
+                                                    <rect key="frame" x="0.0" y="0.0" width="454" height="230"/>
+                                                </openGLView>
+                                            </subviews>
+                                            <constraints>
+                                                <constraint firstItem="jZg-Q1-4iA" firstAttribute="top" secondItem="9aP-Gg-ZFm" secondAttribute="top" id="GxB-15-0tr"/>
+                                                <constraint firstAttribute="trailing" secondItem="jZg-Q1-4iA" secondAttribute="trailing" id="g83-Yf-sas"/>
+                                                <constraint firstAttribute="bottom" secondItem="jZg-Q1-4iA" secondAttribute="bottom" id="ktS-Mu-11U"/>
+                                                <constraint firstItem="jZg-Q1-4iA" firstAttribute="leading" secondItem="9aP-Gg-ZFm" secondAttribute="leading" id="pHM-W9-9UZ"/>
+                                            </constraints>
+                                        </view>
+                                    </tabViewItem>
                                 </tabViewItems>
                             </tabView>
                             <openGLView useAuxiliaryDepthBufferStencil="NO" allowOffline="YES" translatesAutoresizingMaskIntoConstraints="NO" id="8HV-AN-ZeJ" customClass="MyOpenGLView">
@@ -1020,6 +1037,7 @@
                         <outlet property="memView" destination="Ejr-rM-gwe" id="Pbd-gE-jtv"/>
                         <outlet property="petternTableView" destination="TIy-FB-mZg" id="fas-Ih-a0E"/>
                         <outlet property="registersView" destination="my7-70-8J6" id="aT9-Af-lcO"/>
+                        <outlet property="scrollMirroringView" destination="jZg-Q1-4iA" id="VNx-xh-p6P"/>
                         <outlet property="sprramView" destination="aix-nH-EPa" id="bCW-Tp-hVW"/>
                         <outlet property="stopedCmdAddrField" destination="i9o-DB-KkO" id="BRe-ss-Ghf"/>
                         <outlet property="stopedCmdLineField" destination="auG-AK-Y5h" id="PgX-OR-M9E"/>

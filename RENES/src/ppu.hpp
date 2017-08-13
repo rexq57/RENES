@@ -83,6 +83,8 @@ namespace ReNes {
         bit8* mask_regs;    // PPU屏蔽寄存器
         bit8* status_regs;  // PPU状态寄存器
         
+        bool dumpScrollBuffer = true;
+        
 //        uint8_t VRAM[1024*16]; // 16kb
         
         uint8_t* sprram()
@@ -101,7 +103,11 @@ namespace ReNes {
             assert(4 == sizeof(Sprite));
             
             // RGB 数据缓冲区
-            _buffer = (uint8_t*)malloc(width()*height() * bpp());
+            _buffer = (uint8_t*)malloc(bufferLength());
+            
+            // 卷轴缓冲区
+            _scrollBuffer = (uint8_t*)malloc(bufferLength()*4);
+            _scrollBufferTmp = (uint8_t*)malloc(bufferLength());
             
             reset();
         }
@@ -110,6 +116,12 @@ namespace ReNes {
         {
             if (_buffer != 0)
                 free(_buffer);
+            
+            if (_scrollBuffer != 0)
+                free(_scrollBuffer);
+            
+            if (_scrollBufferTmp != 0)
+                free(_scrollBufferTmp);
         }
         
         void init(Memory* mem)
@@ -351,12 +363,12 @@ namespace ReNes {
         
         void draw()
         {
-            // clear
-            memset(_buffer, 0, width()*height()*3);
-            
-            
             status_regs->set(7, 0); // 清除 vblank
             status_regs->set(6, 0);
+            
+            // clear
+//            memset(_buffer, 0, bufferLength());
+//            memset(_scrollBuffer, 0, bufferLength()*4); // 开启会闪屏
             
             /*
              0x2000 > write
@@ -382,17 +394,15 @@ namespace ReNes {
            
             
             // 绘制背景
-            // 从名称表里取当前绘制的tile（1字节）
-            int nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
             
             
             
             
             
-            uint8_t* nameTableAddr = &_vram.masterData()[0x2000 + nameTableIndex*0x0400];
-            uint8_t* attributeTableAddr = &_vram.masterData()[0x23C0 + nameTableIndex*0x0400];
-            uint8_t* bkPetternTableAddr = &_vram.masterData()[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址
-            uint8_t* sprPetternTableAddr = &_vram.masterData()[0x1000 * io_regs[0].get(3)]; // 第3bit决定精灵图案表地址
+            
+            
+            uint8_t* bkPetternTableAddr = &_vram.masterData()[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址 0x0000或0x1000
+            uint8_t* sprPetternTableAddr = &_vram.masterData()[0x1000 * io_regs[0].get(3)]; // 第3bit决定精灵图案表地址 0x0000或0x1000
             
             uint8_t* bkPaletteAddr = &_vram.masterData()[0x3F00];   // 背景调色板地址
             uint8_t* sprPaletteAddr = &_vram.masterData()[0x3F10]; // 精灵调色板地址
@@ -401,7 +411,7 @@ namespace ReNes {
             const static RGB* pTRANSPARENT_RGB = (RGB*)&DEFAULT_PALETTE[bkPaletteAddr[0]*3];
 
             
-            std::function<void(uint8_t*, int, int, int, uint8_t*, uint8_t*, bool, bool, bool)> drawTile = [this, bkPaletteAddr, sprPaletteAddr](uint8_t* buffer, int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr, bool flipH, bool flipV, bool hitChecking)
+            std::function<void(uint8_t*, int, int, int, uint8_t*, uint8_t*, bool, bool, bool, bool)> drawTile = [this, bkPaletteAddr, sprPaletteAddr](uint8_t* buffer, int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr, bool flipH, bool flipV, bool hitChecking, bool show)
             {
                 bool isSprite = paletteAddr == sprPaletteAddr;
                 
@@ -447,7 +457,8 @@ namespace ReNes {
                             _clearHitAtNextVblankEnd = 1;
                         }
                         
-                        *pb = *rgb;
+                        if (show)
+                            *pb = *rgb;
                     }
                 }
             };
@@ -496,35 +507,74 @@ namespace ReNes {
             
 //            printf("%d\n", bg_base);
             
-            // 绘制背景
-            int tiles_y = bg_t_y == 0 ? 30 : 31;
-            int tiles_x = bg_t_x == 0 ? 32 : 33;
-
-            for (int bg_y=0; bg_y<tiles_y; bg_y++) // 只显示 30/30 行tile
-            {
-                int y = (bg_y+bg_offset_y) % 30;
+            
+            
+            std::function<void(uint8_t*, int, int, int, int, int, bool)> drawBackground = [this, &drawTile, bg_t_x, bg_t_y, bkPetternTableAddr, bkPaletteAddr](uint8_t* buffer, int nameTableIndex, int bg_t_x, int bg_t_y, int bg_offset_x, int bg_offset_y, bool showBg){
                 
-                for (int bg_x=0; bg_x<tiles_x; bg_x++)
+                int tiles_y = bg_t_y == 0 ? 30 : 31;
+                int tiles_x = bg_t_x == 0 ? 32 : 33;
+                
+                uint8_t* nameTableAddr = &_vram.masterData()[0x2000 + nameTableIndex*0x0400];
+                uint8_t* attributeTableAddr = &_vram.masterData()[0x23C0 + nameTableIndex*0x0400];
+                
+                for (int bg_y=0; bg_y<tiles_y; bg_y++) // 只显示 30/30 行tile
                 {
-                    int x = (bg_x+bg_offset_x) % 32;
+                    int y = (bg_y+bg_offset_y) % 30; // 30个tile 垂直循环
                     
-                    // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
-                    uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(y / 4 * (32/4) + x / 4)];
-                    int bit = (y % 4) / 2 * 4 + (x % 4) / 2 * 2;
-                    int high2 = (attributeAddrFor4x4Tile >> bit) & 0x3;
-                    
-                    int tileIndex = nameTableAddr[y*32 + x]; // 得到 bkg tile index
-                    
-                    // 确定在图案表里的tile地址，每个tile是8x8像素，占用16字节。
-                    // 前8字节(8x8) + 后8字节(8x8)
-                    uint8_t* tileAddr = &bkPetternTableAddr[tileIndex * 16];
-                    
-//                    if (showBg)
+                    for (int bg_x=0; bg_x<tiles_x; bg_x++)
                     {
-                        drawTile(_buffer, bg_x*8-bg_t_x, bg_y*8-bg_t_y, high2, tileAddr, bkPaletteAddr, false, false, false);
+                        int x = (bg_x+bg_offset_x) % 32; // 32个tile 水平循环
+                        
+                        // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
+                        uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(y / 4 * (32/4) + x / 4)];
+                        int bit = (y % 4) / 2 * 4 + (x % 4) / 2 * 2;
+                        int high2 = (attributeAddrFor4x4Tile >> bit) & 0x3;
+                        
+                        int tileIndex = nameTableAddr[y*32 + x]; // 得到 bkg tile index
+                        
+                        // 确定在图案表里的tile地址，每个tile是8x8像素，占用16字节。
+                        // 前8字节(8x8) + 后8字节(8x8)
+                        uint8_t* tileAddr = &bkPetternTableAddr[tileIndex * 16];
+                        
+                        if (showBg)
+                        {
+                            drawTile(buffer, bg_x*8-bg_t_x, bg_y*8-bg_t_y, high2, tileAddr, bkPaletteAddr, false, false, false, true);
+                        }
+                    }
+                }
+            };
+            
+//            printf("%d \n", bg_offset_y);
+            
+            // 绘制背景
+            // 从名称表里取当前绘制的tile（1字节）
+            int nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
+            drawBackground(_buffer, nameTableIndex, bg_t_x, bg_t_y, bg_offset_x, bg_offset_y, true);
+//            drawBackground(_buffer, nameTableIndex, 0, bg_t_y, 0, bg_offset_y, true);
+            if (dumpScrollBuffer)
+            {
+                for (int i=0; i<4; i++)
+                {
+                    drawBackground(_scrollBufferTmp, i, 0, 0, 0, 0, true);
+                    
+//                    if (i<2)
+                    {
+                        // copy to buffer
+                        size_t lineLength = BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_BPP;
+                        
+                        uint8_t* dst = _scrollBuffer + (i%2)*lineLength + i/2*bufferLength()*2;
+                        size_t dstStride = lineLength*2;
+                        
+                        for (int y=0; y<BUFFER_PIXEL_HEIGHT; y++)
+                        {
+                            memcpy(dst+y*dstStride, _scrollBufferTmp+y*lineLength, lineLength);
+                        }
                     }
                 }
             }
+            
+            
+            
 
             
             /*
@@ -566,7 +616,7 @@ namespace ReNes {
                 bool flipV = spr->info.get(7);
                 
 //                if (showSp)
-                    drawTile(_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0);
+                drawTile(_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, showSp);
             }
             
 
@@ -579,22 +629,32 @@ namespace ReNes {
         
         int width()
         {
-            return 256;
+            return BUFFER_PIXEL_WIDTH;
         }
         
         int height()
         {
-            return 240;
+            return BUFFER_PIXEL_HEIGHT;
         }
         
         int bpp()
         {
-            return 3;
+            return BUFFER_PIXEL_BPP;
+        }
+        
+        size_t bufferLength()
+        {
+            return width()*height() * bpp();
         }
         
         uint8_t* buffer()
         {
             return _buffer;
+        }
+        
+        uint8_t* scrollBuffer()
+        {
+            return _scrollBuffer;
         }
         
         void petternTables(uint8_t p[32])
@@ -606,6 +666,10 @@ namespace ReNes {
         }
         
     private:
+        
+        const int BUFFER_PIXEL_WIDTH = 256;
+        const int BUFFER_PIXEL_HEIGHT = 240;
+        const int BUFFER_PIXEL_BPP = 3;
         
         struct Sprite {
             
@@ -655,7 +719,10 @@ namespace ReNes {
         
         int _clearHitAtNextVblankEnd = 1;
         
-        uint8_t* _buffer = 0;
+        uint8_t* _buffer = 0;       // 显示缓冲区
+        uint8_t* _scrollBuffer = 0; // 卷轴缓冲区
+        uint8_t* _scrollBufferTmp = 0;
+        
         
         uint8_t _sprram[256]; // 精灵内存, 64 个，每个4字节
         VRAM _vram;

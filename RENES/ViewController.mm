@@ -37,6 +37,7 @@ using namespace ReNes;
 @property (nonatomic) IBOutlet NSTextView* vramView;
 @property (nonatomic) IBOutlet NSTextView* sprramView;
 @property (nonatomic) IBOutlet PetternTableView* petternTableView;
+@property (nonatomic) IBOutlet MyOpenGLView* scrollMirroringView;
 
 @property (nonatomic) IBOutlet NSTextField* stopedCmdAddrField;
 @property (nonatomic) IBOutlet NSTextField* stopedCmdLineField;
@@ -125,14 +126,28 @@ using namespace ReNes;
                     {
                         if (ppu == _nes->ppu())
                         {
-                            // 显示图片
-                            int width  = ppu->width();
-                            int height = ppu->height();
-                            uint8_t* srcBuffer = ppu->buffer();
+                            {
+                                // 显示图片
+                                int width  = ppu->width();
+                                int height = ppu->height();
+                                uint8_t* srcBuffer = ppu->buffer();
+                                
+                                [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+
+                            }
                             
-                            [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+                            {
+                                // 显示图片
+                                int width  = _nes->ppu()->width()*2;
+                                int height = _nes->ppu()->height()*2;
+                                uint8_t* srcBuffer = _nes->ppu()->scrollBuffer();
+                                
+                                [_scrollMirroringView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+
+                            }
                         }
                     }
+                    
                     return true;
                 };
                 
@@ -190,6 +205,7 @@ using namespace ReNes;
     _memView.font = [NSFont fontWithName:@"Courier" size:12];
     _vramView.font = [NSFont fontWithName:@"Courier" size:12];
     _sprramView.font = [NSFont fontWithName:@"Courier" size:12];
+    
     
 //    [self startNes];
     
@@ -256,6 +272,12 @@ using namespace ReNes;
                         [arr addObject:color];
                     }
                     _petternTableView.colors = arr;
+                    return;
+                    break;
+                }
+                case 4:
+                {
+                    
                     return;
                     break;
                 }
@@ -403,7 +425,7 @@ using namespace ReNes;
             
             _registersView.stringValue = [NSString stringWithFormat:@"PC: 0x%04X SP: 0x%04X\n\
 C:%d Z:%d I:%d D:%d B:%d _:%d V:%d N:%d\n\
-A:%d X:%d Y:%d (%lf, %lf)\n\
+A:%d X:%d Y:%d (%.9lf, %lf)\n\
 %d %d %d %d %d %d %d %d", regs.PC, regs.SP,
                                           regs.P.get(CPU::__registers::C),
                                           regs.P.get(CPU::__registers::Z),
