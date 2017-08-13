@@ -579,11 +579,12 @@ namespace ReNes {
                             hasInterrupts = true;
                             break;
                         case InterruptTypeBreak:
+                            // break中断由代码产生，这个也不能屏蔽
                             hasInterrupts = true;
                             break;
                         case InterruptTypeIRQs:
                         {
-                            // 如果中断禁止标记为0，才可继续此中断
+                            // 软中断，由系统硬件发出，可以屏蔽。如果中断禁止标记为0，才可继续此中断
                             if (regs.P.get(__registers::I) == 0)
                                 hasInterrupts = true;
                             break;

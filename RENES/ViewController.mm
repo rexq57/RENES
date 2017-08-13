@@ -515,33 +515,38 @@ A:%d X:%d Y:%d (%.9lf, %lf)\n\
 {
 //    NSLog(@"%d", [event keyCode]);
     
+//    const static int keys[] = {
+////        126, 125, 123, 124, 7, 6, 18, 19
+//        13, 1, 0, 2, 38, 40, 18, 19
+//    };
+    
     switch ([event keyCode]) {
-        case 126:
+        case 13:
         {
             _nes->ctr()->up(true);
             break;
         }
-        case 125:
+        case 1:
         {
             _nes->ctr()->down(true);
             break;
         }
-        case 123:
+        case 0:
         {
             _nes->ctr()->left(true);
             break;
         }
-        case 124:
+        case 2:
         {
             _nes->ctr()->right(true);
             break;
         }
-        case 7:
+        case 40:
         {
             _nes->ctr()->A(true);
             break;
         }
-        case 6:
+        case 38:
         {
             _nes->ctr()->B(true);
             break;
@@ -564,32 +569,32 @@ A:%d X:%d Y:%d (%.9lf, %lf)\n\
 - (void) keyUp:(NSEvent *)event
 {
     switch ([event keyCode]) {
-        case 126:
+        case 13:
         {
             _nes->ctr()->up(false);
             break;
         }
-        case 125:
+        case 1:
         {
             _nes->ctr()->down(false);
             break;
         }
-        case 123:
+        case 0:
         {
             _nes->ctr()->left(false);
             break;
         }
-        case 124:
+        case 2:
         {
             _nes->ctr()->right(false);
             break;
         }
-        case 7:
+        case 40:
         {
             _nes->ctr()->A(false);
             break;
         }
-        case 6:
+        case 38:
         {
             _nes->ctr()->B(false);
             break;

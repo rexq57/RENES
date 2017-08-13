@@ -368,7 +368,9 @@ namespace ReNes {
             
             // clear
 //            memset(_buffer, 0, bufferLength());
-//            memset(_scrollBuffer, 0, bufferLength()*4); // 开启会闪屏
+//            memset(_scrollBuffer, 0, bufferLength()*4);
+            
+            // 设置背景色
             
             /*
              0x2000 > write
@@ -482,7 +484,6 @@ namespace ReNes {
              */
             bool showBg = mask_regs->get(3) == 1;
             bool showSp = mask_regs->get(4) == 1;
-            
 
             /*
              
@@ -509,21 +510,30 @@ namespace ReNes {
             
             
             
-            std::function<void(uint8_t*, int, int, int, int, int, bool)> drawBackground = [this, &drawTile, bg_t_x, bg_t_y, bkPetternTableAddr, bkPaletteAddr](uint8_t* buffer, int nameTableIndex, int bg_t_x, int bg_t_y, int bg_offset_x, int bg_offset_y, bool showBg){
+            std::function<void(uint8_t*, int, int, int, int, int)> drawBackground = [this, &drawTile, bg_t_x, bg_t_y, bkPetternTableAddr, bkPaletteAddr](uint8_t* buffer, int nameTableIndex, int bg_t_x, int bg_t_y, int bg_offset_x, int bg_offset_y){
                 
                 int tiles_y = bg_t_y == 0 ? 30 : 31;
                 int tiles_x = bg_t_x == 0 ? 32 : 33;
                 
-                uint8_t* nameTableAddr = &_vram.masterData()[0x2000 + nameTableIndex*0x0400];
-                uint8_t* attributeTableAddr = &_vram.masterData()[0x23C0 + nameTableIndex*0x0400];
+//                uint8_t* nameTableAddr = &_vram.masterData()[0x2000 + nameTableIndex*0x0400];
+//                uint8_t* attributeTableAddr = &_vram.masterData()[0x23C0 + nameTableIndex*0x0400];
                 
                 for (int bg_y=0; bg_y<tiles_y; bg_y++) // 只显示 30/30 行tile
                 {
-                    int y = (bg_y+bg_offset_y) % 30; // 30个tile 垂直循环
+                    int s_y = bg_y+bg_offset_y;
+                    int y = s_y % 30; // 30个tile 垂直循环
+                    
                     
                     for (int bg_x=0; bg_x<tiles_x; bg_x++)
                     {
-                        int x = (bg_x+bg_offset_x) % 32; // 32个tile 水平循环
+                        int s_x = (bg_x+bg_offset_x);
+                        int x = s_x % 32; // 32个tile 水平循环
+                        
+                        int realNameTableIndex = ((nameTableIndex + s_x/32) % 2);
+                        // 未处理左右镜像，需要计算s_y
+                        
+                        uint8_t* nameTableAddr = &_vram.masterData()[0x2000 + realNameTableIndex*0x0400];
+                        uint8_t* attributeTableAddr = &_vram.masterData()[0x23C0 + realNameTableIndex*0x0400];
                         
                         // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
                         uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(y / 4 * (32/4) + x / 4)];
@@ -536,10 +546,7 @@ namespace ReNes {
                         // 前8字节(8x8) + 后8字节(8x8)
                         uint8_t* tileAddr = &bkPetternTableAddr[tileIndex * 16];
                         
-                        if (showBg)
-                        {
-                            drawTile(buffer, bg_x*8-bg_t_x, bg_y*8-bg_t_y, high2, tileAddr, bkPaletteAddr, false, false, false, true);
-                        }
+                        drawTile(buffer, bg_x*8-bg_t_x, bg_y*8-bg_t_y, high2, tileAddr, bkPaletteAddr, false, false, false, true);
                     }
                 }
             };
@@ -549,15 +556,16 @@ namespace ReNes {
             // 绘制背景
             // 从名称表里取当前绘制的tile（1字节）
             int nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
-            drawBackground(_buffer, nameTableIndex, bg_t_x, bg_t_y, bg_offset_x, bg_offset_y, true);
-//            drawBackground(_buffer, nameTableIndex, 0, bg_t_y, 0, bg_offset_y, true);
+            if (true)
+                drawBackground(_buffer, nameTableIndex, bg_t_x, bg_t_y, bg_offset_x, bg_offset_y);
+
             if (dumpScrollBuffer)
             {
                 for (int i=0; i<4; i++)
                 {
-                    drawBackground(_scrollBufferTmp, i, 0, 0, 0, 0, true);
+                    drawBackground(_scrollBufferTmp, i, 0, 0, 0, 0);
                     
-//                    if (i<2)
+//                    if (i<2) for test
                     {
                         // copy to buffer
                         size_t lineLength = BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_BPP;

@@ -238,6 +238,8 @@ namespace ReNes {
                 
                 ppu_thread = std::thread(ppu_working, &_ppu, [this, &t0, &p_t](){
                     
+                    
+                    
                     auto t1=std::chrono::system_clock::now();
                     auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0); // 实际花费时间，纳秒
                     double d_t = d.count() * ns;
@@ -257,10 +259,11 @@ namespace ReNes {
                         t0 = t1; // 记录当前时间
                     }
                     
+                    bool res = ppu_callback(&_ppu); // 先进行更新，这里放到后面会闪屏，不知道什么原因
                     
-                    _cpu.interrupts(CPU::InterruptTypeNMI); // 每次VBlank发生在最后一行，就是绘制完一帧的时候
+                    _cpu.interrupts(CPU::InterruptTypeNMI); // 每次VBlank发生在最后一行，就是绘制完一帧的时候，通知CPU执行NMI中断
                     
-                    return ppu_callback(&_ppu) && !_stoped;
+                    return res && !_stoped;
                 });
             }
             
