@@ -83,7 +83,6 @@
 				2167AF7B1F05117C000E6D99 /* MyOpenGLView.h */,
 				2167AF7C1F05117C000E6D99 /* MyOpenGLView.m */,
 				214C3C891F002C4F0069C001 /* OUR.NES */,
-				2156BFC21EFF5976001B3025 /* Assets.xcassets */,
 				2156BFC41EFF5976001B3025 /* Main.storyboard */,
 				2156BFC71EFF5976001B3025 /* Info.plist */,
 				2156BFBC1EFF5976001B3025 /* Supporting Files */,
@@ -94,6 +93,7 @@
 		2156BFBC1EFF5976001B3025 /* Supporting Files */ = {
 			isa = PBXGroup;
 			children = (
+				2156BFC21EFF5976001B3025 /* Assets.xcassets */,
 				2156BFBD1EFF5976001B3025 /* main.mm */,
 			);
 			name = "Supporting Files";

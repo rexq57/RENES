@@ -396,22 +396,18 @@ namespace ReNes {
            
             
             // 绘制背景
-            
-            
-            
-            
-            
-            
-            
             uint8_t* bkPetternTableAddr = &_vram.masterData()[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址 0x0000或0x1000
             uint8_t* sprPetternTableAddr = &_vram.masterData()[0x1000 * io_regs[0].get(3)]; // 第3bit决定精灵图案表地址 0x0000或0x1000
             
             uint8_t* bkPaletteAddr = &_vram.masterData()[0x3F00];   // 背景调色板地址
             uint8_t* sprPaletteAddr = &_vram.masterData()[0x3F10]; // 精灵调色板地址
             
-            
             const static RGB* pTRANSPARENT_RGB = (RGB*)&DEFAULT_PALETTE[bkPaletteAddr[0]*3];
 
+            
+            
+            
+            
             
             std::function<void(uint8_t*, int, int, int, uint8_t*, uint8_t*, bool, bool, bool, bool)> drawTile = [this, bkPaletteAddr, sprPaletteAddr](uint8_t* buffer, int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr, bool flipH, bool flipV, bool hitChecking, bool show)
             {
@@ -444,6 +440,62 @@ namespace ReNes {
                         if (isSprite && systemPaletteUnitIndex == bkPaletteAddr[0])
                         {
                             continue;
+                        }
+                        
+                        int pixelIndex = (NES_MIN(y + ty, 239) * 32*8 + NES_MIN(x+tx, 255)) * 3; // 最低位是右边第一像素，所以渲染顺序要从右往左
+                        
+                        RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
+                        
+                        auto* pb = (RGB*)&buffer[pixelIndex];
+                        
+                        // 当前背景色不是透明色，就发生碰撞！
+                        if (hitChecking && x+tx_ != 255 && pb != pTRANSPARENT_RGB)
+                        {
+                            status_regs->set(6, 1);
+                            _clearHitAtNextVblankEnd = 1;
+                        }
+                        
+                        if (show)
+                            *pb = *rgb;
+                    }
+                }
+            };
+            
+            
+            std::function<void(uint8_t*, int, int, int, int, int, uint8_t*, uint8_t*, bool, bool, bool, bool)> drawPixel = [this, bkPaletteAddr, sprPaletteAddr](uint8_t* buffer, int x, int y, int tx, int ty, int high2, uint8_t* tileAddr, uint8_t* paletteAddr, bool flipH, bool flipV, bool hitChecking, bool show)
+            {
+                bool isSprite = paletteAddr == sprPaletteAddr;
+                
+//                for (int ty=0; ty<8; ty++)
+                {
+                    if (y + ty < 0)
+//                    continue;
+                    return;
+                    
+                    int ty_ = flipV ? 7-ty : ty;
+                    
+//                    for (int tx=0; tx<8; tx++)
+                    {
+                        if (x + tx < 0)
+//                        continue;
+                        return;
+                        
+                        int tx_ = flipH ? tx : 7-tx;
+                        
+                        // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
+                        int low0 = ((bit8*)&tileAddr[ty_])->get(tx_);
+                        int low1 = ((bit8*)&tileAddr[ty_+8])->get(tx_);
+                        int low2 = low0 | (low1 << 1);
+                        
+                        int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
+                        
+                        int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
+                        
+                        // 如果绘制精灵，而且当前颜色引用到背景透明色（背景调色板第一位），就不绘制
+                        if (isSprite && systemPaletteUnitIndex == bkPaletteAddr[0])
+                        {
+//                            continue;
+                            return;
                         }
                         
                         int pixelIndex = (NES_MIN(y + ty, 239) * 32*8 + NES_MIN(x+tx, 255)) * 3; // 最低位是右边第一像素，所以渲染顺序要从右往左
@@ -500,9 +552,9 @@ namespace ReNes {
             const auto& v = _t;
             
             // 从 _t 中取出tile坐标偏移
-            int bg_offset_x = v & 0x1F;
+            int bg_offset_x = v & 0x1F;         // tile整体偏移[0,31]
             int bg_offset_y = (v >> 5) & 0x1F;
-            int bg_t_x = _x;
+            int bg_t_x = _x;                    // tile精细偏移[0,7]
             int bg_t_y = (v >> 12) & 0x7;
             int bg_base = (v >> 10) & 0x3;
             
@@ -551,13 +603,93 @@ namespace ReNes {
                 }
             };
             
+            
+            // 模拟扫描线
+            std::function<void(uint8_t*, int, int, int, int, int)> drawBackground_byLine = [this, &drawTile, &drawPixel, bg_t_x, bg_t_y, bkPetternTableAddr, bkPaletteAddr](uint8_t* buffer, int nameTableIndex, int bg_t_x, int bg_t_y, int bg_offset_x, int bg_offset_y)
+            {
+                int line_y_max = bg_t_y == 0 ? 30*8 : 31*8;
+                int line_x_max = bg_t_x == 0 ? 32*8 : 33*8;
+                
+                
+                uint8_t* tileAddr;
+                int high2;
+                
+                struct NameTableInfo{
+                    uint8_t* tileAddr;
+                    int high2;
+                };
+                NameTableInfo* infos = new NameTableInfo[30*32];
+                
+                for (int y=0; y<30; y++)
+                {
+                    for (int x=0; x<32; x++)
+                    {
+                        
+                    }
+                }
+                
+                
+                for (int line_y=0; line_y<line_y_max; line_y++)
+                {
+//                    int tile_line_y = bg_offset_y*8 + bg_t_y + line_y; // 在当前图案表中，256x240 (32x30 tile) 上的像素位置
+//                    int y = (tile_line_y/8) % 30; // 图案表中，瓦片的y坐标 [0,29]
+                    
+                    // 计算当前扫描线所在瓦片，瓦片偏移发生在相对当前屏幕的tile上，而不是指图案表相对屏幕左上角发生的偏移
+                    int bg_y = line_y/8;
+                    int s_y = bg_y+bg_offset_y;         // 实际瓦片坐标，向上[0,31]
+                    int y = s_y % 30; // 30个tile 垂直循环
+                    
+                    
+                    for (int line_x=0; line_x<line_x_max; line_x++)
+                    {
+//                        int tile_line_x = bg_offset_x*8 + bg_t_x + line_x;
+//                        int s_x = tile_line_x/8; // 图案表中，瓦片的x坐标 [0,31]
+//                        int x = s_x % 32; // 实际瓦片的x坐标
+                        
+                        if (line_x % 8 == 0)
+                        {
+                            int bg_x = line_x/8;
+                            int s_x = (bg_x+bg_offset_x); // 目标tile
+                            int x = s_x % 32; // 32个tile 水平循环
+                            
+                            int realNameTableIndex = ((nameTableIndex + s_x/32) % 2);
+                            // 未处理左右镜像，需要计算s_y
+                            
+                            uint8_t* nameTableAddr = &_vram.masterData()[0x2000 + realNameTableIndex*0x0400];
+                            uint8_t* attributeTableAddr = &_vram.masterData()[0x23C0 + realNameTableIndex*0x0400];
+                            
+                            // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
+                            uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(y / 4 * (32/4) + x / 4)];
+                            int bit = (y % 4) / 2 * 4 + (x % 4) / 2 * 2;
+                            high2 = (attributeAddrFor4x4Tile >> bit) & 0x3;
+                            
+                            int tileIndex = nameTableAddr[y*32 + x]; // 得到 bkg tile index
+                            
+                            // 确定在图案表里的tile地址，每个tile是8x8像素，占用16字节。
+                            // 前8字节(8x8) + 后8字节(8x8)
+                            tileAddr = &bkPetternTableAddr[tileIndex * 16];
+                        }
+                        
+                        // line_x/8*8 为当前tile的标准坐标，bg_t_x 为偏移位置
+                      
+                        drawPixel(buffer, line_x/8*8-bg_t_x, line_y/8*8-bg_t_y, (line_x+bg_t_x)%8, (line_y+bg_t_y)%8, high2, tileAddr, bkPaletteAddr, false, false, false, true);
+//                        drawTile(buffer, line_x/8*8-bg_t_x, line_y/8*8-bg_t_y, high2, tileAddr, bkPaletteAddr, false, false, false, true);
+//                        drawTile(buffer, line_x/8*8-bg_t_x, line_y/8*8-bg_t_y, high2, tileAddr, bkPaletteAddr, false, false, false, true);
+                    }
+                }
+                
+                delete[] infos;
+            };
+            
+            
+            
 //            printf("%d \n", bg_offset_y);
             
             // 绘制背景
             // 从名称表里取当前绘制的tile（1字节）
             int nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
             if (true)
-                drawBackground(_buffer, nameTableIndex, bg_t_x, bg_t_y, bg_offset_x, bg_offset_y);
+                drawBackground_byLine(_buffer, nameTableIndex, bg_t_x, bg_t_y, bg_offset_x, bg_offset_y);
 
             if (dumpScrollBuffer)
             {
