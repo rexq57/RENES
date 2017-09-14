@@ -216,7 +216,7 @@ namespace ReNes {
                     }
                     if (dd > 0)
                     {
-                        usleep(dd / 1000);
+                        usleep(dd * 1000000);
                         
 //                        t0 = std::chrono::system_clock::now();
                     }
@@ -232,7 +232,7 @@ namespace ReNes {
             
             std::thread ppu_thread;
             {
-                const double p_t = pow(10, 9) / 60;
+                const double p_t = 1.0 / 60;
                 
                 auto t0=std::chrono::system_clock::now();
                 
@@ -250,7 +250,7 @@ namespace ReNes {
                     
                     if (dd > 0)
                     {
-                        usleep(dd / 1000);
+                        usleep(dd * 1000000);
                         
                         t0 = std::chrono::system_clock::now();
                     }

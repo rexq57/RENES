@@ -426,7 +426,8 @@ using namespace ReNes;
             _registersView.stringValue = [NSString stringWithFormat:@"PC: 0x%04X SP: 0x%04X\n\
 C:%d Z:%d I:%d D:%d B:%d _:%d V:%d N:%d\n\
 A:%d X:%d Y:%d (%.9lf, %lf)\n\
-%d %d %d %d %d %d %d %d", regs.PC, regs.SP,
+%d %d %d %d %d %d %d %d\n\
+%s", regs.PC, regs.SP,
                                           regs.P.get(CPU::__registers::C),
                                           regs.P.get(CPU::__registers::Z),
                                           regs.P.get(CPU::__registers::I),
@@ -437,7 +438,8 @@ A:%d X:%d Y:%d (%.9lf, %lf)\n\
                                           regs.P.get(CPU::__registers::N),
                                           regs.A,regs.X,regs.Y,
                                           _nes->cmdTime(), _nes->renderTime(),
-                                          statues[0], statues[1], statues[2], statues[3], statues[4], statues[5], statues[6], statues[7]];
+                                          statues[0], statues[1], statues[2], statues[3], statues[4], statues[5], statues[6], statues[7],
+                                          _nes->ppu()->testLog.c_str()];
         
         }
         

@@ -85,6 +85,8 @@ namespace ReNes {
         
         bool dumpScrollBuffer = true;
         
+        std::string testLog;
+        
 //        uint8_t VRAM[1024*16]; // 16kb
         
         uint8_t* sprram()
@@ -713,11 +715,16 @@ namespace ReNes {
                     
                     // 从 _t 中取出tile坐标偏移
                     int bg_offset_x = v & 0x1F;         // tile整体偏移[0,31]
-                    int bg_t_x = _x;                    // tile精细偏移[0,7]
-                    
                     int bg_offset_y = (v >> 5) & 0x1F;
+                    
+                    int bg_t_x = _x;                    // tile精细偏移[0,7]
                     int bg_t_y = (v >> 12) & 0x7;
                     //            int bg_base = (v >> 10) & 0x3;
+                    
+                    // 需要实时获取
+                    nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
+                    
+                    testLog = std::to_string(nameTableIndex) + ": " + std::to_string(bg_offset_x) + "-" + std::to_string(bg_t_x);
                     
                     
                     // 计算当前扫描线所在瓦片，瓦片偏移发生在相对当前屏幕的tile上，而不是指图案表相对屏幕左上角发生的偏移
