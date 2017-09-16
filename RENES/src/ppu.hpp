@@ -399,8 +399,11 @@ namespace ReNes {
              vertical blanking interval (0: off; 1: on)
              
              */
+            auto* VRAM = _vram.masterData();
+
             
-           
+            
+            
             
             // 绘制背景
             uint8_t* bkPetternTableAddr = &_vram.masterData()[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址 0x0000或0x1000
@@ -667,8 +670,12 @@ namespace ReNes {
              
              */
             
-            memset(_spr_buffer, 0, height()*width());
+            
             // 绘制精灵
+            // 一个字节表示一个点
+            // 高2位 : 是否是第一精灵
+            // 低6位 : 系统调色板里的下标
+            memset(_spr_buffer, 0, height()*width());
             for (int i=0; i<64; i++)
             {
                 Sprite* spr = (Sprite*)&_sprram[i*4];
@@ -687,11 +694,9 @@ namespace ReNes {
                 drawTile2(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0);
             }
             
-            
-//            test7774;
-            
+
             // 模拟扫描线
-            std::function<void(uint8_t*, int)> drawBackground_byLine = [this, &drawTile, &drawPixel, sprPaletteAddr, bkPetternTableAddr, bkPaletteAddr](uint8_t* buffer, int nameTableIndex)
+            std::function<void(uint8_t*)> drawBackground_byLine = [this, &drawTile, &drawPixel, sprPaletteAddr, bkPetternTableAddr, bkPaletteAddr](uint8_t* buffer)
             {
                 
                 
@@ -722,7 +727,7 @@ namespace ReNes {
                     //            int bg_base = (v >> 10) & 0x3;
                     
                     // 需要实时获取
-                    nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
+                    int nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
                     
                     testLog = std::to_string(nameTableIndex) + ": " + std::to_string(bg_offset_x) + "-" + std::to_string(bg_t_x);
                     
@@ -871,9 +876,8 @@ namespace ReNes {
             
             // 绘制背景
             // 从名称表里取当前绘制的tile（1字节）
-            int nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
             if (true)
-                drawBackground_byLine(_buffer, nameTableIndex);
+                drawBackground_byLine(_buffer);
 
             if (dumpScrollBuffer)
             {
@@ -1002,7 +1006,6 @@ namespace ReNes {
         uint8_t* _scrollBufferTmp = 0;
         
 //        uint8_t* test7774;
-        
         
         uint8_t _sprram[256]; // 精灵内存, 64 个，每个4字节
         VRAM _vram;

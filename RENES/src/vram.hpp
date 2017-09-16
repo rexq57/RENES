@@ -69,6 +69,26 @@ namespace ReNes {
                 fixedAddr = addr % 0x4000;
 //                printf("fix %x -> %x\n", addr, fixedAddr);
             }
+            
+            // 处理调色板第一位的镜像
+            if (access == WRITE)
+            {
+                if (addr >= 0x3F00 && addr < 0x3F20)
+                {
+                    // 第一组调色板的0号颜色被作为整个屏幕背景的默认颜色，其他每组的第0号颜色都会跟背景颜色一样，也可以说这些颜色是透明的，所以会显示背景颜色（图中也可以见到），因此实际上调色板最多可标示颜色25种。
+                    if (addr == 0x3F10)
+                    {
+                        _data[0x3F00] = _data[0x3F10];
+                    }
+                    
+                    // 当写入精灵调色板第一位时，设置好其他镜像
+                    for (int i=0; i<8; i++)
+                    {
+                        if (i != 0 && i != 4)
+                            _data[0x3F00 + i*4] = _data[0x3F10];
+                    }
+                }
+            }
 
             return _data + fixedAddr;
         }
