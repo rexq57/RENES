@@ -35,6 +35,7 @@ namespace ReNes {
             return data;
         }
         
+        // 写入数据
         void write8bitData(uint16_t addr, uint8_t value)
         {
             *getRealAddr(addr, WRITE) = value;

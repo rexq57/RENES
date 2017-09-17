@@ -83,7 +83,7 @@ namespace ReNes {
         bit8* mask_regs;    // PPU屏蔽寄存器
         bit8* status_regs;  // PPU状态寄存器
         
-        bool dumpScrollBuffer = true;
+        bool dumpScrollBuffer = true; // 输出卷轴到buffer
         
         std::string testLog;
         
@@ -107,7 +107,7 @@ namespace ReNes {
             // RGB 数据缓冲区
             _buffer = (uint8_t*)malloc(bufferLength());
             
-            _spr_buffer = (uint8_t*)malloc(width()*height());
+            _spr_buffer = (uint8_t*)malloc(SPR_BUFFER_LENGTH);
             
             // 卷轴缓冲区
             _scrollBuffer = (uint8_t*)malloc(bufferLength()*4);
@@ -459,7 +459,7 @@ namespace ReNes {
             
 //            test7774 = &_spr_buffer[7774];
             
-            std::function<void(uint8_t*, int, int, int, uint8_t*, uint8_t*, bool, bool, bool)> drawTile2 = [this, bkPaletteAddr, sprPaletteAddr](uint8_t* buffer, int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr, bool flipH, bool flipV, bool isFirstSprite)
+            std::function<void(uint8_t*, int, int, int, uint8_t*, uint8_t*, bool, bool, bool)> drawSprBuffer = [this, bkPaletteAddr, sprPaletteAddr](uint8_t* buffer, int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr, bool flipH, bool flipV, bool isFirstSprite)
             {
 
                 for (int ty=0; ty<8; ty++)
@@ -492,8 +492,17 @@ namespace ReNes {
                         }
                         
                         int pixelIndex = (NES_MIN(y + ty, 239) * 32*8 + NES_MIN(x+tx, 255)); // 最低位是右边第一像素，所以渲染顺序要从右往左
+                        int spr_data = systemPaletteUnitIndex | (isFirstSprite ? (3 << 6) : 0);
                         
-                        buffer[pixelIndex] = systemPaletteUnitIndex | (isFirstSprite ? (3 << 6) : 0); // 低6位 = [0,63] ， 高2位 = 填充标记
+                        for (int i=0; i<8; i++)
+                        {
+                            auto& dst = buffer[pixelIndex + BUFFER_PIXEL_CONUT*i];
+                            
+                            if (dst != 0)
+                                continue;
+                            
+                            dst = spr_data; // 低6位 = [0,63] ， 高2位 = 填充标记
+                        }
 
                         
 //                        if (pixelIndex == 7774)
@@ -671,11 +680,12 @@ namespace ReNes {
              */
             
             
-            // 绘制精灵
+            // 绘制精灵到缓冲区，用来给扫描线使用
             // 一个字节表示一个点
             // 高2位 : 是否是第一精灵
             // 低6位 : 系统调色板里的下标
-            memset(_spr_buffer, 0, height()*width());
+            
+            memset(_spr_buffer, 0, SPR_BUFFER_LENGTH);
             for (int i=0; i<64; i++)
             {
                 Sprite* spr = (Sprite*)&_sprram[i*4];
@@ -691,7 +701,7 @@ namespace ReNes {
                 //                if (showSp)
                 //                drawTile(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, showSp);
                 
-                drawTile2(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0);
+                drawSprBuffer(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0);
             }
             
 
@@ -815,26 +825,33 @@ namespace ReNes {
                                 
                                 int pixelIndex = (NES_MIN(draw_line_y + ty, 239) * 32*8 + NES_MIN(draw_line_x+tx, 255)); // 最低位是右边第一像素，所以渲染顺序要从右往左
                                 
-                                int spr_systemPaletteUnitIndex = _spr_buffer[pixelIndex] & 63; // 取低6位[0,63]
-                                bool isFirstSprite = _spr_buffer[pixelIndex] > 63;
-                                
-                                
-//                                if (pixelIndex == 7774)
-//                                {
-//                                    pixelIndex;
-//                                }
-                                
+                                // 获取当前像素的精灵数据，并检测碰撞
+                                int spr_systemPaletteUnitIndex = 0; // 取低6位[0,63]
                                 {
-                                    // 当前背景色不是透明色，就发生碰撞！
-                                    //                                if (hitChecking && draw_line_x+tx_ != 255 && pb != pTRANSPARENT_RGB)
-                                    if (isFirstSprite && spr_systemPaletteUnitIndex != 0 && status_regs->get(6) == 0)
+                                    for (int i=0; i<8; i++)
                                     {
-                                        status_regs->set(6, 1);
+                                        uint8_t& spr_data = _spr_buffer[pixelIndex + i*BUFFER_PIXEL_CONUT];
+                                        
+                                        if (spr_data == 0)
+                                        {
+                                            break;
+                                        }
+                                        
+                                        spr_systemPaletteUnitIndex = spr_data & 63;
+                                        
+                                        {
+                                            bool isFirstSprite = spr_data > 63;
+                                            
+                                            // 当前背景色不是透明色，就发生碰撞！
+                                            //                                if (hitChecking && draw_line_x+tx_ != 255 && pb != pTRANSPARENT_RGB)
+                                            if (isFirstSprite && spr_systemPaletteUnitIndex != 0 && status_regs->get(6) == 0)
+                                            {
+                                                status_regs->set(6, 1);
+                                            }
+                                        }
                                     }
                                 }
-                                
-                                
-                                
+
                                 int systemPaletteUnitIndex;
                                 {
                                     if (spr_systemPaletteUnitIndex != 0)
@@ -865,7 +882,8 @@ namespace ReNes {
                     }
                     
                     // 模拟60Hz扫描线，每帧1/60秒，每条扫描线 1/60/240 秒 的延迟
-                    usleep(1.0/60/240*1000000);
+                    if (line_y<line_y_max-1)
+                        usleep(1.0/60/240*1000000);
                 }
 
             };
@@ -952,6 +970,7 @@ namespace ReNes {
         const int BUFFER_PIXEL_WIDTH = 256;
         const int BUFFER_PIXEL_HEIGHT = 240;
         const int BUFFER_PIXEL_BPP = 3;
+        const int BUFFER_PIXEL_CONUT = BUFFER_PIXEL_WIDTH * BUFFER_PIXEL_HEIGHT;
         
         struct Sprite {
             
@@ -1000,7 +1019,12 @@ namespace ReNes {
         bool _sprramWritingEnabled = false;
         
         
-        uint8_t* _spr_buffer = 0; // 精灵绘制缓冲区
+        
+        // 建立 w * h * 8 的缓冲区，每像素8字节，用来存储8个精灵的数据。
+        // 如果该像素没有精灵，甚至没有叠加，则该位第一字节为0
+        const int SPR_BUFFER_LENGTH = BUFFER_PIXEL_CONUT*8;
+        
+        uint8_t* _spr_buffer = 0;   // 精灵绘制缓冲区
         uint8_t* _buffer = 0;       // 显示缓冲区
         uint8_t* _scrollBuffer = 0; // 卷轴缓冲区
         uint8_t* _scrollBufferTmp = 0;
