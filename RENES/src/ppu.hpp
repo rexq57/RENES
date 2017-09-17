@@ -79,11 +79,13 @@ namespace ReNes {
         
     public:
         
+        int fps = 60; // default = 60
+        
         bit8* io_regs; // I/O 寄存器, 8 x 8bit
         bit8* mask_regs;    // PPU屏蔽寄存器
         bit8* status_regs;  // PPU状态寄存器
         
-        bool dumpScrollBuffer = true; // 输出卷轴到buffer
+        bool dumpScrollBuffer = false; // 输出卷轴到buffer
         
         std::string testLog;
         
@@ -105,13 +107,13 @@ namespace ReNes {
             assert(4 == sizeof(Sprite));
             
             // RGB 数据缓冲区
-            _buffer = (uint8_t*)malloc(bufferLength());
+            _buffer = (uint8_t*)malloc(RGB_BUFFER_LENGTH);
             
             _spr_buffer = (uint8_t*)malloc(SPR_BUFFER_LENGTH);
             
             // 卷轴缓冲区
-            _scrollBuffer = (uint8_t*)malloc(bufferLength()*4);
-            _scrollBufferTmp = (uint8_t*)malloc(bufferLength());
+            _scrollBuffer = (uint8_t*)malloc(RGB_BUFFER_LENGTH*4);
+            _scrollBufferTmp = (uint8_t*)malloc(RGB_BUFFER_LENGTH);
             
             reset();
         }
@@ -377,6 +379,8 @@ namespace ReNes {
 //            memset(_buffer, 0, bufferLength());
 //            memset(_scrollBuffer, 0, bufferLength()*4);
             
+            
+            
             // 设置背景色
             
             /*
@@ -401,8 +405,20 @@ namespace ReNes {
              */
             auto* VRAM = _vram.masterData();
 
-            
-            
+//            uint8_t paletteBuffer[32];
+//            {
+//                memcpy(paletteBuffer, &VRAM[0x3F00], 32);
+//                
+//                // 第一组调色板的0号颜色被作为整个屏幕背景的默认颜色，其他每组的第0号颜色都会跟背景颜色一样，也可以说这些颜色是透明的，所以会显示背景颜色（图中也可以见到），因此实际上调色板最多可标示颜色25种。
+//                paletteBuffer[0] = paletteBuffer[0x10];
+//                
+//                // 当写入精灵调色板第一位时，设置好其他镜像
+//                for (int i=0; i<8; i++)
+//                {
+//                    if (i != 0 && i != 4)
+//                        paletteBuffer[0x00 + i*4] = paletteBuffer[0x10];
+//                }
+//            }
             
             
             // 绘制背景
@@ -410,12 +426,41 @@ namespace ReNes {
             uint8_t* sprPetternTableAddr = &_vram.masterData()[0x1000 * io_regs[0].get(3)]; // 第3bit决定精灵图案表地址 0x0000或0x1000
             
             uint8_t* bkPaletteAddr = &_vram.masterData()[0x3F00];   // 背景调色板地址
-            uint8_t* sprPaletteAddr = &_vram.masterData()[0x3F10]; // 精灵调色板地址
+            uint8_t* sprPaletteAddr = &_vram.masterData()[0x3F10];  // 精灵调色板地址
             
             const static RGB* pTRANSPARENT_RGB = (RGB*)&DEFAULT_PALETTE[bkPaletteAddr[0]*3];
 
             
+            /*
+             0x2001 > write
+             7  bit  0
+             ---- ----
+             BGRs bMmG
+             |||| ||||
+             |||| |||+- Greyscale (0: normal color, 1: produce a greyscale display)
+             |||| ||+-- 1: Show background in leftmost 8 pixels of screen, 0: Hide
+             |||| |+--- 1: Show sprites in leftmost 8 pixels of screen, 0: Hide
+             |||| +---- 1: Show background
+             |||+------ 1: Show sprites
+             ||+------- Emphasize red*
+             |+-------- Emphasize green*
+             +--------- Emphasize blue*
+             
+             */
+            bool showBg = mask_regs->get(3) == 1;
+            bool showSpr = mask_regs->get(4) == 1;
             
+            /*
+             
+             VRAM
+             
+             yyy NN YYYYY XXXXX
+             ||| || ||||| +++++-- coarse X scroll
+             ||| || +++++-------- coarse Y scroll
+             ||| ++-------------- nametable select
+             +++----------------- fine Y scroll
+             
+             */
             
             
             
@@ -459,20 +504,20 @@ namespace ReNes {
             
 //            test7774 = &_spr_buffer[7774];
             
-            std::function<void(uint8_t*, int, int, int, uint8_t*, uint8_t*, bool, bool, bool)> drawSprBuffer = [this, bkPaletteAddr, sprPaletteAddr](uint8_t* buffer, int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr, bool flipH, bool flipV, bool isFirstSprite)
+            std::function<void(uint8_t*, int, int, int, uint8_t*, uint8_t*, bool, bool, bool, bool)> drawSprBuffer = [this, bkPaletteAddr, sprPaletteAddr](uint8_t* buffer, int x, int y, int high2, uint8_t* tileAddr, uint8_t* paletteAddr, bool flipH, bool flipV, bool isFirstSprite, bool priority)
             {
 
                 for (int ty=0; ty<8; ty++)
                 {
                     if (y + ty < 0)
-                    continue;
+                        continue;
                     
                     int ty_ = flipV ? 7-ty : ty;
                     
                     for (int tx=0; tx<8; tx++)
                     {
                         if (x + tx < 0)
-                        continue;
+                            continue;
                         
                         int tx_ = flipH ? tx : 7-tx;
                         
@@ -481,18 +526,20 @@ namespace ReNes {
                         int low1 = ((bit8*)&tileAddr[ty_+8])->get(tx_);
                         int low2 = low0 | (low1 << 1);
                         
-                        int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
+                        int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号 [0, 15]
                         
-                        int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
+//                        int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
                         
                         // 如果绘制精灵，而且当前颜色引用到背景透明色（背景调色板第一位），就不绘制
-                        if (systemPaletteUnitIndex == bkPaletteAddr[0])
+//                        if (systemPaletteUnitIndex == bkPaletteAddr[0])
+                        if (paletteUnitIndex % 4 == 0)
                         {
                             continue;
                         }
                         
                         int pixelIndex = (NES_MIN(y + ty, 239) * 32*8 + NES_MIN(x+tx, 255)); // 最低位是右边第一像素，所以渲染顺序要从右往左
-                        int spr_data = systemPaletteUnitIndex | (isFirstSprite ? (3 << 6) : 0);
+//                        int spr_data = systemPaletteUnitIndex | (isFirstSprite ? (3 << 6) : 0);
+                        int spr_data = (isFirstSprite ? (3 << 6) : 0) | (priority << 5) | paletteUnitIndex;
                         
                         for (int i=0; i<8; i++)
                         {
@@ -503,12 +550,6 @@ namespace ReNes {
                             
                             dst = spr_data; // 低6位 = [0,63] ， 高2位 = 填充标记
                         }
-
-                        
-//                        if (pixelIndex == 7774)
-//                        pixelIndex;
-                        
-//                        *(RGB*)&_buffer[pixelIndex*3] = *(RGB*)&DEFAULT_PALETTE[_spr_buffer[pixelIndex]*3];
                     }
                 }
             };
@@ -569,36 +610,7 @@ namespace ReNes {
             };
             
             
-            /*
-             0x2001 > write
-             7  bit  0
-             ---- ----
-             BGRs bMmG
-             |||| ||||
-             |||| |||+- Greyscale (0: normal color, 1: produce a greyscale display)
-             |||| ||+-- 1: Show background in leftmost 8 pixels of screen, 0: Hide
-             |||| |+--- 1: Show sprites in leftmost 8 pixels of screen, 0: Hide
-             |||| +---- 1: Show background
-             |||+------ 1: Show sprites
-             ||+------- Emphasize red*
-             |+-------- Emphasize green*
-             +--------- Emphasize blue*
-             
-             */
-            bool showBg = mask_regs->get(3) == 1;
-            bool showSp = mask_regs->get(4) == 1;
-
-            /*
-             
-             VRAM
-             
-             yyy NN YYYYY XXXXX
-             ||| || ||||| +++++-- coarse X scroll
-             ||| || +++++-------- coarse Y scroll
-             ||| ++-------------- nametable select
-             +++----------------- fine Y scroll
-             
-             */
+            
 
             
             
@@ -695,18 +707,19 @@ namespace ReNes {
                 uint8_t* tileAddr = &sprPetternTableAddr[spr->tileIndex * 16];
                 
                 int high2 = spr->info.get(0) | (spr->info.get(1) << 1);
-                bool flipH = spr->info.get(6);
-                bool flipV = spr->info.get(7);
+                bool sprFront = spr->info.get(5); // 优先级，0 - 在背景上 1 - 在背景下
+                bool flipH = spr->info.get(6); // 水平翻转
+                bool flipV = spr->info.get(7); // 竖直翻转
                 
                 //                if (showSp)
                 //                drawTile(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, showSp);
                 
-                drawSprBuffer(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0);
+                drawSprBuffer(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
             }
             
 
             // 模拟扫描线
-            std::function<void(uint8_t*)> drawBackground_byLine = [this, &drawTile, &drawPixel, sprPaletteAddr, bkPetternTableAddr, bkPaletteAddr](uint8_t* buffer)
+            std::function<void(uint8_t*)> drawBackground_byLine = [this, showBg, showSpr, &drawTile, &drawPixel, sprPaletteAddr, bkPetternTableAddr, bkPaletteAddr](uint8_t* buffer)
             {
                 
                 
@@ -725,8 +738,8 @@ namespace ReNes {
                 
                 for (int line_y=0; line_y<line_y_max; line_y++)
                 {
-                    // update
-                    
+                    // 获取时间点
+                    auto t0=std::chrono::system_clock::now();
                     
                     // 从 _t 中取出tile坐标偏移
                     int bg_offset_x = v & 0x1F;         // tile整体偏移[0,31]
@@ -805,7 +818,6 @@ namespace ReNes {
                             uint8_t* paletteAddr = bkPaletteAddr;
                             bool flipV = false;
                             bool flipH = false;
-                            bool show = true;
                             
                             {
                                 int tx_ = flipH ? tx : 7-tx;
@@ -827,6 +839,7 @@ namespace ReNes {
                                 
                                 // 获取当前像素的精灵数据，并检测碰撞
                                 int spr_systemPaletteUnitIndex = 0; // 取低6位[0,63]
+                                bool sprFront = true;
                                 {
                                     for (int i=0; i<8; i++)
                                     {
@@ -837,14 +850,15 @@ namespace ReNes {
                                             break;
                                         }
                                         
-                                        spr_systemPaletteUnitIndex = spr_data & 63;
+//                                        spr_systemPaletteUnitIndex = spr_data & 63;
+                                        sprFront = (spr_data & 32) == 0;
+                                        spr_systemPaletteUnitIndex = sprPaletteAddr[spr_data & 15];
                                         
                                         {
                                             bool isFirstSprite = spr_data > 63;
                                             
-                                            // 当前背景色不是透明色，就发生碰撞！
-                                            //                                if (hitChecking && draw_line_x+tx_ != 255 && pb != pTRANSPARENT_RGB)
-                                            if (isFirstSprite && spr_systemPaletteUnitIndex != 0 && status_regs->get(6) == 0)
+                                            // 碰撞条件，第一精灵 & 非0调色板第一位（透明色）& 允许碰撞
+                                            if (isFirstSprite && spr_systemPaletteUnitIndex != sprPaletteAddr[0] && status_regs->get(6) == 0)
                                             {
                                                 status_regs->set(6, 1);
                                             }
@@ -852,25 +866,31 @@ namespace ReNes {
                                     }
                                 }
 
-                                int systemPaletteUnitIndex;
+                                int systemPaletteUnitIndex = -1;
                                 {
-                                    if (spr_systemPaletteUnitIndex != 0)
+                                    if (showSpr && spr_systemPaletteUnitIndex != 0)
                                     {
-                                        systemPaletteUnitIndex = spr_systemPaletteUnitIndex;
+                                        // 判断前后
+                                        if (showBg && !sprFront && paletteUnitIndex != 0)
+                                        {
+                                            systemPaletteUnitIndex = bg_systemPaletteUnitIndex;
+                                        }
+                                        else
+                                        {
+                                            systemPaletteUnitIndex = spr_systemPaletteUnitIndex;
+                                        }
                                     }
-                                    else
+                                    else if (showBg)
                                     {
                                         systemPaletteUnitIndex = bg_systemPaletteUnitIndex;
                                     }
                                 }
 
-                                
-                                RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
-                                auto* pb = (RGB*)&buffer[pixelIndex*3];
-                            
-                                
-                                if (show)
+                                if (systemPaletteUnitIndex != -1)
                                 {
+                                    RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
+                                    auto* pb = (RGB*)&buffer[pixelIndex*3];
+                                    
                                     *pb = *rgb;
                                 }
                             }
@@ -883,7 +903,26 @@ namespace ReNes {
                     
                     // 模拟60Hz扫描线，每帧1/60秒，每条扫描线 1/60/240 秒 的延迟
                     if (line_y<line_y_max-1)
-                        usleep(1.0/60/240*1000000);
+                    {
+                        const double p_t = 1.0/fps/240;
+                        
+                        auto t1=std::chrono::system_clock::now();
+                        auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0); // 实际花费时间，纳秒
+                        double d_t = d.count() * 0.000000001;
+                        
+                        double dd = p_t - d_t; // 纳秒差
+                        
+                        if (dd > 0)
+                        {
+                            usleep(dd * 1000000);
+                            
+                            t0 = std::chrono::system_clock::now();
+                        }
+                        else
+                        {
+                            t0 = t1; // 记录当前时间
+                        }
+                    }
                 }
 
             };
@@ -894,8 +933,13 @@ namespace ReNes {
             
             // 绘制背景
             // 从名称表里取当前绘制的tile（1字节）
-            if (true)
-                drawBackground_byLine(_buffer);
+            
+            // 先将设置背景色
+            drawBackground_byLine(_buffer);
+            
+            // 绘制完成，等于发生了 VBlank，需要设置 2002 第7位
+            status_regs->set(7, 1);
+
 
             if (dumpScrollBuffer)
             {
@@ -908,7 +952,7 @@ namespace ReNes {
                         // copy to buffer
                         size_t lineLength = BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_BPP;
                         
-                        uint8_t* dst = _scrollBuffer + (i%2)*lineLength + i/2*bufferLength()*2;
+                        uint8_t* dst = _scrollBuffer + (i%2)*lineLength + i/2*RGB_BUFFER_LENGTH*2;
                         size_t dstStride = lineLength*2;
                         
                         for (int y=0; y<BUFFER_PIXEL_HEIGHT; y++)
@@ -921,39 +965,40 @@ namespace ReNes {
             
 
             
-            // 绘制完成，等于发生了 VBlank，需要设置 2002 第7位
-            status_regs->set(7, 1);
+            
             
             
         }
         
-        int width()
+        int width() const
         {
             return BUFFER_PIXEL_WIDTH;
         }
         
-        int height()
+        int height() const
         {
             return BUFFER_PIXEL_HEIGHT;
         }
         
-        int bpp()
+        int bpp() const
         {
             return BUFFER_PIXEL_BPP;
         }
         
-        size_t bufferLength()
-        {
-            return width()*height() * bpp();
-        }
+//        size_t bufferLength() const
+//        {
+//            return width()*height() * bpp();
+//        }
         
-        uint8_t* buffer()
+        uint8_t* buffer() const
         {
             return _buffer;
         }
         
-        uint8_t* scrollBuffer()
+        uint8_t* scrollBuffer() const
         {
+//            assert(dumpScrollBuffer);
+            
             return _scrollBuffer;
         }
         
@@ -971,6 +1016,8 @@ namespace ReNes {
         const int BUFFER_PIXEL_HEIGHT = 240;
         const int BUFFER_PIXEL_BPP = 3;
         const int BUFFER_PIXEL_CONUT = BUFFER_PIXEL_WIDTH * BUFFER_PIXEL_HEIGHT;
+        
+        const int RGB_BUFFER_LENGTH = BUFFER_PIXEL_CONUT * 3;
         
         struct Sprite {
             

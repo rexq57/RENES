@@ -12,10 +12,11 @@
 #import "MyOpenGLView.h"
 #import <BlocksKit/BlocksKit.h>
 #import "PetternTableView.h"
+#import <ReactiveObjC/ReactiveObjC.h>
 
 using namespace ReNes;
 
-@interface ViewController()
+@interface ViewController()<NSTabViewDelegate>
 {
     Nes* _nes;
     
@@ -186,10 +187,38 @@ using namespace ReNes;
     }
 }
 
+- (instancetype) initWithCoder:(NSCoder *)coder
+{
+    if ((self = [super initWithCoder:coder]))
+    {
+        [[self rac_signalForSelector:@selector(tabView:didSelectTabViewItem:) fromProtocol:@protocol(NSTabViewDelegate)] subscribeNext:^(RACTuple* tuple) {
+            
+            if (tuple.first == _memTabView){
+                
+                NSString* identifier = [tuple.second identifier];
+                
+                if (_nes)
+                {
+                    _nes->setDumpScrollBuffer([identifier isEqualToString:@"scroll"]);
+                }
+                
+//                NSLog(@"%@", [tuple.second identifier]);
+            }
+        }];
+        
+        
+    }
+    
+    return self;
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
 
     // Do any additional setup after loading the view.
+    
+
+    
     
     
     

@@ -232,7 +232,7 @@ namespace ReNes {
             
             std::thread ppu_thread;
             {
-                const double p_t = 1.0 / 60;
+                const double p_t = 1.0 / fps();
                 
                 auto t0=std::chrono::system_clock::now();
                 
@@ -293,6 +293,21 @@ namespace ReNes {
             setLogEnabled(debug);
             
             log("设置debug模式: %d\n", debug);
+        }
+        
+        void setFps(int fps)
+        {
+            _ppu.fps = fps;
+        }
+        
+        void setDumpScrollBuffer(bool enabled)
+        {
+            _ppu.dumpScrollBuffer = enabled;
+        }
+        
+        int fps()
+        {
+            return _ppu.fps;
         }
 
         bool debug = false;

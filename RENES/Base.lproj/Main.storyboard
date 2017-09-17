@@ -984,7 +984,7 @@
                                             </constraints>
                                         </view>
                                     </tabViewItem>
-                                    <tabViewItem label="卷轴" identifier="4" id="w56-E2-7wp">
+                                    <tabViewItem label="卷轴" identifier="scroll" id="w56-E2-7wp">
                                         <view key="view" id="9aP-Gg-ZFm">
                                             <rect key="frame" x="10" y="7" width="454" height="230"/>
                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -1002,6 +1002,9 @@
                                         </view>
                                     </tabViewItem>
                                 </tabViewItems>
+                                <connections>
+                                    <outlet property="delegate" destination="XfG-lQ-9wD" id="FYp-1X-N7O"/>
+                                </connections>
                             </tabView>
                             <openGLView useAuxiliaryDepthBufferStencil="NO" allowOffline="YES" translatesAutoresizingMaskIntoConstraints="NO" id="8HV-AN-ZeJ" customClass="MyOpenGLView">
                                 <rect key="frame" x="20" y="298" width="256" height="240"/>
