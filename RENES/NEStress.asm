@@ -4072,12 +4072,12 @@ PPUTest_2			; ! Test Sprites !
    ldx   #$00
    stx   $2003
 .PPUWriteLoop22
-   stx   $2004
+   stx   $2004		; 0x0000ABEA
    inx
    bne   .PPUWriteLoop22
 
-   stx   $04
-   stx   $2003
+   stx   $04		; 0xABF0
+   stx   $2003		; 0xABF2
 .PPUReadLoop22
    lda   $2004
    cmp   $04

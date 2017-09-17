@@ -143,27 +143,6 @@ namespace ReNes {
             status_regs = (bit8*)&io_regs[2];
             
             std::function<void(uint16_t, uint8_t)> writtingObserver = [this](uint16_t addr, uint8_t value){
-                
-                
-                std::function<void(int&,uint16_t&, uint16_t&)> dstAddrWriting = [value](int& dstWrite, uint16_t& dstAddrTmp, uint16_t& dstAddr){
-                    
-//                    int writeBitIndex = dstWrite;
-//                    dstWrite = (dstWrite+1) % 2;
-//                    
-//                    
-//                    dstAddr &= (0xFF << dstWrite*8); // 清理高/低位
-//                    dstAddr |= (value << writeBitIndex*8); // 设置对应位
-                    
-                    int writeBitIndex = (dstWrite+1) % 2;
-                    
-                    dstAddrTmp &= (0xFF << dstWrite*8); // 清理相反的高/低位
-                    dstAddrTmp |= (value << writeBitIndex*8); // 设置对应位
-                    
-                    dstWrite = (dstWrite+1) % 2;
-                    
-                    if (dstWrite == 0)
-                        dstAddr = dstAddrTmp;
-                };
 
                 
                 // 接收来自2007的数据
@@ -177,20 +156,12 @@ namespace ReNes {
                     }
                     case 0x2003:
                     {
-                        dstAddrWriting(_dstWrite2003, _dstAddr2004tmp, _dstAddr2004);
-                        
-                        if (_dstWrite2003 == 1)
-                            _sprramWritingEnabled = true;
+                        _dstAddr2004 = value;
                         break;
                     }
                     case 0x2004:
                     {
-                        if (_sprramWritingEnabled)
-                        {
-                            _sprram[_dstAddr2004++ % 256] = value;
-//                            _dstWrite2003 = 0;
-                        }
-                        
+                        _sprram[_dstAddr2004++ % 256] = value;
                         break;
                     }
                     case 0x2005:
@@ -296,6 +267,9 @@ namespace ReNes {
                         _w = 0;
                         status_regs->set(7, 0);
                         break;
+                    case 0x2004:
+                        *value = _sprram[_dstAddr2004++ % 256];
+                        break;
                     case 0x2007:
                         
 //                        printf("读取 2007 %x - ", _v);
@@ -351,15 +325,14 @@ namespace ReNes {
              
              */
             
-            mem->addWritingObserver(0x2000, writtingObserver); // 写
-            mem->addReadingObserver(0x2002, readingObserver); // 读
-            
+            mem->addWritingObserver(0x2000, writtingObserver);
+            mem->addReadingObserver(0x2002, readingObserver);
+            mem->addReadingObserver(0x2004, readingObserver);
             mem->addReadingObserver(0x2007, readingObserver);
             
             // 精灵读写监听
             mem->addWritingObserver(0x2003, writtingObserver);
             mem->addWritingObserver(0x2004, writtingObserver);
-            
             mem->addWritingObserver(0x2005, writtingObserver);
             
             // vram读写监听
@@ -1042,10 +1015,7 @@ namespace ReNes {
             _v = 0;
             _x = 0;
             
-            _dstWrite2003 = 0;
-            _dstAddr2004tmp = 0;
             _dstAddr2004 = 0;
-            _sprramWritingEnabled = false;
             
             memset(_sprram, 0, 256);
         }
@@ -1059,13 +1029,9 @@ namespace ReNes {
         int _2007ReadingStep = 0;
         uint8_t _2007ReadingCache = 0;
         
-        int _dstWrite2003 = 0;
-        uint16_t _dstAddr2004tmp = 0;
         uint16_t _dstAddr2004 = 0;
         
-        bool _sprramWritingEnabled = false;
-        
-        
+
         
         // 建立 w * h * 8 的缓冲区，每像素8字节，用来存储8个精灵的数据。
         // 如果该像素没有精灵，甚至没有叠加，则该位第一字节为0
