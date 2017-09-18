@@ -348,6 +348,9 @@ namespace ReNes {
             status_regs->set(7, 0); // 清除 vblank
             status_regs->set(6, 0);
             
+            // 准备当前帧的OAM
+            memcpy(_OAM, _sprram, 256);
+            
             // clear
 //            memset(_buffer, 0, bufferLength());
 //            memset(_scrollBuffer, 0, bufferLength()*4);
@@ -673,7 +676,7 @@ namespace ReNes {
             memset(_spr_buffer, 0, SPR_BUFFER_LENGTH);
             for (int i=0; i<64; i++)
             {
-                Sprite* spr = (Sprite*)&_sprram[i*4];
+                Sprite* spr = (Sprite*)&_OAM[i*4];
                 if (*(int*)spr == 0) // 没有精灵数据
                 continue;
                 
@@ -936,11 +939,6 @@ namespace ReNes {
                 }
             }
             
-
-            
-            
-            
-            
         }
         
         int width() const
@@ -1045,6 +1043,8 @@ namespace ReNes {
 //        uint8_t* test7774;
         
         uint8_t _sprram[256]; // 精灵内存, 64 个，每个4字节
+        uint8_t _OAM[256];    // 每帧的OAM
+        
         VRAM _vram;
         Memory* _mem;
     };
