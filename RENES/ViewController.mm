@@ -16,6 +16,19 @@
 
 using namespace ReNes;
 
+
+void working()
+{
+    // 主循环
+    do {
+        
+        printf("fuck haha\n");
+        
+        sleep(1);
+        
+    }while(true);
+}
+
 @interface ViewController()<NSTabViewDelegate>
 {
     Nes* _nes;
@@ -28,6 +41,8 @@ using namespace ReNes;
     
     int _stopedCmdAddr;
     long _stopedCmdLine;
+    
+    
 }
 
 @property (nonatomic) NSString* filePath;
@@ -76,121 +91,116 @@ using namespace ReNes;
 
 - (void) startNes:(NSString*) filePath
 {
-    void (^start)(NSString*) = ^(NSString* filePath){
-        // 异步
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            
-            @autoreleasepool {
-                
-                //            NSString* filePath = [[NSBundle mainBundle] pathForResource:@"OUR.NES" ofType:@""];
-                NSData* data = [NSData dataWithContentsOfFile:filePath];
-                
-                if (_nes != 0)
-                {
-                    delete _nes;
-                }
-                _nes = new Nes();
-                
-                _nes->willRunning = [self](){
-                    
-                    // 反汇编
-                    [self disassembly];
-                };
-                
-                _nes->cpu_callback = [self](CPU* cpu){
-                    
-                    // 手动中断
-                    //            @synchronized ((__bridge id)_nes)
-                    {
-                        if (cpu == _nes->cpu())
-                        {
-                            if (!_keepNext)
-                            {
-                                dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
-                            }
-                            else if ((cpu->regs.PC == _stopedCmdAddr || cpu->execCmdLine == _stopedCmdLine))
-                            {
-                                _nes->setDebug(true);
-                                log("自定义地址中断\n");
-                                dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
-                            }
-                        }
-                    }
-                    
-                    
-                    return true;
-                };
-                
-                _nes->ppu_callback = [self](PPU* ppu){
-                    
-                    //            @synchronized ((__bridge id)_nes)
-                    {
-                        if (ppu == _nes->ppu())
-                        {
-                            {
-                                // 显示图片
-                                int width  = ppu->width();
-                                int height = ppu->height();
-                                uint8_t* srcBuffer = ppu->buffer();
-                                
-                                [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
-
-                            }
-                            
-                            {
-                                // 显示图片
-                                int width  = _nes->ppu()->width()*2;
-                                int height = _nes->ppu()->height()*2;
-                                uint8_t* srcBuffer = _nes->ppu()->scrollBuffer();
-                                
-                                [_scrollMirroringView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
-
-                            }
-                        }
-                    }
-                    
-                    return true;
-                };
-                
-                //        _nes->mem()->addWritingObserver(0x2000, [self](uint16_t addr, uint8_t value){
-                //
-                //            if (addr == 0x2000 && (*(bit8*)&value).get(7) == 1)
-                //            {
-                //                _keepNext = false;
-                //                log("fuck\n");
-                //            }
-                //        });
-                
-                _nes->setDebug(false);
-                _nes->loadRom((const uint8_t*)[data bytes], [data length]);
-                
-                _nes->run();
-                
-            }
-        });
-    };
-    
     // 停止，才重新启动
     if (_nes)
     {
-        _nes->stop([self, start](){
-            
-            start(self.filePath);
-        });
-        
+        _nes->stop();
         _keepNext = false; // 拦截在第一次cmd之后
         dispatch_semaphore_signal(_nextSem); // 不拦截下一句指令，顺利让cpu进入stop判断
     }
-    else
-    {
-        start(self.filePath);
-    }
+    
+    // 异步
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        
+        @autoreleasepool {
+            
+            //            NSString* filePath = [[NSBundle mainBundle] pathForResource:@"OUR.NES" ofType:@""];
+            NSData* data = [NSData dataWithContentsOfFile:filePath];
+            
+            if (_nes != 0)
+            {
+                delete _nes;
+            }
+            _nes = new Nes();
+            
+            _nes->willRunning = [self](){
+                
+                // 反汇编
+                [self disassembly];
+            };
+            
+            _nes->cpu_callback = [self](CPU* cpu){
+                
+                // 手动中断
+                //            @synchronized ((__bridge id)_nes)
+                {
+                    if (cpu == _nes->cpu())
+                    {
+                        if (!_keepNext)
+                        {
+                            dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
+                        }
+                        else if ((cpu->regs.PC == _stopedCmdAddr || cpu->execCmdLine == _stopedCmdLine))
+                        {
+                            _nes->setDebug(true);
+                            log("自定义地址中断\n");
+                            dispatch_semaphore_wait(_nextSem, DISPATCH_TIME_FOREVER);
+                        }
+                    }
+                }
+                
+                
+                return true;
+            };
+            
+            _nes->ppu_callback = [self](PPU* ppu){
+                
+                //            @synchronized ((__bridge id)_nes)
+                {
+                    if (ppu == _nes->ppu())
+                    {
+                        {
+                            // 显示图片
+                            int width  = ppu->width();
+                            int height = ppu->height();
+                            uint8_t* srcBuffer = ppu->buffer();
+                            
+                            [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+                            
+                        }
+                        
+                        {
+                            // 显示图片
+                            int width  = _nes->ppu()->width()*2;
+                            int height = _nes->ppu()->height()*2;
+                            uint8_t* srcBuffer = _nes->ppu()->scrollBuffer();
+                            
+                            [_scrollMirroringView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+                            
+                        }
+                    }
+                }
+                
+                return true;
+            };
+            
+            //        _nes->mem()->addWritingObserver(0x2000, [self](uint16_t addr, uint8_t value){
+            //
+            //            if (addr == 0x2000 && (*(bit8*)&value).get(7) == 1)
+            //            {
+            //                _keepNext = false;
+            //                log("fuck\n");
+            //            }
+            //        });
+            
+            _nes->setDebug(false);
+            _nes->loadRom((const uint8_t*)[data bytes], [data length]);
+            
+            _nes->run();
+            
+            _nes->dumpScrollBuffer = [_memTabView.selectedTabViewItem.identifier isEqualToString:@"scroll"];
+            
+            NSLog(@"模拟器开始运行");
+            
+        }
+    });
 }
 
 - (instancetype) initWithCoder:(NSCoder *)coder
 {
     if ((self = [super initWithCoder:coder]))
     {
+        // 相应tab切换
         [[self rac_signalForSelector:@selector(tabView:didSelectTabViewItem:) fromProtocol:@protocol(NSTabViewDelegate)] subscribeNext:^(RACTuple* tuple) {
             
             if (tuple.first == _memTabView){
@@ -199,14 +209,15 @@ using namespace ReNes;
                 
                 if (_nes)
                 {
-                    _nes->setDumpScrollBuffer([identifier isEqualToString:@"scroll"]);
+                    _nes->dumpScrollBuffer = [identifier isEqualToString:@"scroll"];
                 }
+                
+//                _thread = std::thread(working);
+                
                 
 //                NSLog(@"%@", [tuple.second identifier]);
             }
         }];
-        
-        
     }
     
     return self;
