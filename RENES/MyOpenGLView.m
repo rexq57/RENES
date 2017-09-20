@@ -180,7 +180,7 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
     if (_uniformTexture != -1)
     {
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(_uniformTexture, 0);
+        glBindTexture(_uniformTexture, _textureId);
     }
     
     const GLfloat vertex[] = {
@@ -217,6 +217,7 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
     
     if (_textureId == 0)
     {
+        glActiveTexture(GL_TEXTURE0);
         glGenTextures(1, &_textureId);
         glBindTexture(GL_TEXTURE_2D, _textureId);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

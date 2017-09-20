@@ -7,7 +7,7 @@
 //
 
 #import "ViewController.h"
-#include "src/renes.hpp"
+#include <src/renes.hpp>
 #include <string>
 #import "MyOpenGLView.h"
 #import <BlocksKit/BlocksKit.h>
@@ -17,17 +17,6 @@
 using namespace ReNes;
 
 
-void working()
-{
-    // 主循环
-    do {
-        
-        printf("fuck haha\n");
-        
-        sleep(1);
-        
-    }while(true);
-}
 
 @interface ViewController()<NSTabViewDelegate>
 {

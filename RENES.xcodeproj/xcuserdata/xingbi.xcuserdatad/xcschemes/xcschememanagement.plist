@@ -9,10 +9,20 @@
 			<key>orderHint</key>
 			<integer>0</integer>
 		</dict>
+		<key>RENES_IOS.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>4</integer>
+		</dict>
 	</dict>
 	<key>SuppressBuildableAutocreation</key>
 	<dict>
 		<key>2156BFB51EFF5976001B3025</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>21BA86181F72BA6C00183B0F</key>
 		<dict>
 			<key>primary</key>
 			<true/>

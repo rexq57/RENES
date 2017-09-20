@@ -13,13 +13,24 @@
 		2156BFC11EFF5976001B3025 /* ViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2156BFC01EFF5976001B3025 /* ViewController.mm */; };
 		2156BFC31EFF5976001B3025 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2156BFC21EFF5976001B3025 /* Assets.xcassets */; };
 		2156BFC61EFF5976001B3025 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2156BFC41EFF5976001B3025 /* Main.storyboard */; };
-		2156BFCE1EFF5998001B3025 /* src in Resources */ = {isa = PBXBuildFile; fileRef = 2156BFCD1EFF5998001B3025 /* src */; };
 		2167AF7D1F05117C000E6D99 /* MyOpenGLView.m in Sources */ = {isa = PBXBuildFile; fileRef = 2167AF7C1F05117C000E6D99 /* MyOpenGLView.m */; };
 		216B866D1F1684BE00C27040 /* PetternTableView.m in Sources */ = {isa = PBXBuildFile; fileRef = 216B866C1F1684BE00C27040 /* PetternTableView.m */; };
+		21BA861D1F72BA6C00183B0F /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 21BA861C1F72BA6C00183B0F /* main.m */; };
+		21BA86201F72BA6C00183B0F /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 21BA861F1F72BA6C00183B0F /* AppDelegate.m */; };
+		21BA86231F72BA6C00183B0F /* ViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 21BA86221F72BA6C00183B0F /* ViewController.mm */; };
+		21BA86261F72BA6C00183B0F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 21BA86241F72BA6C00183B0F /* Main.storyboard */; };
+		21BA86281F72BA6C00183B0F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 21BA86271F72BA6C00183B0F /* Assets.xcassets */; };
+		21BA862B1F72BA6C00183B0F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 21BA86291F72BA6C00183B0F /* LaunchScreen.storyboard */; };
+		21BA86321F72CA4800183B0F /* DisplayView.mm in Sources */ = {isa = PBXBuildFile; fileRef = 21BA86311F72CA4800183B0F /* DisplayView.mm */; };
+		21BA86341F72D86600183B0F /* src in Resources */ = {isa = PBXBuildFile; fileRef = 21BA86331F72D86600183B0F /* src */; };
+		21BA86361F72D9DE00183B0F /* Roms in Resources */ = {isa = PBXBuildFile; fileRef = 21BA86351F72D9DE00183B0F /* Roms */; };
+		21BA86371F72D9DE00183B0F /* Roms in Resources */ = {isa = PBXBuildFile; fileRef = 21BA86351F72D9DE00183B0F /* Roms */; };
+		2C7863F4623C81F0AF4EE04E /* libPods-RENES_IOS.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 050B38F3EA0EC6CF433963B5 /* libPods-RENES_IOS.a */; };
 		5361784537461CD508990EF3 /* libPods-RENES.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 19CA15BACCD628EEE57098FB /* libPods-RENES.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		050B38F3EA0EC6CF433963B5 /* libPods-RENES_IOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-RENES_IOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		19CA15BACCD628EEE57098FB /* libPods-RENES.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-RENES.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		214C3C891F002C4F0069C001 /* OUR.NES */ = {isa = PBXFileReference; lastKnownFileType = file; path = OUR.NES; sourceTree = "<group>"; };
 		2156BFB61EFF5976001B3025 /* RENES.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RENES.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -31,12 +42,27 @@
 		2156BFC21EFF5976001B3025 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2156BFC51EFF5976001B3025 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		2156BFC71EFF5976001B3025 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		2156BFCD1EFF5998001B3025 /* src */ = {isa = PBXFileReference; lastKnownFileType = folder; path = src; sourceTree = "<group>"; };
 		2167AF7B1F05117C000E6D99 /* MyOpenGLView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MyOpenGLView.h; sourceTree = "<group>"; };
 		2167AF7C1F05117C000E6D99 /* MyOpenGLView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MyOpenGLView.m; sourceTree = "<group>"; };
 		216B866B1F1684BE00C27040 /* PetternTableView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PetternTableView.h; sourceTree = "<group>"; };
 		216B866C1F1684BE00C27040 /* PetternTableView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PetternTableView.m; sourceTree = "<group>"; };
+		21BA86191F72BA6C00183B0F /* RENES_IOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RENES_IOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		21BA861C1F72BA6C00183B0F /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		21BA861E1F72BA6C00183B0F /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		21BA861F1F72BA6C00183B0F /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		21BA86211F72BA6C00183B0F /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
+		21BA86221F72BA6C00183B0F /* ViewController.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ViewController.mm; sourceTree = "<group>"; };
+		21BA86251F72BA6C00183B0F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		21BA86271F72BA6C00183B0F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		21BA862A1F72BA6C00183B0F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		21BA862C1F72BA6C00183B0F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		21BA86301F72CA4800183B0F /* DisplayView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DisplayView.h; sourceTree = "<group>"; };
+		21BA86311F72CA4800183B0F /* DisplayView.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = DisplayView.mm; sourceTree = "<group>"; };
+		21BA86331F72D86600183B0F /* src */ = {isa = PBXFileReference; lastKnownFileType = folder; path = src; sourceTree = "<group>"; };
+		21BA86351F72D9DE00183B0F /* Roms */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Roms; sourceTree = "<group>"; };
 		4C25B443B70C274C6EE6C6B4 /* Pods-RENES.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RENES.release.xcconfig"; path = "Pods/Target Support Files/Pods-RENES/Pods-RENES.release.xcconfig"; sourceTree = "<group>"; };
+		5EC420A7798F30D4363CBCE8 /* Pods-RENES_IOS.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RENES_IOS.release.xcconfig"; path = "Pods/Target Support Files/Pods-RENES_IOS/Pods-RENES_IOS.release.xcconfig"; sourceTree = "<group>"; };
+		A70CFB9A15D5EE272B4BDAB3 /* Pods-RENES_IOS.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RENES_IOS.debug.xcconfig"; path = "Pods/Target Support Files/Pods-RENES_IOS/Pods-RENES_IOS.debug.xcconfig"; sourceTree = "<group>"; };
 		AF5E50CB06E583697C246F1A /* Pods-RENES.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RENES.debug.xcconfig"; path = "Pods/Target Support Files/Pods-RENES/Pods-RENES.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -49,13 +75,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		21BA86161F72BA6C00183B0F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2C7863F4623C81F0AF4EE04E /* libPods-RENES_IOS.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		2156BFAD1EFF5976001B3025 = {
 			isa = PBXGroup;
 			children = (
+				21BA86351F72D9DE00183B0F /* Roms */,
+				21BA86331F72D86600183B0F /* src */,
 				2156BFB81EFF5976001B3025 /* RENES */,
+				21BA861A1F72BA6C00183B0F /* RENES_IOS */,
 				2156BFB71EFF5976001B3025 /* Products */,
 				DE48FFCB3F5C3557BD75CB67 /* Pods */,
 				6C19B03C8BDE5502EAC6209D /* Frameworks */,
@@ -66,6 +103,7 @@
 			isa = PBXGroup;
 			children = (
 				2156BFB61EFF5976001B3025 /* RENES.app */,
+				21BA86191F72BA6C00183B0F /* RENES_IOS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -73,7 +111,6 @@
 		2156BFB81EFF5976001B3025 /* RENES */ = {
 			isa = PBXGroup;
 			children = (
-				2156BFCD1EFF5998001B3025 /* src */,
 				2156BFB91EFF5976001B3025 /* AppDelegate.h */,
 				2156BFBA1EFF5976001B3025 /* AppDelegate.m */,
 				2156BFBF1EFF5976001B3025 /* ViewController.h */,
@@ -99,10 +136,37 @@
 			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
+		21BA861A1F72BA6C00183B0F /* RENES_IOS */ = {
+			isa = PBXGroup;
+			children = (
+				21BA861E1F72BA6C00183B0F /* AppDelegate.h */,
+				21BA861F1F72BA6C00183B0F /* AppDelegate.m */,
+				21BA86211F72BA6C00183B0F /* ViewController.h */,
+				21BA86221F72BA6C00183B0F /* ViewController.mm */,
+				21BA86301F72CA4800183B0F /* DisplayView.h */,
+				21BA86311F72CA4800183B0F /* DisplayView.mm */,
+				21BA86241F72BA6C00183B0F /* Main.storyboard */,
+				21BA86271F72BA6C00183B0F /* Assets.xcassets */,
+				21BA86291F72BA6C00183B0F /* LaunchScreen.storyboard */,
+				21BA862C1F72BA6C00183B0F /* Info.plist */,
+				21BA861B1F72BA6C00183B0F /* Supporting Files */,
+			);
+			path = RENES_IOS;
+			sourceTree = "<group>";
+		};
+		21BA861B1F72BA6C00183B0F /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				21BA861C1F72BA6C00183B0F /* main.m */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
 		6C19B03C8BDE5502EAC6209D /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				19CA15BACCD628EEE57098FB /* libPods-RENES.a */,
+				050B38F3EA0EC6CF433963B5 /* libPods-RENES_IOS.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -112,6 +176,8 @@
 			children = (
 				AF5E50CB06E583697C246F1A /* Pods-RENES.debug.xcconfig */,
 				4C25B443B70C274C6EE6C6B4 /* Pods-RENES.release.xcconfig */,
+				A70CFB9A15D5EE272B4BDAB3 /* Pods-RENES_IOS.debug.xcconfig */,
+				5EC420A7798F30D4363CBCE8 /* Pods-RENES_IOS.release.xcconfig */,
 			);
 			name = Pods;
 			sourceTree = "<group>";
@@ -139,6 +205,26 @@
 			productReference = 2156BFB61EFF5976001B3025 /* RENES.app */;
 			productType = "com.apple.product-type.application";
 		};
+		21BA86181F72BA6C00183B0F /* RENES_IOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 21BA862F1F72BA6C00183B0F /* Build configuration list for PBXNativeTarget "RENES_IOS" */;
+			buildPhases = (
+				A2DC216DA455C066F3F535F2 /* [CP] Check Pods Manifest.lock */,
+				21BA86151F72BA6C00183B0F /* Sources */,
+				21BA86161F72BA6C00183B0F /* Frameworks */,
+				21BA86171F72BA6C00183B0F /* Resources */,
+				CEC580D7EF6E2E97F1D5D0F7 /* [CP] Embed Pods Frameworks */,
+				0BBCF73E673BDB08E082D617 /* [CP] Copy Pods Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RENES_IOS;
+			productName = RENES_IOS;
+			productReference = 21BA86191F72BA6C00183B0F /* RENES_IOS.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -150,6 +236,11 @@
 				TargetAttributes = {
 					2156BFB51EFF5976001B3025 = {
 						CreatedOnToolsVersion = 8.3.2;
+						DevelopmentTeam = 4J56772K58;
+						ProvisioningStyle = Automatic;
+					};
+					21BA86181F72BA6C00183B0F = {
+						CreatedOnToolsVersion = 8.3.3;
 						DevelopmentTeam = 4J56772K58;
 						ProvisioningStyle = Automatic;
 					};
@@ -169,6 +260,7 @@
 			projectRoot = "";
 			targets = (
 				2156BFB51EFF5976001B3025 /* RENES */,
+				21BA86181F72BA6C00183B0F /* RENES_IOS */,
 			);
 		};
 /* End PBXProject section */
@@ -179,15 +271,42 @@
 			buildActionMask = 2147483647;
 			files = (
 				214C3C8A1F002C540069C001 /* OUR.NES in Resources */,
-				2156BFCE1EFF5998001B3025 /* src in Resources */,
+				21BA86361F72D9DE00183B0F /* Roms in Resources */,
 				2156BFC31EFF5976001B3025 /* Assets.xcassets in Resources */,
 				2156BFC61EFF5976001B3025 /* Main.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		21BA86171F72BA6C00183B0F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				21BA862B1F72BA6C00183B0F /* LaunchScreen.storyboard in Resources */,
+				21BA86371F72D9DE00183B0F /* Roms in Resources */,
+				21BA86281F72BA6C00183B0F /* Assets.xcassets in Resources */,
+				21BA86261F72BA6C00183B0F /* Main.storyboard in Resources */,
+				21BA86341F72D86600183B0F /* src in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		0BBCF73E673BDB08E082D617 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "[CP] Copy Pods Resources";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-RENES_IOS/Pods-RENES_IOS-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 		2F1448A4EA17A9397194ABD5 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -233,6 +352,36 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n";
 			showEnvVarsInLog = 0;
 		};
+		A2DC216DA455C066F3F535F2 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+		CEC580D7EF6E2E97F1D5D0F7 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-RENES_IOS/Pods-RENES_IOS-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -248,6 +397,17 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		21BA86151F72BA6C00183B0F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				21BA86231F72BA6C00183B0F /* ViewController.mm in Sources */,
+				21BA86321F72CA4800183B0F /* DisplayView.mm in Sources */,
+				21BA86201F72BA6C00183B0F /* AppDelegate.m in Sources */,
+				21BA861D1F72BA6C00183B0F /* main.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXVariantGroup section */
@@ -257,6 +417,22 @@
 				2156BFC51EFF5976001B3025 /* Base */,
 			);
 			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+		21BA86241F72BA6C00183B0F /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				21BA86251F72BA6C00183B0F /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+		21BA86291F72BA6C00183B0F /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				21BA862A1F72BA6C00183B0F /* Base */,
+			);
+			name = LaunchScreen.storyboard;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
@@ -359,6 +535,13 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 4J56772K58;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"${PODS_ROOT}/Headers/Public\"",
+					"\"${PODS_ROOT}/Headers/Public/BlocksKit\"",
+					"\"${PODS_ROOT}/Headers/Public/ReactiveObjC\"",
+					"\"$(SRCROOT)\"",
+				);
 				INFOPLIST_FILE = RENES/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				OTHER_CFLAGS = "-pedantic-errors";
@@ -376,12 +559,72 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 4J56772K58;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"${PODS_ROOT}/Headers/Public\"",
+					"\"${PODS_ROOT}/Headers/Public/BlocksKit\"",
+					"\"${PODS_ROOT}/Headers/Public/ReactiveObjC\"",
+					"\"$(SRCROOT)\"",
+				);
 				INFOPLIST_FILE = RENES/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				OTHER_CFLAGS = "-pedantic-errors";
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.rexq.RENES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		21BA862D1F72BA6C00183B0F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A70CFB9A15D5EE272B4BDAB3 /* Pods-RENES_IOS.debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				DEVELOPMENT_TEAM = 4J56772K58;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"${PODS_ROOT}/Headers/Public\"",
+					"\"${PODS_ROOT}/Headers/Public/BlocksKit\"",
+					"\"${PODS_ROOT}/Headers/Public/GPUImage\"",
+					"\"${PODS_ROOT}/Headers/Public/Masonry\"",
+					"\"${PODS_ROOT}/Headers/Public/ReactiveObjC\"",
+					"\"$(SRCROOT)\"",
+				);
+				INFOPLIST_FILE = RENES_IOS/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.rexq57.RENES-IOS";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		21BA862E1F72BA6C00183B0F /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5EC420A7798F30D4363CBCE8 /* Pods-RENES_IOS.release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				DEVELOPMENT_TEAM = 4J56772K58;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"${PODS_ROOT}/Headers/Public\"",
+					"\"${PODS_ROOT}/Headers/Public/BlocksKit\"",
+					"\"${PODS_ROOT}/Headers/Public/GPUImage\"",
+					"\"${PODS_ROOT}/Headers/Public/Masonry\"",
+					"\"${PODS_ROOT}/Headers/Public/ReactiveObjC\"",
+					"\"$(SRCROOT)\"",
+				);
+				INFOPLIST_FILE = RENES_IOS/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.rexq57.RENES-IOS";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -402,6 +645,15 @@
 			buildConfigurations = (
 				2156BFCB1EFF5976001B3025 /* Debug */,
 				2156BFCC1EFF5976001B3025 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		21BA862F1F72BA6C00183B0F /* Build configuration list for PBXNativeTarget "RENES_IOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				21BA862D1F72BA6C00183B0F /* Debug */,
+				21BA862E1F72BA6C00183B0F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

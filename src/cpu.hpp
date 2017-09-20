@@ -610,7 +610,7 @@ namespace ReNes {
             auto& YR = regs.Y;
             auto& SP = regs.SP;
             auto& PC = regs.PC;
-            auto& SR = *(uint8*)&regs.P;
+            auto& SR = *(uint8_t*)&regs.P;
             
             // 检查中断和处理中断
             _mutex.lock();
