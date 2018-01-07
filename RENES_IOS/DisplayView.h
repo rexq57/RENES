@@ -8,12 +8,6 @@
 
 #import <GPUImage/GPUImage.h>
 
-
-    
-
-    
-
-
 @interface DisplayView : GPUImageView
 
 - (void) updateRGBData:(uint8_t*) data size:(CGSize) size;

@@ -195,6 +195,11 @@ void CheckGLError(const char* tag)
     }
 }
 
+- (void) _updateRGBData
+{
+    [self _updateRGBData:_buffer size:_lastSize];
+}
+
 - (void) updateRGBData:(uint8_t*) data size:(CGSize) size
 {
     @synchronized (self) {
@@ -219,11 +224,11 @@ void CheckGLError(const char* tag)
             if (self.updateData == nil)
             {
                 __weak DisplayView* unsafe_self = self;
-                uint8_t* buffer = _buffer;
+//                uint8_t* buffer = _buffer;
                 self.updateData = ^() {
                     
                     //                [unsafe_self _updateRGBData:(uint8_t*)[dt bytes] size:size];
-                    [unsafe_self _updateRGBData:buffer size:size];
+                    [unsafe_self _updateRGBData];
                 };
             }
             
@@ -236,7 +241,7 @@ void CheckGLError(const char* tag)
 //                }
 //            });
             
-            runSynchronouslyOnVideoProcessingQueue(^{
+            runAsynchronouslyOnVideoProcessingQueue(^{
                 
                 [GPUImageContext useImageProcessingContext];
                 
@@ -255,11 +260,12 @@ void CheckGLError(const char* tag)
 
 - (void)render
 {
-    @synchronized (self) {
+//    @synchronized (self)
+    {
         if (self.updateData)
             self.updateData();
         
-        self.updateData = nil;
+//        self.updateData = nil;
     }
     
     GPUImageFramebufferWrapper* buffer = [GPUImageFramebufferWrapper new];
