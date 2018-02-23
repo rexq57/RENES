@@ -66,7 +66,7 @@ namespace ReNes {
         do {
             
             start_callback();
-//            printf("ppu\n");
+            //            printf("ppu\n");
             // 执行绘图
             ppu->draw();
             
@@ -87,12 +87,12 @@ namespace ReNes {
         ~Nes()
         {
             // 等待线程退出
-//            _stopMutex.lock();
+            //            _stopMutex.lock();
             
             stop();
             
             _runningThread.join();
-
+            
             printf("Nes即将析构\n");
         }
         
@@ -100,7 +100,7 @@ namespace ReNes {
         {
             _stoped = true;
             
-//            _stopedCallback = stopedCallback;            
+            //            _stopedCallback = stopedCallback;
         }
         
         // 加载rom
@@ -116,29 +116,29 @@ namespace ReNes {
             printf("文件长度 %d\n", length);
             
             printf("[4] 16kB ROM: %d\n\
-[5] 8kB VROM: %d\n\
-[6] D0: %d D1: %d D2: %d D3: %d D4: %d D5: %d D6: %d D7: %d\n\
-[7] 保留0: %d %d %d %d ROM Mapper高4位: %d %d %d %d\n\
-[8-F] 保留8字节0: %d %d %d %d %d %d %d %d\n\
-[16]\n",
+                   [5] 8kB VROM: %d\n\
+                   [6] D0: %d D1: %d D2: %d D3: %d D4: %d D5: %d D6: %d D7: %d\n\
+                   [7] 保留0: %d %d %d %d ROM Mapper高4位: %d %d %d %d\n\
+                   [8-F] 保留8字节0: %d %d %d %d %d %d %d %d\n\
+                   [16]\n",
                    rom16kB_count, rom[5],
                    b8_6.get(0), b8_6.get(1), b8_6.get(2), b8_6.get(3), b8_6.get(4), b8_6.get(5), b8_6.get(6), b8_6.get(7),
                    b8_7.get(0), b8_7.get(1), b8_7.get(2), b8_7.get(3), b8_7.get(4), b8_7.get(5), b8_7.get(6), b8_7.get(7),
                    rom[8], rom[9], rom[10], rom[11], rom[12], rom[13], rom[14], rom[15]);
             
             // 将rom载入内存
-//            for (int i=0; i<rom16kB_count; i++)
-//            {
-//                const uint8_t* romAddr = &rom[16];
-//                
-//                memcpy(_mem.masterData() + PRG_ROM_LOWER_BANK_OFFSET, romAddr, 1024*16);
-//                
-//                // 如果只有1个16kB的bank，则需要再复制一份到0xC000处，让中断向量能够在0xFFFA出现
-//                if (rom16kB_count == 1)
-//                {
-//                    memcpy(_mem.masterData() + PRG_ROM_UPPER_BANK_OFFSET, romAddr, 1024*16);
-//                }
-//            }
+            //            for (int i=0; i<rom16kB_count; i++)
+            //            {
+            //                const uint8_t* romAddr = &rom[16];
+            //
+            //                memcpy(_mem.masterData() + PRG_ROM_LOWER_BANK_OFFSET, romAddr, 1024*16);
+            //
+            //                // 如果只有1个16kB的bank，则需要再复制一份到0xC000处，让中断向量能够在0xFFFA出现
+            //                if (rom16kB_count == 1)
+            //                {
+            //                    memcpy(_mem.masterData() + PRG_ROM_UPPER_BANK_OFFSET, romAddr, 1024*16);
+            //                }
+            //            }
             if (rom16kB_count == 1)
             {
                 const uint8_t* romAddr = &rom[16];
@@ -167,7 +167,7 @@ namespace ReNes {
                 memcpy(_ppu.vram()->masterData(), vromAddr, 1024*8);
             }
         }
-
+        
         
         // 执行当前指令
         void run() {
@@ -190,10 +190,10 @@ namespace ReNes {
             _ppu.fps = fps;
         }
         
-//        void setDumpScrollBuffer(bool enabled)
-//        {
-//            _ppu.dumpScrollBuffer = enabled;
-//        }
+        //        void setDumpScrollBuffer(bool enabled)
+        //        {
+        //            _ppu.dumpScrollBuffer = enabled;
+        //        }
         
         bool dumpScrollBuffer = false;
         
@@ -201,11 +201,11 @@ namespace ReNes {
         {
             return _ppu.fps;
         }
-
+        
         bool debug = false;
         float cmd_interval = 0;
         
-
+        
         CPU* cpu()
         {
             return &_cpu;
@@ -252,7 +252,7 @@ namespace ReNes {
         
         void _run() {
             
-//            _stopMutex.lock();
+            //            _stopMutex.lock();
             
             _stoped = false;
             
@@ -316,24 +316,27 @@ namespace ReNes {
             }
             
             const static uint32_t f = 1024*1000*1.79; // 1.79Mhz
-//            const static double t = 1.0/f; // 时钟周期 0.000000545565642
-//            const static double cpu_cyles = 1 * t; // 0.000000572067039 上面差不多
+            //            const static double t = 1.0/f; // 时钟周期 0.000000545565642
+            //            const static double cpu_cyles = 1 * t; // 0.000000572067039 上面差不多
             const static uint32_t cpu_cyles = (1.0/f) * 1e9 ; // 572 ns
-//            const static double ns = 1.0 / pow(10, 9); // 0.000000001
             
             // cpu线程
-            std::thread cpu_thread; Timer cpu_timer;
+            std::thread cpu_thread;
             {
-                cpu_thread = std::thread(cpu_working, &_cpu, [&cpu_timer](){
-                    cpu_timer.start();
-                }, [this, &cpu_timer](int cyles){
+                std::chrono::steady_clock::time_point lastTime;
+                
+                cpu_thread = std::thread(cpu_working, &_cpu, [&lastTime](){
                     
-                    cpu_timer.stop();
-
+                    lastTime = std::chrono::steady_clock::now();
+                    
+                }, [this, &lastTime](int cyles){
+                    
+                    long dif_ns = (std::chrono::steady_clock::now() - lastTime).count(); // 纳秒
+                    
                     uint32_t p_t = cyles * cpu_cyles;  // 执行指令所需要花费时间
-                    long dd = p_t - cpu_timer.dif();
+                    long dd = p_t - dif_ns;//cpu_timer.dif();
                     
-//                    printf("实际时间差 %d %d\n", p_t, dd);
+                    //                    printf("实际时间差 %d %d\n", p_t, dd);
                     
                     _cmdTime = dd; // 大于 0, 则速度快于需求，需要等待
                     if (this->debug)
@@ -350,51 +353,35 @@ namespace ReNes {
                 });
             }
             
-            static Semaphore _debugSem;
+//            std::mutex* displaySem = &this->_displaySem;
             
-            std::thread ppu_thread; Timer ppu_timer;
+            std::thread ppu_thread;
             {
-                const double p_t = 1.0 / 60 * 1e9; // 固定的
+                const double p_t = 1.0 / fps() * 1e9; // 固定的
                 
-//                auto t0=std::chrono::system_clock::now();
+                std::chrono::steady_clock::time_point lastTime;
                 
-                ppu_thread = std::thread(ppu_working, &_ppu, [&ppu_timer](){
-                    ppu_timer.start();
-                }, [this, &p_t, &_debugSem, &ppu_timer](){
+                ppu_thread = std::thread(ppu_working, &_ppu, [&lastTime](){
+                    lastTime = std::chrono::steady_clock::now();
+                }, [this, &p_t, &lastTime](){
                     
-                    ppu_timer.stop();
+                    long dif_ns = (std::chrono::steady_clock::now() - lastTime).count(); // 纳秒
                     
-                    _debugSem.notify();
+                    //                    printf("displaySem = %d \n", &displaySem);
+                    _displaySem.unlock();
                     
                     _cpu.interrupts(CPU::InterruptTypeNMI); // 每次VBlank发生在最后一行，就是绘制完一帧的时候，通知CPU执行NMI中断
                     
+//                    long ns_dif = ppu_timer.dif();
+                    long dd = p_t - dif_ns;//ns_dif;
                     
-//                    auto t1=std::chrono::system_clock::now();
-//                    auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0); // 实际花费时间，纳秒
-//                    double d_t = d.count() * ns;
-                    
-//                    double dd = p_t - d_t; // 纳秒差
-                    
-                    long ns_dif = ppu_timer.dif();
-                    long dd = p_t - ns_dif;
-                    
-                    printf("sleep %f-%f = %f\n", p_t, ns_dif, dd);
+                    //                    printf("sleep %f-%f = %f\n", p_t, ns_dif, dd);
                     _renderTime = dd;
                     
                     if (dd > 0)
                     {
-                        
                         usleep((uint32_t)dd / 1000);
-                        
-//                        t0 = std::chrono::system_clock::now();
                     }
-//                    else
-//                    {
-//                        t0 = t1; // 记录当前时间
-//                    }
-                    
-                    // 需要设置vblank间隔时间
-//                    usleep(p_t * 1000000 / 240 * 20);
                     
                     return !_stoped;
                 });
@@ -405,12 +392,12 @@ namespace ReNes {
             
             std::thread display_thread;
             {
-                display_thread = std::thread([this, &_debugSem](){
+                display_thread = std::thread([this](){
                     
                     do {
                         
-                        _debugSem.wait();
-
+                        _displaySem.lock();
+                        
                         if (dumpScrollBuffer)
                             _ppu.dumpScrollToBuffer();
                         
@@ -421,10 +408,13 @@ namespace ReNes {
             }
             
             
+            
             cpu_thread.join();
+            
+//            printf("ppu_thread %d\n", &ppu_thread);
             ppu_thread.join();
             
-            _debugSem.notify(); // ppu线程结束时再次通知
+            _displaySem.unlock(); // ppu线程结束时再次通知
             
             display_thread.join();
             
@@ -441,10 +431,9 @@ namespace ReNes {
             {
                 _stopedCallback();
             }
-            
-//            _stopMutex.unlock();
-//            _stopSem.notify();
+
         }
+        
         
         bool _isRunning = false;
         
@@ -462,8 +451,7 @@ namespace ReNes {
         
         std::thread _runningThread;
         
-//        std::mutex _stopMutex;
-//        Semaphore _stopSem;
+        std::mutex _displaySem;
     };
     
     

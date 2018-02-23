@@ -91,8 +91,8 @@ using namespace ReNes;
     // 异步
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         
-        @autoreleasepool {
-            
+//        @autoreleasepool {
+        
             //            NSString* filePath = [[NSBundle mainBundle] pathForResource:@"OUR.NES" ofType:@""];
             NSData* data = [NSData dataWithContentsOfFile:filePath];
             
@@ -181,7 +181,7 @@ using namespace ReNes;
             
             NSLog(@"模拟器开始运行");
             
-        }
+//        }
     });
 }
 

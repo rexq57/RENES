@@ -171,7 +171,7 @@ namespace ReNes {
         
         void init(Memory* mem)
         {
-            printf("%x %x\n", this, &_mem);
+//            printf("%x %x\n", this, &_mem);
             
             _mem = mem;
             io_regs = (bit8*)mem->getIORegsAddr(); // 直接映射地址，不走mem请求，因为mem读写请求模拟了内存访问限制，那部分是留给cpu访问的
@@ -717,20 +717,19 @@ namespace ReNes {
                     // 模拟60Hz扫描线，每帧1/60秒，每条扫描线 1/60/240 秒 的延迟
                     if (line_y<line_y_max-1)
                     {
-                        const double p_t = 1.0/fps/240;
+                        const long p_t = 1.0 / fps / 240 * 1e9; // 纳秒
 //                        printf("fuck %f", p_t);
                         
                         auto t1=std::chrono::system_clock::now();
                         auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-startTime); // 实际花费时间，纳秒
-                        double d_t = d.count() * 0.000000001;
+                        long d_t = d.count();
                         
-//                        double dd = p_t - (d_t - line_y*p_t); // 纳秒差
-                        double dd = p_t - d_t; // 纳秒差
+                        long dd = p_t - d_t; // 纳秒差
                         
                         if (dd > 0)
                         {
 //                            printf("sleep %f-%f = %f\n", p_t, d_t, dd * 1000000);
-                            usleep(dd * 1000000);
+                            usleep((uint32_t)dd / 1000);
                             
                             startTime = std::chrono::system_clock::now();
                         }

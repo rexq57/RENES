@@ -153,9 +153,23 @@ namespace ReNes {
         
     public:
         
+        Timer()
+        {
+            _m = new std::mutex();
+            mLog = (char*)malloc(512);
+        }
+
+        ~Timer()
+        {
+            delete _m;
+            free(mLog);
+        }
+        
         Timer& start()
         {
+            _m->lock();
             mCurrentTimeMillis = std::chrono::steady_clock::now();
+            _m->unlock();
             return *this;
         }
         
@@ -166,6 +180,8 @@ namespace ReNes {
         
         Timer& stop(const char* log, bool display)
         {
+            _m->lock();
+            
             long dif_ns = (std::chrono::steady_clock::now() - mCurrentTimeMillis).count(); // 纳秒
             _dif = dif_ns;
             
@@ -175,10 +191,8 @@ namespace ReNes {
             float fps = mFpsCount/mFpsTime;
             if (mFpsCount > 1000)
             {
-                _m.lock();
                 mFpsCount = 0;
                 mFpsTime = 0;
-                _m.unlock();
             }
             
             sprintf(mLog, "%s %f fps %fs %fs\n", log , fps , 1.0f/fps , time);
@@ -187,15 +201,17 @@ namespace ReNes {
                 LOGD("%s", mLog);
             }
             
+            _m->unlock();
+            
             return *this;
         }
         
         void reset()
         {
-            _m.lock();
+            _m->lock();
             mFpsTime = 0;
             mFpsCount = 0;
-            _m.unlock();
+            _m->unlock();
         }
         
         const char* log() const
@@ -216,9 +232,10 @@ namespace ReNes {
         
     private:
         
-        std::mutex _m;
+        std::mutex* _m;
         
-        char mLog[512];
+//        char mLog[512];
+        char* mLog = 0;
         float mFpsTime = 0;
         long mFpsCount = 0;
         long _dif = 0;
