@@ -46,22 +46,26 @@ namespace ReNes {
     
     
     // 多线程
-    void cpu_working(CPU* cpu, std::function<bool(int)> callback)
+    void cpu_working(CPU* cpu, std::function<void(void)> start_callback, std::function<bool(int)> callback)
     {
         int cyles;
         
         // 主循环
         do {
+            start_callback();
+            
             // 执行指令
             cyles = cpu->exec();
             
         }while(callback(cyles) && !cpu->error);
     }
     
-    void ppu_working(PPU* ppu, std::function<bool()> callback)
+    void ppu_working(PPU* ppu, std::function<void(void)> start_callback, std::function<bool()> callback)
     {
         // 主循环
         do {
+            
+            start_callback();
 //            printf("ppu\n");
             // 执行绘图
             ppu->draw();
@@ -222,12 +226,12 @@ namespace ReNes {
             return &_ctr;
         }
         
-        double cmdTime()
+        long cmdTime() const
         {
             return _cmdTime;
         }
         
-        double renderTime()
+        long renderTime() const
         {
             return _renderTime;
         }
@@ -311,45 +315,34 @@ namespace ReNes {
                 });
             }
             
-            const static int f = 1024*1000*1.79; // 1.79Mhz
-            const static double t = 1.0/f; // 时钟周期 0.000000545565642
-            const static double cpu_cyles = 1 * t; // 0.000000572067039 上面差不多
-            
-            const static double ns = 1.0 / pow(10, 9); // 0.000000001
+            const static uint32_t f = 1024*1000*1.79; // 1.79Mhz
+//            const static double t = 1.0/f; // 时钟周期 0.000000545565642
+//            const static double cpu_cyles = 1 * t; // 0.000000572067039 上面差不多
+            const static uint32_t cpu_cyles = (1.0/f) * 1e9 ; // 572 ns
+//            const static double ns = 1.0 / pow(10, 9); // 0.000000001
             
             // cpu线程
-            std::thread cpu_thread;
+            std::thread cpu_thread; Timer cpu_timer;
             {
-                
-                //        double t = ns * 1000 / 1.79;
-                
-                auto t0=std::chrono::system_clock::now();
-                
-                cpu_thread = std::thread(cpu_working, &_cpu, [this, &t0](int cyles){
+                cpu_thread = std::thread(cpu_working, &_cpu, [&cpu_timer](){
+                    cpu_timer.start();
+                }, [this, &cpu_timer](int cyles){
                     
-                    double p_t = cyles * cpu_cyles;  // 执行指令所需要花费时间
+                    cpu_timer.stop();
+
+                    uint32_t p_t = cyles * cpu_cyles;  // 执行指令所需要花费时间
+                    long dd = p_t - cpu_timer.dif();
                     
-                    auto t1=std::chrono::system_clock::now();
-                    auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0); // 实际花费实际，纳秒
-                    double d_t = d.count() * ns;
+//                    printf("实际时间差 %d %d\n", p_t, dd);
                     
-                    double dd = p_t - d_t; // 纳秒差
-                    
-                    //                            printf("实际时间差 %f\n", dd);
-                    _cmdTime = dd;
+                    _cmdTime = dd; // 大于 0, 则速度快于需求，需要等待
                     if (this->debug)
                     {
                         dd = this->cmd_interval * 1000 * 1000 * 1000; // 将秒转换成纳秒个数
                     }
                     if (dd > 0)
                     {
-                        usleep(dd * 1000000);
-                        
-                        //                        t0 = std::chrono::system_clock::now();
-                    }
-                    //                    else
-                    {
-                        t0 = t1; // 记录当前时间
+                        usleep((uint32_t)dd / 1000); // 转换成微秒
                     }
                     
                     
@@ -357,40 +350,48 @@ namespace ReNes {
                 });
             }
             
-            Semaphore _debugSem;
+            static Semaphore _debugSem;
             
-            std::thread ppu_thread;
+            std::thread ppu_thread; Timer ppu_timer;
             {
-                const double p_t = 1.0 / fps();
+                const double p_t = 1.0 / 60 * 1e9; // 固定的
                 
-                auto t0=std::chrono::system_clock::now();
+//                auto t0=std::chrono::system_clock::now();
                 
-                ppu_thread = std::thread(ppu_working, &_ppu, [this, &t0, &p_t, &_debugSem](){
+                ppu_thread = std::thread(ppu_working, &_ppu, [&ppu_timer](){
+                    ppu_timer.start();
+                }, [this, &p_t, &_debugSem, &ppu_timer](){
+                    
+                    ppu_timer.stop();
                     
                     _debugSem.notify();
                     
                     _cpu.interrupts(CPU::InterruptTypeNMI); // 每次VBlank发生在最后一行，就是绘制完一帧的时候，通知CPU执行NMI中断
                     
                     
-                    auto t1=std::chrono::system_clock::now();
-                    auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0); // 实际花费时间，纳秒
-                    double d_t = d.count() * ns;
+//                    auto t1=std::chrono::system_clock::now();
+//                    auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0); // 实际花费时间，纳秒
+//                    double d_t = d.count() * ns;
                     
-                    double dd = p_t - d_t; // 纳秒差
+//                    double dd = p_t - d_t; // 纳秒差
                     
-                    _renderTime = d_t;
+                    long ns_dif = ppu_timer.dif();
+                    long dd = p_t - ns_dif;
+                    
+                    printf("sleep %f-%f = %f\n", p_t, ns_dif, dd);
+                    _renderTime = dd;
                     
                     if (dd > 0)
                     {
-//                        printf("sleep %f-%f = %f\n", p_t, d_t, dd * 1000000);
-                        usleep(dd * 1000000);
                         
-                        t0 = std::chrono::system_clock::now();
+                        usleep((uint32_t)dd / 1000);
+                        
+//                        t0 = std::chrono::system_clock::now();
                     }
-                    else
-                    {
-                        t0 = t1; // 记录当前时间
-                    }
+//                    else
+//                    {
+//                        t0 = t1; // 记录当前时间
+//                    }
                     
                     // 需要设置vblank间隔时间
 //                    usleep(p_t * 1000000 / 240 * 20);
@@ -453,8 +454,8 @@ namespace ReNes {
         Memory _mem;
         Control _ctr;
         
-        double _cmdTime;
-        double _renderTime;
+        long _cmdTime;
+        long _renderTime;
         
         bool _stoped;
         std::function<void()> _stopedCallback;

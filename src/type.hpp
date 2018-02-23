@@ -1,10 +1,21 @@
 
 #include <stdio.h>
 #include <functional>
+#include <chrono>
+#include <mutex>
 
 #pragma once
 
 namespace ReNes {
+    
+#ifdef DEBUG
+#define RENESAssert(...) assert(__VA_ARGS__)
+#else
+#define RENESAssert(...)
+#endif
+    
+    //--------------------------------------
+    // log打印
     
     static char g_buffer[1024];
     
@@ -51,16 +62,19 @@ namespace ReNes {
         g_logEnabled = enabled;
     }
     
+    //--------------------------------------
+    // 数据类型
+    
     struct bit8 {
         
-        void set(uint8_t offset, int value)
+        inline void set(uint8_t offset, int value)
         {
-            assert(value == 0 || value == 1);
+            RENESAssert(value == 0 || value == 1);
             _data &= ~(0x1 << offset); // set 0
             _data |= ((value % 2) << offset);
         }
         
-        uint8_t get(uint8_t offset) const
+        inline uint8_t get(uint8_t offset) const
         {
             return (_data >> offset) & 0x1;
         }
@@ -69,6 +83,8 @@ namespace ReNes {
         uint8_t _data; // 8bit
     };
     
+    //--------------------------------------
+    // 内置函数
     
     template <typename T>
     inline T const& __max (T const& a, T const& b)
@@ -117,4 +133,96 @@ namespace ReNes {
 #define ARRAY_FIND(s, v) array_find(s, sizeof(s)/sizeof(*s), v)
 //#define VECTOR_FIND(s, v) (std::find(s.begin(), s.end(), v) != s.end())
 #define SET_FIND(s, v) (s.find(v) != s.end())
+    
+    //--------------------------------------
+    // 计时器
+    
+    // 日志打印
+    #ifdef __ANDROID__
+    #   include <android/log.h>
+    #   define  LOG_TAG    "RENES"
+    #   define  LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+    #   define  LOGE(...)  __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+    #else
+    #   define  LOG_TAG    "RENES"
+    #   define LOGD(...) printf("[%s] %s: ", LOG_TAG, __FUNCTION__);printf(__VA_ARGS__)
+    #   define LOGE(...) printf("[%s] %s: ", LOG_TAG, __FUNCTION__);printf(__VA_ARGS__)
+    #endif
+    
+    class Timer {
+        
+    public:
+        
+        Timer& start()
+        {
+            mCurrentTimeMillis = std::chrono::steady_clock::now();
+            return *this;
+        }
+        
+        Timer& stop(const char* log="")
+        {
+            return stop(log, false);
+        }
+        
+        Timer& stop(const char* log, bool display)
+        {
+            long dif_ns = (std::chrono::steady_clock::now() - mCurrentTimeMillis).count(); // 纳秒
+            _dif = dif_ns;
+            
+            float time = dif_ns / 1.e9;
+            mFpsCount ++;
+            mFpsTime += time;
+            float fps = mFpsCount/mFpsTime;
+            if (mFpsCount > 1000)
+            {
+                _m.lock();
+                mFpsCount = 0;
+                mFpsTime = 0;
+                _m.unlock();
+            }
+            
+            sprintf(mLog, "%s %f fps %fs %fs\n", log , fps , 1.0f/fps , time);
+            if (display)
+            {
+                LOGD("%s", mLog);
+            }
+            
+            return *this;
+        }
+        
+        void reset()
+        {
+            _m.lock();
+            mFpsTime = 0;
+            mFpsCount = 0;
+            _m.unlock();
+        }
+        
+        const char* log() const
+        {
+            return mLog;
+        }
+        
+        float fps()
+        {
+            return mFpsCount/mFpsTime;
+        }
+        
+        // 返回秒差
+        long dif() const
+        {
+            return _dif;
+        }
+        
+    private:
+        
+        std::mutex _m;
+        
+        char mLog[512];
+        float mFpsTime = 0;
+        long mFpsCount = 0;
+        long _dif = 0;
+        
+        std::chrono::steady_clock::time_point mCurrentTimeMillis;
+    };
 }

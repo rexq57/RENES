@@ -2,7 +2,7 @@
 //  DisplayView.h
 //  RENES
 //
-//  Created by Viktor Pih on 2017/9/21.
+//  Created by rexq57 on 2017/9/21.
 //  Copyright © 2017年 com.rexq. All rights reserved.
 //
 

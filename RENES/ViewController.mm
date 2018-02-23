@@ -466,7 +466,7 @@ A:%d X:%d Y:%d (%.9lf, %lf)\n\
                                           regs.P.get(CPU::__registers::V),
                                           regs.P.get(CPU::__registers::N),
                                           regs.A,regs.X,regs.Y,
-                                          _nes->cmdTime(), _nes->renderTime(),
+                                          (double)_nes->cmdTime() / 1e9, (double)_nes->renderTime() / 1e9,
                                           statues[0], statues[1], statues[2], statues[3], statues[4], statues[5], statues[6], statues[7],
                                           _nes->ppu()->testLog.c_str()];
         

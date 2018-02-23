@@ -2,7 +2,7 @@
 //  AppDelegate.h
 //  RENES_IOS
 //
-//  Created by Viktor Pih on 2017/9/20.
+//  Created by rexq57 on 2017/9/20.
 //  Copyright © 2017年 com.rexq. All rights reserved.
 //
 
