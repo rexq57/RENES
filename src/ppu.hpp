@@ -3,6 +3,66 @@
 #include "vram.hpp"
 #include "mem.hpp"
 
+/*
+ NTSC（2C02）
+ 主时钟周期是 21.477272 MHz±40 Hz
+ CPU时钟周期 21.47 MHz÷12 = 1.789773 MHz
+ APU帧计数器速率 60Hz
+ PPU时钟速度 21.477272 MHz÷4 = 5.369318 MHz
+
+ 一个CPU时钟周期内，PPU点数是 5.369318 / 1.789773 = 3
+ 
+ 每帧需要的时间是 1.0 / 60 = 0.016666666666667s
+ 按照PPU是CPU时钟的3倍速度来算，一条扫描线绘制完成需要 256 / 3 = 85.333333333333333 个CPU周期，240条扫描线需要 20480 个CPU周期
+ 每个CPU周期是 1.0 / (1024*1000*1.789773) = 0.000000545634837s，所以一帧绘制时间是 0.011174601471807s
+ 
+ 【VBlank时间】
+ 图片尺寸是256x240，NTSC标称可见高度是224
+ 实际上，NTSC每帧尺寸是341x262 (见 https://wiki.nesdev.com/w/index.php/File:Ntsc_timing.png)
+ VBlank我理解为PPU跑 [240,261] 这段扫描线的时间
+ HBlank我理解为PPU跑每条扫描线的 [256,340] 点的时间
+ 
+ 【预渲染线】
+ 最后一条扫描线，每隔一帧短一个点，例如0帧341，1帧340，2帧341 ...
+ 
+ 【计算每帧等待时间】
+ 先根据帧率算出每一帧的CPU周期个数: CPUCyclesPerFrame = 1.0 / 60 / (1.0 / (1024*1000*1.789773)) = 30545.459227463146749
+ 当前帧花费的总时间: TimeForCurrentFrame
+ 当计数器达到这个值，检测这帧花费时间，当速度过快时，进行等待，usleep( 1.0 / 60 - TimeForCurrentFrame )
+ 
+ 【CPU 和 PPU 协作】
+ 
+ do
+ {
+     检测中断
+     cpu->checkInterrupts()
+ 
+     执行一次指令，并得到当前帧的CPU周期计数
+     cmdCycles += cpu->execCmd()
+     cyclesCountForCPU += cmdCycles
+     cyclesCountForPPU += cmdCycles
+ 
+     每当CPU周期数达到满足一条扫描所需的时间（周期数），NumCyclesPerScanline = 341 / 3.0 = 113.666666666666667，则调用PPU渲染一条扫描线
+     if (cyclesCountForPPU >= NumCyclesPerScanline)
+     {
+         cyclesCountForPPU -= NumCyclesPerScanline
+         ppu->drawLine()
+ 
+         通知是否进行画面呈现
+         当这是最后一条扫描线时，再计算是否需要进行等待
+         if (ppu->isLastScanline())
+         {
+             usleep( 1.0 / 60 - TimeForCurrentFrame )
+         }
+     }
+ 
+ }while(true)
+ 
+ 
+ 
+ 
+ */
+
 class Timer {
     
 public:
