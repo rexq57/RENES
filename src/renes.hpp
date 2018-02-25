@@ -43,38 +43,7 @@ private:
 
 
 namespace ReNes {
-    
-    
-    // 多线程
-    void cpu_working(CPU* cpu, std::function<void(void)> start_callback, std::function<bool(int)> callback)
-    {
-        int cyles;
-        
-        // 主循环
-        do {
-            start_callback();
-            
-            // 执行指令
-            cyles = cpu->exec();
-            
-        }while(callback(cyles) && !cpu->error);
-    }
-    
-    void ppu_working(PPU* ppu, std::function<void(void)> start_callback, std::function<bool()> callback)
-    {
-        // 主循环
-        do {
-            
-            start_callback();
-            //            printf("ppu\n");
-            // 执行绘图
-            ppu->draw();
-            
-        }while(callback());
-    }
-    
-    
-    
+
     class Nes {
         
     public:
@@ -320,180 +289,77 @@ namespace ReNes {
             //            const static double cpu_cyles = 1 * t; // 0.000000572067039 上面差不多
             const static uint32_t cpu_cyles = (1.0/f) * 1e9 ; // 572 ns
             
-#if 1
             // CPU周期线程
-            std::thread cpu_thread;
-            {
+            std::thread cpu_thread = std::thread([this](){
+                
                 bool isFirstCPUCycleForFrame = true;
                 std::chrono::steady_clock::time_point firstTime;
+                
                 uint32_t cpuCyclesCountForFrame = 0;
                 uint32_t ppuCyclesCountForScanline = 0;
                 const uint32_t NumCyclesPerScanline = 341 / 3;
                 const uint32_t TimePerFrame = 1.0 / fps() * 1e9; // 每帧需要的时间(纳秒)
                 
-                cpu_thread = std::thread([this, &isFirstCPUCycleForFrame, &firstTime, &cpuCyclesCountForFrame, &ppuCyclesCountForScanline, &NumCyclesPerScanline, &TimePerFrame](){
-
-                    // 主循环
-                    do {
+                // 主循环
+                do {
+                    
+                    if (isFirstCPUCycleForFrame)
+                    {
+                        firstTime = std::chrono::steady_clock::now();
+                        _ppu.readyOnFirstLine();
+                        isFirstCPUCycleForFrame = false;
+                    }
+                    
+                    // 执行指令
+                    int cyles = _cpu.exec();
+                    
+                    if (_cpu.error)
+                        break;
+                    
+                    cpuCyclesCountForFrame += cyles;
+                    ppuCyclesCountForScanline += cyles;
+                    
+                    if (ppuCyclesCountForScanline >= NumCyclesPerScanline)
+                    {
+                        ppuCyclesCountForScanline -= NumCyclesPerScanline;
+                        bool vblankEvent = _ppu.drawScanline();
+                        if (vblankEvent)
+                            _cpu.interrupts(CPU::InterruptTypeNMI);
                         
-                        if (isFirstCPUCycleForFrame)
+                        if (_ppu.isOverScanline())
                         {
-                            firstTime = std::chrono::steady_clock::now();
-                            _ppu.readyOnFirstLine();
-                            isFirstCPUCycleForFrame = false;
-                        }
-                        
-                        // 执行指令
-                        int cyles = _cpu.exec();
-                        
-                        if (_cpu.error)
-                            break;
-                        
-                        cpuCyclesCountForFrame += cyles;
-                        ppuCyclesCountForScanline += cyles;
-                        
-                        if (ppuCyclesCountForScanline >= NumCyclesPerScanline)
-                        {
-                            ppuCyclesCountForScanline -= NumCyclesPerScanline;
-                            bool vblankEvent = _ppu.drawScanline();
-                            if (vblankEvent)
-                                _cpu.interrupts(CPU::InterruptTypeNMI);
+                            _displaySem.unlock(); // 显示图像
                             
-                            if (_ppu.isOverScanline())
-                            {
-                                _displaySem.unlock(); // 显示图像
-                                
-                                uint32_t dif_ns = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒
-                                if ( dif_ns < TimePerFrame )
-                                    usleep( (TimePerFrame - dif_ns) / 1000 );
-                                
-                                // 计数器重置
-                                cpuCyclesCountForFrame -= NumCyclesPerScanline * 262;
-                                isFirstCPUCycleForFrame = true;
-                            }
+                            uint32_t dif_ns = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒
+                            if ( dif_ns < TimePerFrame )
+                                usleep( (TimePerFrame - dif_ns) / 1000 );
+                            
+                            // 计数器重置
+                            cpuCyclesCountForFrame -= NumCyclesPerScanline * 262;
+                            isFirstCPUCycleForFrame = true;
                         }
-                        
-                    }while(cpu_callback(&_cpu) && !_stoped);
+                    }
                     
-                });
-            }
+                }while(cpu_callback(&_cpu) && !_stoped);
+                
+            });
             
-            std::thread display_thread;
-            {
-                display_thread = std::thread([this](){
+            std::thread display_thread = std::thread([this](){
+                
+                do {
                     
-                    do {
-                        
-                        _displaySem.lock();
-                        
-                        if (dumpScrollBuffer)
-                            _ppu.dumpScrollToBuffer();
-                        
-                        ppu_callback(&_ppu);
-                        
-                    }while(!_stoped);
-                });
-            }
+                    _displaySem.lock();
+                    
+                    if (dumpScrollBuffer)
+                        _ppu.dumpScrollToBuffer();
+                    
+                    ppu_callback(&_ppu);
+                    
+                }while(!_stoped);
+            });
             
             cpu_thread.join();
-#else
-            
-            // cpu线程
-            std::thread cpu_thread;
-            {
-                std::chrono::steady_clock::time_point lastTime;
-                
-                cpu_thread = std::thread(cpu_working, &_cpu, [&lastTime](){
-                    
-                    lastTime = std::chrono::steady_clock::now();
-                    
-                }, [this, &lastTime](int cyles){
-                    
-                    long dif_ns = (std::chrono::steady_clock::now() - lastTime).count(); // 纳秒
-                    
-                    uint32_t p_t = cyles * cpu_cyles;  // 执行指令所需要花费时间
-                    long dd = p_t - dif_ns;//cpu_timer.dif();
-                    
-                    //                    printf("实际时间差 %d %d\n", p_t, dd);
-                    
-                    _cmdTime = dd; // 大于 0, 则速度快于需求，需要等待
-                    if (this->debug)
-                    {
-                        dd = this->cmd_interval * 1000 * 1000 * 1000; // 将秒转换成纳秒个数
-                    }
-                    if (dd > 0)
-                    {
-                        usleep((uint32_t)dd / 1000); // 转换成微秒
-                    }
-                    
-                    
-                    return cpu_callback(&_cpu) && !_stoped;
-                });
-            }
-            
-//            std::mutex* displaySem = &this->_displaySem;
-            
-            std::thread ppu_thread;
-            {
-                const double p_t = 1.0 / fps() * 1e9; // 固定的
-                
-                std::chrono::steady_clock::time_point lastTime;
-                
-                ppu_thread = std::thread(ppu_working, &_ppu, [&lastTime](){
-                    lastTime = std::chrono::steady_clock::now();
-                }, [this, &p_t, &lastTime](){
-                    
-                    long dif_ns = (std::chrono::steady_clock::now() - lastTime).count(); // 纳秒
-                    
-                    //                    printf("displaySem = %d \n", &displaySem);
-                    _displaySem.unlock();
-                    
-                    _cpu.interrupts(CPU::InterruptTypeNMI); // 每次VBlank发生在最后一行，就是绘制完一帧的时候，通知CPU执行NMI中断
-                    
-//                    long ns_dif = ppu_timer.dif();
-                    long dd = p_t - dif_ns;//ns_dif;
-                    
-                    //                    printf("sleep %f-%f = %f\n", p_t, ns_dif, dd);
-                    _renderTime = dd;
-                    
-                    if (dd > 0)
-                    {
-                        usleep((uint32_t)dd / 1000);
-                    }
-                    
-                    return !_stoped;
-                });
-            }
-            
-            std::thread display_thread;
-            {
-                display_thread = std::thread([this](){
-                    
-                    do {
-                        
-                        _displaySem.lock();
-                        
-                        if (dumpScrollBuffer)
-                            _ppu.dumpScrollToBuffer();
-                        
-                        ppu_callback(&_ppu);
-                        
-                    }while(!_stoped);
-                });
-            }
-            
-            cpu_thread.join();
-            
-            //            printf("ppu_thread %d\n", &ppu_thread);
-            ppu_thread.join();
-#endif
-            
-            
-            
-            
-            
 
-            
             _displaySem.unlock(); // ppu线程结束时再次通知
             
             display_thread.join();
