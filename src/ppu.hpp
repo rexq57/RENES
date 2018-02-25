@@ -439,10 +439,11 @@ namespace ReNes {
             mem->addWritingObserver(0x4014, writtingObserver);
         }
         
-        void draw()
+#define line_y_max 31*8
+#define line_x_max 33*8
+        
+        void readyOnFirstLine()
         {
-            
-            
             status_regs->set(7, 0); // 清除 vblank
             status_regs->set(6, 0);
             
@@ -450,8 +451,8 @@ namespace ReNes {
             memcpy(_OAM, _sprram, 256);
             
             // clear
-//            memset(_buffer, 0, RGB_BUFFER_LENGTH);
-//            memset(_scrollBuffer, 0, bufferLength()*4);
+            //            memset(_buffer, 0, RGB_BUFFER_LENGTH);
+            //            memset(_scrollBuffer, 0, bufferLength()*4);
             
             
             
@@ -478,21 +479,21 @@ namespace ReNes {
              
              */
             
-
-//            uint8_t paletteBuffer[32];
-//            {
-//                memcpy(paletteBuffer, &VRAM[0x3F00], 32);
-//                
-//                // 第一组调色板的0号颜色被作为整个屏幕背景的默认颜色，其他每组的第0号颜色都会跟背景颜色一样，也可以说这些颜色是透明的，所以会显示背景颜色（图中也可以见到），因此实际上调色板最多可标示颜色25种。
-//                paletteBuffer[0] = paletteBuffer[0x10];
-//                
-//                // 当写入精灵调色板第一位时，设置好其他镜像
-//                for (int i=0; i<8; i++)
-//                {
-//                    if (i != 0 && i != 4)
-//                        paletteBuffer[0x00 + i*4] = paletteBuffer[0x10];
-//                }
-//            }
+            
+            //            uint8_t paletteBuffer[32];
+            //            {
+            //                memcpy(paletteBuffer, &VRAM[0x3F00], 32);
+            //
+            //                // 第一组调色板的0号颜色被作为整个屏幕背景的默认颜色，其他每组的第0号颜色都会跟背景颜色一样，也可以说这些颜色是透明的，所以会显示背景颜色（图中也可以见到），因此实际上调色板最多可标示颜色25种。
+            //                paletteBuffer[0] = paletteBuffer[0x10];
+            //
+            //                // 当写入精灵调色板第一位时，设置好其他镜像
+            //                for (int i=0; i<8; i++)
+            //                {
+            //                    if (i != 0 && i != 4)
+            //                        paletteBuffer[0x00 + i*4] = paletteBuffer[0x10];
+            //                }
+            //            }
             auto* VRAM = _vram.masterData();
             
             // 绘制背景
@@ -502,8 +503,8 @@ namespace ReNes {
             uint8_t* bkPaletteAddr = &VRAM[0x3F00];   // 背景调色板地址
             uint8_t* sprPaletteAddr = &VRAM[0x3F10];  // 精灵调色板地址
             
-//            const static RGB* pTRANSPARENT_RGB = (RGB*)&DEFAULT_PALETTE[bkPaletteAddr[0]*3];
-
+            //            const static RGB* pTRANSPARENT_RGB = (RGB*)&DEFAULT_PALETTE[bkPaletteAddr[0]*3];
+            
             
             /*
              0x2001 > write
@@ -524,6 +525,8 @@ namespace ReNes {
             bool showBg = mask_regs->get(3) == 1;
             bool showSpr = mask_regs->get(4) == 1;
             
+            this->_showBg = showBg;
+            this->_showSpr = showSpr;
             /*
              
              VRAM
@@ -574,7 +577,7 @@ namespace ReNes {
             {
                 Sprite* spr = (Sprite*)&_OAM[i*4];
                 if (*(int*)spr == 0) // 没有精灵数据
-                continue;
+                    continue;
                 
                 uint8_t* tileAddr = &sprPetternTableAddr[spr->tileIndex * 16];
                 
@@ -589,227 +592,468 @@ namespace ReNes {
                 drawSprBuffer(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
             }
             
-
-            // 模拟扫描线
-            std::function<void(uint8_t*, bool, bool)> scanLine = [this, sprPaletteAddr, bkPetternTableAddr, bkPaletteAddr](uint8_t* buffer, bool showBg, bool showSpr)
+            _scanline_y = 0;
+        }
+        
+        bool drawScanline()
+        {
+            auto* VRAM = _vram.masterData();
+            
+            // 绘制背景
+            uint8_t* bkPetternTableAddr = &VRAM[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址 0x0000或0x1000
+            uint8_t* sprPetternTableAddr = &VRAM[0x1000 * io_regs[0].get(3)]; // 第3bit决定精灵图案表地址 0x0000或0x1000
+            
+            uint8_t* bkPaletteAddr = &VRAM[0x3F00];   // 背景调色板地址
+            uint8_t* sprPaletteAddr = &VRAM[0x3F10];  // 精灵调色板地址
+            
+            bool showBg  = this->_showBg;
+            bool showSpr = this->_showSpr;
+            
+            uint8_t* buffer = this->_buffer;
+            
+            const auto& v = _t;
+            
+            uint8_t* tileAddr;
+            int high2;
+            
+            // 获取时间点
+            //                auto startTime=std::chrono::system_clock::now();
+            //                for (int line_y=0; line_y<line_y_max; line_y++)
+            int line_y = this->_scanline_y ++;
+            if (line_y <= 239) // 只绘制可见扫描线
             {
-                auto* VRAM = _vram.masterData();
-                
-//                int line_y_max = bg_t_y == 0 ? 30*8 : 31*8;
-//                int line_x_max = bg_t_x == 0 ? 32*8 : 33*8;
-                int line_y_max = 31*8;
-                int line_x_max = 33*8;
                 
                 
-                const auto& v = _t;
+                // 从 _t 中取出tile坐标偏移
+                int bg_offset_x = v & 0x1F;         // tile整体偏移[0,31]
+                int bg_offset_y = (v >> 5) & 0x1F;
+                
+                int bg_t_x = _x;                    // tile精细偏移[0,7]
+                int bg_t_y = (v >> 12) & 0x7;
+                //            int bg_base = (v >> 10) & 0x3;
+                
+                // 需要实时获取
+                int nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
+                
+                testLog = std::to_string(nameTableIndex) + ": " + std::to_string(bg_offset_x) + "-" + std::to_string(bg_t_x);
                 
                 
-                uint8_t* tileAddr;
-                int high2;
-
-                // 获取时间点
-                auto startTime=std::chrono::system_clock::now();
+                // 计算当前扫描线所在瓦片，瓦片偏移发生在相对当前屏幕的tile上，而不是指图案表相对屏幕左上角发生的偏移
+                int bg_y = line_y/8;
+                int s_y = bg_y+bg_offset_y;         // 实际瓦片坐标，向上[0,31]
+                int y = s_y % 30; // 30个tile 垂直循环
                 
-                for (int line_y=0; line_y<line_y_max; line_y++)
+                int draw_line_y = line_y/8*8-bg_t_y;
+                int ty = (line_y+bg_t_y)%8;
+                
+                if (draw_line_y + ty < 0)
+                    return false;
+                
+                for (int line_x=0; line_x<line_x_max; line_x++)
                 {
-                    
-                    
-                    // 从 _t 中取出tile坐标偏移
-                    int bg_offset_x = v & 0x1F;         // tile整体偏移[0,31]
-                    int bg_offset_y = (v >> 5) & 0x1F;
-                    
-                    int bg_t_x = _x;                    // tile精细偏移[0,7]
-                    int bg_t_y = (v >> 12) & 0x7;
-                    //            int bg_base = (v >> 10) & 0x3;
-                    
-                    // 需要实时获取
-                    int nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
-                    
-                    testLog = std::to_string(nameTableIndex) + ": " + std::to_string(bg_offset_x) + "-" + std::to_string(bg_t_x);
-                    
-                    
-                    // 计算当前扫描线所在瓦片，瓦片偏移发生在相对当前屏幕的tile上，而不是指图案表相对屏幕左上角发生的偏移
-                    int bg_y = line_y/8;
-                    int s_y = bg_y+bg_offset_y;         // 实际瓦片坐标，向上[0,31]
-                    int y = s_y % 30; // 30个tile 垂直循环
-                    
-                    int draw_line_y = line_y/8*8-bg_t_y;
-                    int ty = (line_y+bg_t_y)%8;
-                    
-                    if (draw_line_y + ty < 0)
+                    int draw_line_x = line_x/8*8-bg_t_x;
+                    int tx = (line_x+bg_t_x)%8;
+                    if (draw_line_x + tx < 0)
                         continue;
                     
-                    for (int line_x=0; line_x<line_x_max; line_x++)
+                    if (line_x % 8 == 0) // 每次跨界才计算新的瓦片地址
                     {
-                        int draw_line_x = line_x/8*8-bg_t_x;
-                        int tx = (line_x+bg_t_x)%8;
-                        if (draw_line_x + tx < 0)
-                            continue;
+                        int bg_x = line_x/8;
+                        int s_x = (bg_x+bg_offset_x); // 目标tile
+                        int x = s_x % 32; // 32个tile 水平循环
                         
-                        if (line_x % 8 == 0) // 每次跨界才计算新的瓦片地址
+                        //                            if (line_y % 8 == 0)
                         {
-                            int bg_x = line_x/8;
-                            int s_x = (bg_x+bg_offset_x); // 目标tile
-                            int x = s_x % 32; // 32个tile 水平循环
+                            int realNameTableIndex = ((nameTableIndex + s_x/32) % 2);
+                            // 未处理左右镜像，需要计算s_y
                             
-//                            if (line_y % 8 == 0)
-                            {
-                                int realNameTableIndex = ((nameTableIndex + s_x/32) % 2);
-                                // 未处理左右镜像，需要计算s_y
-                                
-                                uint8_t* nameTableAddr = &VRAM[0x2000 + realNameTableIndex*0x0400];
-                                uint8_t* attributeTableAddr = &VRAM[0x23C0 + realNameTableIndex*0x0400];
-                                
-                                //                            NameTableInfo& info = infos[s_x];
-                                //                            uint8_t* nameTableAddr = info.nameTableAddr;
-                                //                            uint8_t* attributeTableAddr = info.attributeTableAddr;
-                                
-                                // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
-                                uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(y / 4 * (32/4) + x / 4)];
-                                int bit = (y % 4) / 2 * 4 + (x % 4) / 2 * 2;
-                                high2 = (attributeAddrFor4x4Tile >> bit) & 0x3;
-                                
-                                int tileIndex = nameTableAddr[y*32 + x]; // 得到 bkg tile index
-                                
-                                // 确定在图案表里的tile地址，每个tile是8x8像素，占用16字节。
-                                // 前8字节(8x8) + 后8字节(8x8)
-                                tileAddr = &bkPetternTableAddr[tileIndex * 16];
-                                
-                                // 记录当前tile信息
-//                                infos[bg_x] = {tileAddr, high2};
-                            }
-//                            else
-//                            {
-//                                tileAddr = infos[bg_x].tileAddr;
-//                                high2 = infos[bg_x].high2;
-//                            }
+                            uint8_t* nameTableAddr = &VRAM[0x2000 + realNameTableIndex*0x0400];
+                            uint8_t* attributeTableAddr = &VRAM[0x23C0 + realNameTableIndex*0x0400];
+                            
+                            //                            NameTableInfo& info = infos[s_x];
+                            //                            uint8_t* nameTableAddr = info.nameTableAddr;
+                            //                            uint8_t* attributeTableAddr = info.attributeTableAddr;
+                            
+                            // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
+                            uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(y / 4 * (32/4) + x / 4)];
+                            int bit = (y % 4) / 2 * 4 + (x % 4) / 2 * 2;
+                            high2 = (attributeAddrFor4x4Tile >> bit) & 0x3;
+                            
+                            int tileIndex = nameTableAddr[y*32 + x]; // 得到 bkg tile index
+                            
+                            // 确定在图案表里的tile地址，每个tile是8x8像素，占用16字节。
+                            // 前8字节(8x8) + 后8字节(8x8)
+                            tileAddr = &bkPetternTableAddr[tileIndex * 16];
+                            
+                            // 记录当前tile信息
+                            //                                infos[bg_x] = {tileAddr, high2};
                         }
+                        //                            else
+                        //                            {
+                        //                                tileAddr = infos[bg_x].tileAddr;
+                        //                                high2 = infos[bg_x].high2;
+                        //                            }
+                    }
+                    
+                    // line_x/8*8 为当前tile的标准坐标，bg_t_x 为偏移位置
+                    
+                    {
+                        uint8_t* paletteAddr = bkPaletteAddr;
+                        bool flipV = false;
+                        bool flipH = false;
                         
-                        // line_x/8*8 为当前tile的标准坐标，bg_t_x 为偏移位置
-
                         {
-                            uint8_t* paletteAddr = bkPaletteAddr;
-                            bool flipV = false;
-                            bool flipH = false;
+                            int tx_ = flipH ? tx : 7-tx;
+                            int ty_ = flipV ? 7-ty : ty;
                             
+                            int paletteUnitIndex;
                             {
-                                int tx_ = flipH ? tx : 7-tx;
-                                int ty_ = flipV ? 7-ty : ty;
+                                // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
+                                int low0 = ((bit8*)&tileAddr[ty_])->get(tx_);
+                                int low1 = ((bit8*)&tileAddr[ty_+8])->get(tx_);
+                                int low2 = low0 | (low1 << 1);
                                 
-                                int paletteUnitIndex;
+                                paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
+                            }
+                            
+                            int bg_systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
+                            
+                            int pixelIndex = (NES_MIN(draw_line_y + ty, 239) * 32*8 + NES_MIN(draw_line_x+tx, 255)); // 最低位是右边第一像素，所以渲染顺序要从右往左
+                            
+                            // 获取当前像素的精灵数据，并检测碰撞
+                            int spr_systemPaletteUnitIndex = 0; // 取低6位[0,63]
+                            bool sprFront = true;
+                            {
+                                for (int i=0; i<8; i++)
                                 {
-                                    // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
-                                    int low0 = ((bit8*)&tileAddr[ty_])->get(tx_);
-                                    int low1 = ((bit8*)&tileAddr[ty_+8])->get(tx_);
-                                    int low2 = low0 | (low1 << 1);
+                                    uint8_t& spr_data = _spr_buffer[pixelIndex + i*BUFFER_PIXEL_CONUT];
                                     
-                                    paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
-                                }
-
-                                int bg_systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
-                                
-                                int pixelIndex = (NES_MIN(draw_line_y + ty, 239) * 32*8 + NES_MIN(draw_line_x+tx, 255)); // 最低位是右边第一像素，所以渲染顺序要从右往左
-                                
-                                // 获取当前像素的精灵数据，并检测碰撞
-                                int spr_systemPaletteUnitIndex = 0; // 取低6位[0,63]
-                                bool sprFront = true;
-                                {
-                                    for (int i=0; i<8; i++)
+                                    if (spr_data == 0)
                                     {
-                                        uint8_t& spr_data = _spr_buffer[pixelIndex + i*BUFFER_PIXEL_CONUT];
+                                        break;
+                                    }
+                                    
+                                    //                                        spr_systemPaletteUnitIndex = spr_data & 63;
+                                    sprFront = (spr_data & 32) == 0;
+                                    spr_systemPaletteUnitIndex = sprPaletteAddr[spr_data & 15];
+                                    
+                                    {
+                                        bool isFirstSprite = spr_data > 63;
                                         
-                                        if (spr_data == 0)
+                                        // 碰撞条件，第一精灵 & 非0调色板第一位（透明色）& 允许碰撞
+                                        if (isFirstSprite && spr_systemPaletteUnitIndex != sprPaletteAddr[0] && status_regs->get(6) == 0)
                                         {
-                                            break;
-                                        }
-                                        
-//                                        spr_systemPaletteUnitIndex = spr_data & 63;
-                                        sprFront = (spr_data & 32) == 0;
-                                        spr_systemPaletteUnitIndex = sprPaletteAddr[spr_data & 15];
-                                        
-                                        {
-                                            bool isFirstSprite = spr_data > 63;
-                                            
-                                            // 碰撞条件，第一精灵 & 非0调色板第一位（透明色）& 允许碰撞
-                                            if (isFirstSprite && spr_systemPaletteUnitIndex != sprPaletteAddr[0] && status_regs->get(6) == 0)
-                                            {
-                                                status_regs->set(6, 1);
-                                            }
+                                            status_regs->set(6, 1);
                                         }
                                     }
                                 }
-
-                                int systemPaletteUnitIndex = -1;
+                            }
+                            
+                            int systemPaletteUnitIndex = -1;
+                            {
+                                if (showSpr && spr_systemPaletteUnitIndex != 0)
                                 {
-                                    if (showSpr && spr_systemPaletteUnitIndex != 0)
-                                    {
-                                        // 判断前后
-                                        if (showBg && !sprFront && paletteUnitIndex != 0)
-                                        {
-                                            systemPaletteUnitIndex = bg_systemPaletteUnitIndex;
-                                        }
-                                        else
-                                        {
-                                            systemPaletteUnitIndex = spr_systemPaletteUnitIndex;
-                                        }
-                                    }
-                                    else if (showBg)
+                                    // 判断前后
+                                    if (showBg && !sprFront && paletteUnitIndex != 0)
                                     {
                                         systemPaletteUnitIndex = bg_systemPaletteUnitIndex;
                                     }
+                                    else
+                                    {
+                                        systemPaletteUnitIndex = spr_systemPaletteUnitIndex;
+                                    }
                                 }
-
-                                auto* pb = (RGB*)&buffer[pixelIndex*3];
-                                if (systemPaletteUnitIndex != -1)
+                                else if (showBg)
                                 {
-                                    RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
-                                    *pb = *rgb;
-                                }
-                                else
-                                {
-                                    memset(pb, 0, 3);
+                                    systemPaletteUnitIndex = bg_systemPaletteUnitIndex;
                                 }
                             }
+                            
+                            auto* pb = (RGB*)&buffer[pixelIndex*3];
+                            if (systemPaletteUnitIndex != -1)
+                            {
+                                RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
+                                *pb = *rgb;
+                            }
+                            else
+                            {
+                                memset(pb, 0, 3);
+                            }
                         }
-                        
                     }
                     
-                    // 模拟60Hz扫描线，每帧1/60秒，每条扫描线 1/60/240 秒 的延迟
-                    if (line_y<line_y_max-1)
+                }
+                
+                // 绘制了最后一条可见扫描线，则进入VBlank
+                if (line_y == 239)
+                {
+                    status_regs->set(7, 1);
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        bool isOverScanline()
+        {
+            return _scanline_y >= 262;
+        }
+
+        void draw()
+        {
+            readyOnFirstLine();
+
+            // 模拟扫描线
+            auto startTime=std::chrono::system_clock::now();
+            for (int line_y=0; line_y<line_y_max; line_y++)
+            {
+                drawScanline();
+                
+                // 模拟60Hz扫描线，每帧1/60秒，每条扫描线 1/60/240 秒 的延迟
+                if (line_y<line_y_max-1)
+                {
+                    const long p_t = 1.0 / fps / 240 * 1e9; // 纳秒
+                    //                        printf("fuck %f", p_t);
+                    
+                    auto t1=std::chrono::system_clock::now();
+                    auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-startTime); // 实际花费时间，纳秒
+                    long d_t = d.count();
+                    
+                    long dd = p_t - d_t; // 纳秒差
+                    
+                    if (dd > 0)
                     {
-                        const long p_t = 1.0 / fps / 240 * 1e9; // 纳秒
-//                        printf("fuck %f", p_t);
+                        //                            printf("sleep %f-%f = %f\n", p_t, d_t, dd * 1000000);
+                        usleep((uint32_t)dd / 1000);
                         
-                        auto t1=std::chrono::system_clock::now();
-                        auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-startTime); // 实际花费时间，纳秒
-                        long d_t = d.count();
-                        
-                        long dd = p_t - d_t; // 纳秒差
-                        
-                        if (dd > 0)
-                        {
-//                            printf("sleep %f-%f = %f\n", p_t, d_t, dd * 1000000);
-                            usleep((uint32_t)dd / 1000);
-                            
-                            startTime = std::chrono::system_clock::now();
-                        }
-                        else
-                        {
-                            startTime = t1; // 记录当前时间
-                        }
+                        startTime = std::chrono::system_clock::now();
+                    }
+                    else
+                    {
+                        startTime = t1; // 记录当前时间
                     }
                 }
-
-            };
+            }
             
-//            _timer.timerStart();
-            // 绘制扫描线
-            scanLine(_buffer, showBg, showSpr);
+//            std::function<void(uint8_t*, bool, bool)> scanLine = [this, sprPaletteAddr, bkPetternTableAddr, bkPaletteAddr](uint8_t* buffer, bool showBg, bool showSpr)
+//            {
+//                auto* VRAM = _vram.masterData();
+//
+////                int line_y_max = bg_t_y == 0 ? 30*8 : 31*8;
+////                int line_x_max = bg_t_x == 0 ? 32*8 : 33*8;
+//                int line_y_max = 31*8;
+//                int line_x_max = 33*8;
+//
+//
+//                const auto& v = _t;
+//
+//
+//                uint8_t* tileAddr;
+//                int high2;
+//
+//                // 获取时间点
+//                auto startTime=std::chrono::system_clock::now();
+//
+//                for (int line_y=0; line_y<line_y_max; line_y++)
+//                {
+//
+//
+//                    // 从 _t 中取出tile坐标偏移
+//                    int bg_offset_x = v & 0x1F;         // tile整体偏移[0,31]
+//                    int bg_offset_y = (v >> 5) & 0x1F;
+//
+//                    int bg_t_x = _x;                    // tile精细偏移[0,7]
+//                    int bg_t_y = (v >> 12) & 0x7;
+//                    //            int bg_base = (v >> 10) & 0x3;
+//
+//                    // 需要实时获取
+//                    int nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
+//
+//                    testLog = std::to_string(nameTableIndex) + ": " + std::to_string(bg_offset_x) + "-" + std::to_string(bg_t_x);
+//
+//
+//                    // 计算当前扫描线所在瓦片，瓦片偏移发生在相对当前屏幕的tile上，而不是指图案表相对屏幕左上角发生的偏移
+//                    int bg_y = line_y/8;
+//                    int s_y = bg_y+bg_offset_y;         // 实际瓦片坐标，向上[0,31]
+//                    int y = s_y % 30; // 30个tile 垂直循环
+//
+//                    int draw_line_y = line_y/8*8-bg_t_y;
+//                    int ty = (line_y+bg_t_y)%8;
+//
+//                    if (draw_line_y + ty < 0)
+//                        continue;
+//
+//                    for (int line_x=0; line_x<line_x_max; line_x++)
+//                    {
+//                        int draw_line_x = line_x/8*8-bg_t_x;
+//                        int tx = (line_x+bg_t_x)%8;
+//                        if (draw_line_x + tx < 0)
+//                            continue;
+//
+//                        if (line_x % 8 == 0) // 每次跨界才计算新的瓦片地址
+//                        {
+//                            int bg_x = line_x/8;
+//                            int s_x = (bg_x+bg_offset_x); // 目标tile
+//                            int x = s_x % 32; // 32个tile 水平循环
+//
+////                            if (line_y % 8 == 0)
+//                            {
+//                                int realNameTableIndex = ((nameTableIndex + s_x/32) % 2);
+//                                // 未处理左右镜像，需要计算s_y
+//
+//                                uint8_t* nameTableAddr = &VRAM[0x2000 + realNameTableIndex*0x0400];
+//                                uint8_t* attributeTableAddr = &VRAM[0x23C0 + realNameTableIndex*0x0400];
+//
+//                                //                            NameTableInfo& info = infos[s_x];
+//                                //                            uint8_t* nameTableAddr = info.nameTableAddr;
+//                                //                            uint8_t* attributeTableAddr = info.attributeTableAddr;
+//
+//                                // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
+//                                uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(y / 4 * (32/4) + x / 4)];
+//                                int bit = (y % 4) / 2 * 4 + (x % 4) / 2 * 2;
+//                                high2 = (attributeAddrFor4x4Tile >> bit) & 0x3;
+//
+//                                int tileIndex = nameTableAddr[y*32 + x]; // 得到 bkg tile index
+//
+//                                // 确定在图案表里的tile地址，每个tile是8x8像素，占用16字节。
+//                                // 前8字节(8x8) + 后8字节(8x8)
+//                                tileAddr = &bkPetternTableAddr[tileIndex * 16];
+//
+//                                // 记录当前tile信息
+////                                infos[bg_x] = {tileAddr, high2};
+//                            }
+////                            else
+////                            {
+////                                tileAddr = infos[bg_x].tileAddr;
+////                                high2 = infos[bg_x].high2;
+////                            }
+//                        }
+//
+//                        // line_x/8*8 为当前tile的标准坐标，bg_t_x 为偏移位置
+//
+//                        {
+//                            uint8_t* paletteAddr = bkPaletteAddr;
+//                            bool flipV = false;
+//                            bool flipH = false;
+//
+//                            {
+//                                int tx_ = flipH ? tx : 7-tx;
+//                                int ty_ = flipV ? 7-ty : ty;
+//
+//                                int paletteUnitIndex;
+//                                {
+//                                    // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
+//                                    int low0 = ((bit8*)&tileAddr[ty_])->get(tx_);
+//                                    int low1 = ((bit8*)&tileAddr[ty_+8])->get(tx_);
+//                                    int low2 = low0 | (low1 << 1);
+//
+//                                    paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
+//                                }
+//
+//                                int bg_systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
+//
+//                                int pixelIndex = (NES_MIN(draw_line_y + ty, 239) * 32*8 + NES_MIN(draw_line_x+tx, 255)); // 最低位是右边第一像素，所以渲染顺序要从右往左
+//
+//                                // 获取当前像素的精灵数据，并检测碰撞
+//                                int spr_systemPaletteUnitIndex = 0; // 取低6位[0,63]
+//                                bool sprFront = true;
+//                                {
+//                                    for (int i=0; i<8; i++)
+//                                    {
+//                                        uint8_t& spr_data = _spr_buffer[pixelIndex + i*BUFFER_PIXEL_CONUT];
+//
+//                                        if (spr_data == 0)
+//                                        {
+//                                            break;
+//                                        }
+//
+////                                        spr_systemPaletteUnitIndex = spr_data & 63;
+//                                        sprFront = (spr_data & 32) == 0;
+//                                        spr_systemPaletteUnitIndex = sprPaletteAddr[spr_data & 15];
+//
+//                                        {
+//                                            bool isFirstSprite = spr_data > 63;
+//
+//                                            // 碰撞条件，第一精灵 & 非0调色板第一位（透明色）& 允许碰撞
+//                                            if (isFirstSprite && spr_systemPaletteUnitIndex != sprPaletteAddr[0] && status_regs->get(6) == 0)
+//                                            {
+//                                                status_regs->set(6, 1);
+//                                            }
+//                                        }
+//                                    }
+//                                }
+//
+//                                int systemPaletteUnitIndex = -1;
+//                                {
+//                                    if (showSpr && spr_systemPaletteUnitIndex != 0)
+//                                    {
+//                                        // 判断前后
+//                                        if (showBg && !sprFront && paletteUnitIndex != 0)
+//                                        {
+//                                            systemPaletteUnitIndex = bg_systemPaletteUnitIndex;
+//                                        }
+//                                        else
+//                                        {
+//                                            systemPaletteUnitIndex = spr_systemPaletteUnitIndex;
+//                                        }
+//                                    }
+//                                    else if (showBg)
+//                                    {
+//                                        systemPaletteUnitIndex = bg_systemPaletteUnitIndex;
+//                                    }
+//                                }
+//
+//                                auto* pb = (RGB*)&buffer[pixelIndex*3];
+//                                if (systemPaletteUnitIndex != -1)
+//                                {
+//                                    RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
+//                                    *pb = *rgb;
+//                                }
+//                                else
+//                                {
+//                                    memset(pb, 0, 3);
+//                                }
+//                            }
+//                        }
+//
+//                    }
+//
+//                    // 模拟60Hz扫描线，每帧1/60秒，每条扫描线 1/60/240 秒 的延迟
+//                    if (line_y<line_y_max-1)
+//                    {
+//                        const long p_t = 1.0 / fps / 240 * 1e9; // 纳秒
+////                        printf("fuck %f", p_t);
+//
+//                        auto t1=std::chrono::system_clock::now();
+//                        auto d=std::chrono::duration_cast<std::chrono::nanoseconds>(t1-startTime); // 实际花费时间，纳秒
+//                        long d_t = d.count();
+//
+//                        long dd = p_t - d_t; // 纳秒差
+//
+//                        if (dd > 0)
+//                        {
+////                            printf("sleep %f-%f = %f\n", p_t, d_t, dd * 1000000);
+//                            usleep((uint32_t)dd / 1000);
+//
+//                            startTime = std::chrono::system_clock::now();
+//                        }
+//                        else
+//                        {
+//                            startTime = t1; // 记录当前时间
+//                        }
+//                    }
+//                }
+//
+//            };
+//
+////            _timer.timerStart();
+//            // 绘制扫描线
+//            scanLine(_buffer, showBg, showSpr);
             
 //            _timer.timerEnd("draw");
             
             // 绘制完成，等于发生了 VBlank，需要设置 2002 第7位
-            status_regs->set(7, 1);
+//            status_regs->set(7, 1);
             
             
         }
@@ -1064,8 +1308,11 @@ namespace ReNes {
         uint8_t _2007ReadingCache = 0;
         
         uint16_t _dstAddr2004 = 0;
-        
 
+        // 绘图
+        int _scanline_y = 0;
+        bool _showBg;
+        bool _showSpr;
         
         // 建立 w * h * 8 的缓冲区，每像素8字节，用来存储8个精灵的数据。
         // 如果该像素没有精灵，甚至没有叠加，则该位第一字节为0

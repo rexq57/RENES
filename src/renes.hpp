@@ -320,6 +320,84 @@ namespace ReNes {
             //            const static double cpu_cyles = 1 * t; // 0.000000572067039 上面差不多
             const static uint32_t cpu_cyles = (1.0/f) * 1e9 ; // 572 ns
             
+#if 1
+            // CPU周期线程
+            std::thread cpu_thread;
+            {
+                bool isFirstCPUCycleForFrame = true;
+                std::chrono::steady_clock::time_point firstTime;
+                uint32_t cpuCyclesCountForFrame = 0;
+                uint32_t ppuCyclesCountForScanline = 0;
+                const uint32_t NumCyclesPerScanline = 341 / 3;
+                const uint32_t TimePerFrame = 1.0 / fps() * 1e9; // 每帧需要的时间(纳秒)
+                
+                cpu_thread = std::thread([this, &isFirstCPUCycleForFrame, &firstTime, &cpuCyclesCountForFrame, &ppuCyclesCountForScanline, &NumCyclesPerScanline, &TimePerFrame](){
+
+                    // 主循环
+                    do {
+                        
+                        if (isFirstCPUCycleForFrame)
+                        {
+                            firstTime = std::chrono::steady_clock::now();
+                            _ppu.readyOnFirstLine();
+                            isFirstCPUCycleForFrame = false;
+                        }
+                        
+                        // 执行指令
+                        int cyles = _cpu.exec();
+                        
+                        if (_cpu.error)
+                            break;
+                        
+                        cpuCyclesCountForFrame += cyles;
+                        ppuCyclesCountForScanline += cyles;
+                        
+                        if (ppuCyclesCountForScanline >= NumCyclesPerScanline)
+                        {
+                            ppuCyclesCountForScanline -= NumCyclesPerScanline;
+                            bool vblankEvent = _ppu.drawScanline();
+                            if (vblankEvent)
+                                _cpu.interrupts(CPU::InterruptTypeNMI);
+                            
+                            if (_ppu.isOverScanline())
+                            {
+                                _displaySem.unlock(); // 显示图像
+                                
+                                uint32_t dif_ns = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒
+                                if ( dif_ns < TimePerFrame )
+                                    usleep( (TimePerFrame - dif_ns) / 1000 );
+                                
+                                // 计数器重置
+                                cpuCyclesCountForFrame -= NumCyclesPerScanline * 262;
+                                isFirstCPUCycleForFrame = true;
+                            }
+                        }
+                        
+                    }while(cpu_callback(&_cpu) && !_stoped);
+                    
+                });
+            }
+            
+            std::thread display_thread;
+            {
+                display_thread = std::thread([this](){
+                    
+                    do {
+                        
+                        _displaySem.lock();
+                        
+                        if (dumpScrollBuffer)
+                            _ppu.dumpScrollToBuffer();
+                        
+                        ppu_callback(&_ppu);
+                        
+                    }while(!_stoped);
+                });
+            }
+            
+            cpu_thread.join();
+#else
+            
             // cpu线程
             std::thread cpu_thread;
             {
@@ -387,9 +465,6 @@ namespace ReNes {
                 });
             }
             
-            
-            
-            
             std::thread display_thread;
             {
                 display_thread = std::thread([this](){
@@ -407,12 +482,17 @@ namespace ReNes {
                 });
             }
             
-            
-            
             cpu_thread.join();
             
-//            printf("ppu_thread %d\n", &ppu_thread);
+            //            printf("ppu_thread %d\n", &ppu_thread);
             ppu_thread.join();
+#endif
+            
+            
+            
+            
+            
+
             
             _displaySem.unlock(); // ppu线程结束时再次通知
             
