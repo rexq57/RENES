@@ -205,6 +205,7 @@ namespace ReNes {
             return _renderTime;
         }
         
+        // 回调函数
         std::function<bool(CPU*)> cpu_callback;
         std::function<bool(PPU*)> ppu_callback;
         std::function<void()> willRunning;
@@ -233,61 +234,57 @@ namespace ReNes {
             if (willRunning)
                 willRunning();
             
+            //-----------------------------------
             // 控制器处理
-            {
-                int dstWrite4016 = 0;
-                uint16_t dstAddr4016tmp = 0;
-                uint16_t dstAddr4016 = 0;
-                
-                _mem.addWritingObserver(0x4016, [this, &dstWrite4016, &dstAddr4016tmp,  &dstAddr4016](uint16_t addr, uint8_t value){
-                    
-                    // 写0x4016 2次，以设置从0x4016读取的硬件信息
-                    std::function<void(int&,uint16_t&, uint16_t&)> dstAddrWriting = [value](int& dstWrite, uint16_t& dstAddrTmp, uint16_t& dstAddr){
-                        
-                        //                    int writeBitIndex = dstWrite;
-                        //                    dstWrite = (dstWrite+1) % 2;
-                        //
-                        //
-                        //                    dstAddr &= (0xFF << dstWrite*8); // 清理高/低位
-                        //                    dstAddr |= (value << writeBitIndex*8); // 设置对应位
-                        
-                        int writeBitIndex = (dstWrite+1) % 2;
-                        
-                        dstAddrTmp &= (0xFF << dstWrite*8); // 清理相反的高/低位
-                        dstAddrTmp |= (value << writeBitIndex*8); // 设置对应位
-                        
-                        dstWrite = (dstWrite+1) % 2;
-                        
-                        if (dstWrite == 0)
-                            dstAddr = dstAddrTmp;
-                    };
-                    
-                    dstAddrWriting(dstWrite4016, dstAddr4016tmp, dstAddr4016);
-                    
-                    // 每次重新请求控制器的时候，重置按键
-                    //                    if (dstWrite4016 == 1 && dstAddr4016 == 0x100)
-                    if (dstWrite4016 == 0 && dstAddr4016 == 0x100)
-                    {
-                        _ctr.reset();
-                    }
-                    
-                });
-                
-                _mem.addReadingObserver(0x4016, [this, &dstWrite4016, &dstAddr4016](uint16_t addr, uint8_t* value, bool* cancel){
-                    
-                    if (dstAddr4016 == 0x100)
-                    {
-                        *value = _ctr.nextKeyStatue();
-                        
-                        //                        dstWrite4016 = 0;
-                    }
-                });
-            }
+            int dstWrite4016 = 0;
+            uint16_t dstAddr4016tmp = 0;
+            uint16_t dstAddr4016 = 0;
             
-            const static uint32_t f = 1024*1000*1.79; // 1.79Mhz
-            //            const static double t = 1.0/f; // 时钟周期 0.000000545565642
-            //            const static double cpu_cyles = 1 * t; // 0.000000572067039 上面差不多
-            const static uint32_t cpu_cyles = (1.0/f) * 1e9 ; // 572 ns
+            _mem.addWritingObserver(0x4016, [this, &dstWrite4016, &dstAddr4016tmp,  &dstAddr4016](uint16_t addr, uint8_t value){
+                
+                // 写0x4016 2次，以设置从0x4016读取的硬件信息
+                std::function<void(int&,uint16_t&, uint16_t&)> dstAddrWriting = [value](int& dstWrite, uint16_t& dstAddrTmp, uint16_t& dstAddr){
+                    
+                    //                    int writeBitIndex = dstWrite;
+                    //                    dstWrite = (dstWrite+1) % 2;
+                    //
+                    //
+                    //                    dstAddr &= (0xFF << dstWrite*8); // 清理高/低位
+                    //                    dstAddr |= (value << writeBitIndex*8); // 设置对应位
+                    
+                    int writeBitIndex = (dstWrite+1) % 2;
+                    
+                    dstAddrTmp &= (0xFF << dstWrite*8); // 清理相反的高/低位
+                    dstAddrTmp |= (value << writeBitIndex*8); // 设置对应位
+                    
+                    dstWrite = (dstWrite+1) % 2;
+                    
+                    if (dstWrite == 0)
+                        dstAddr = dstAddrTmp;
+                };
+                
+                dstAddrWriting(dstWrite4016, dstAddr4016tmp, dstAddr4016);
+                
+                // 每次重新请求控制器的时候，重置按键
+                if (dstWrite4016 == 0 && dstAddr4016 == 0x100)
+                {
+                    _ctr.reset();
+                }
+            });
+            
+            _mem.addReadingObserver(0x4016, [this, &dstWrite4016, &dstAddr4016](uint16_t addr, uint8_t* value, bool* cancel){
+                
+                if (dstAddr4016 == 0x100)
+                {
+                    *value = _ctr.nextKeyStatue();
+                    
+                    //                        dstWrite4016 = 0;
+                }
+            });
+            //-----------------------------------
+            
+//            const static double CPUFrequency = 1.789773; // 1.79Mhz
+//            const static uint32_t cpu_cyles = (1.0/(1024*1000*CPUFrequency)) * 1e9 ; // 572 ns
             
             // CPU周期线程
             std::thread cpu_thread = std::thread([this](){
@@ -300,9 +297,13 @@ namespace ReNes {
                 const uint32_t NumCyclesPerScanline = 341 / 3;
                 const uint32_t TimePerFrame = 1.0 / fps() * 1e9; // 每帧需要的时间(纳秒)
                 
+                // NTSC
+                const uint32_t NumScanline = 262;
+                
                 // 主循环
                 do {
                     
+                    // 第一帧开始进行初始化
                     if (isFirstCPUCycleForFrame)
                     {
                         firstTime = std::chrono::steady_clock::now();
@@ -330,12 +331,13 @@ namespace ReNes {
                         {
                             _displaySem.unlock(); // 显示图像
                             
-                            uint32_t dif_ns = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒
+                            // 每帧等待
+                            auto dif_ns = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒
                             if ( dif_ns < TimePerFrame )
-                                usleep( (TimePerFrame - dif_ns) / 1000 );
+                                usleep( (uint32_t)(TimePerFrame - dif_ns) / 1000 );
                             
                             // 计数器重置
-                            cpuCyclesCountForFrame -= NumCyclesPerScanline * 262;
+                            cpuCyclesCountForFrame -= NumCyclesPerScanline * NumScanline;
                             isFirstCPUCycleForFrame = true;
                         }
                     }
@@ -358,10 +360,9 @@ namespace ReNes {
                 }while(!_stoped);
             });
             
+            // 等待线程结束
             cpu_thread.join();
-
             _displaySem.unlock(); // ppu线程结束时再次通知
-            
             display_thread.join();
             
             if (_cpu.error)
@@ -377,7 +378,6 @@ namespace ReNes {
             {
                 _stopedCallback();
             }
-
         }
         
         

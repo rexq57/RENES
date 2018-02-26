@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="12121" systemVersion="16G29" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
+<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="13771" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="12121"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="13771"/>
+        <capability name="Aspect ratio constraints" minToolsVersion="5.1"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -669,6 +670,9 @@
                         <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
                         <rect key="contentRect" x="196" y="240" width="480" height="270"/>
                         <rect key="screenRect" x="0.0" y="0.0" width="1680" height="1027"/>
+                        <connections>
+                            <outlet property="delegate" destination="B8D-0N-5wS" id="Re5-gz-L1r"/>
+                        </connections>
                     </window>
                     <connections>
                         <segue destination="XfG-lQ-9wD" kind="relationship" relationship="window.shadowedContentViewController" id="cq2-FE-JQM"/>
@@ -683,7 +687,7 @@
             <objects>
                 <viewController id="XfG-lQ-9wD" customClass="ViewController" sceneMemberID="viewController">
                     <view key="view" wantsLayer="YES" id="m2S-Jp-Qdl">
-                        <rect key="frame" x="0.0" y="0.0" width="920" height="558"/>
+                        <rect key="frame" x="0.0" y="0.0" width="920" height="693"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <subviews>
                             <scrollView horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" hasHorizontalScroller="NO" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="dum-Wx-ZIB">
@@ -692,7 +696,7 @@
                                     <rect key="frame" x="1" y="1" width="398" height="256"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
-                                        <textView importsGraphics="NO" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="IfE-Sp-Ecj">
+                                        <textView importsGraphics="NO" verticallyResizable="YES" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="IfE-Sp-Ecj">
                                             <rect key="frame" x="0.0" y="0.0" width="398" height="256"/>
                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                             <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
@@ -712,7 +716,6 @@
                                     <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
                                 </clipView>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="400" id="Eg4-gw-YPl"/>
                                     <constraint firstAttribute="height" constant="258" id="pDA-Mn-hG7"/>
                                 </constraints>
                                 <scroller key="horizontalScroller" hidden="YES" verticalHuggingPriority="750" doubleValue="1" horizontal="YES" id="wOv-uS-C9p">
@@ -724,8 +727,8 @@
                                     <autoresizingMask key="autoresizingMask"/>
                                 </scroller>
                             </scrollView>
-                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" allowsCharacterPickerTouchBarItem="NO" translatesAutoresizingMaskIntoConstraints="NO" id="my7-70-8J6">
-                                <rect key="frame" x="438" y="415" width="464" height="123"/>
+                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="my7-70-8J6">
+                                <rect key="frame" x="438" y="550" width="464" height="123"/>
                                 <constraints>
                                     <constraint firstAttribute="width" constant="460" id="hoO-Tz-wIP"/>
                                     <constraint firstAttribute="height" constant="123" id="wrg-Za-gnG"/>
@@ -737,7 +740,7 @@
                                 </textFieldCell>
                             </textField>
                             <customView translatesAutoresizingMaskIntoConstraints="NO" id="hsI-oI-CmB">
-                                <rect key="frame" x="440" y="298" width="460" height="97"/>
+                                <rect key="frame" x="440" y="298" width="460" height="232"/>
                                 <subviews>
                                     <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="9CY-2j-WiT">
                                         <rect key="frame" x="20" y="18" width="33" height="17"/>
@@ -770,7 +773,7 @@
                                         </connections>
                                     </button>
                                     <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="fSW-01-Cg2">
-                                        <rect key="frame" x="20" y="61" width="42" height="17"/>
+                                        <rect key="frame" x="20" y="196" width="42" height="17"/>
                                         <buttonCell key="cell" type="roundRect" title="debug" bezelStyle="roundedRect" alignment="center" controlSize="mini" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="fdb-90-lJN">
                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                             <font key="font" metaFont="miniSystem"/>
@@ -779,8 +782,8 @@
                                             <action selector="debug:" target="XfG-lQ-9wD" id="ukr-6Z-KjT"/>
                                         </connections>
                                     </button>
-                                    <textField verticalHuggingPriority="750" allowsCharacterPickerTouchBarItem="NO" translatesAutoresizingMaskIntoConstraints="NO" id="i9o-DB-KkO">
-                                        <rect key="frame" x="72" y="61" width="57" height="16"/>
+                                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="i9o-DB-KkO">
+                                        <rect key="frame" x="72" y="196" width="57" height="16"/>
                                         <constraints>
                                             <constraint firstAttribute="width" constant="57" id="Gbx-vF-t1K"/>
                                         </constraints>
@@ -800,8 +803,8 @@
                                             <action selector="resetButton:" target="XfG-lQ-9wD" id="uqi-h3-0PM"/>
                                         </connections>
                                     </button>
-                                    <textField verticalHuggingPriority="750" allowsCharacterPickerTouchBarItem="NO" translatesAutoresizingMaskIntoConstraints="NO" id="auG-AK-Y5h">
-                                        <rect key="frame" x="372" y="61" width="68" height="16"/>
+                                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="auG-AK-Y5h">
+                                        <rect key="frame" x="372" y="196" width="68" height="16"/>
                                         <constraints>
                                             <constraint firstAttribute="width" constant="68" id="eRp-Xq-fjN"/>
                                         </constraints>
@@ -856,7 +859,7 @@
                                                         <rect key="frame" x="1" y="1" width="452" height="228"/>
                                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <subviews>
-                                                            <textView importsGraphics="NO" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="Ejr-rM-gwe">
+                                                            <textView importsGraphics="NO" verticallyResizable="YES" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="Ejr-rM-gwe">
                                                                 <rect key="frame" x="0.0" y="0.0" width="653" height="228"/>
                                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                                 <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
@@ -898,7 +901,7 @@
                                                         <rect key="frame" x="1" y="1" width="452" height="228"/>
                                                         <autoresizingMask key="autoresizingMask"/>
                                                         <subviews>
-                                                            <textView importsGraphics="NO" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="HTT-tX-tqy">
+                                                            <textView importsGraphics="NO" verticallyResizable="YES" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="HTT-tX-tqy">
                                                                 <rect key="frame" x="0.0" y="0.0" width="452" height="228"/>
                                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                                 <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
@@ -938,7 +941,7 @@
                                                         <rect key="frame" x="1" y="1" width="452" height="228"/>
                                                         <autoresizingMask key="autoresizingMask"/>
                                                         <subviews>
-                                                            <textView importsGraphics="NO" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="aix-nH-EPa">
+                                                            <textView importsGraphics="NO" verticallyResizable="YES" usesFontPanel="YES" findStyle="panel" continuousSpellChecking="YES" allowsUndo="YES" usesRuler="YES" allowsNonContiguousLayout="YES" quoteSubstitution="YES" dashSubstitution="YES" spellingCorrection="YES" smartInsertDelete="YES" id="aix-nH-EPa">
                                                                 <rect key="frame" x="0.0" y="0.0" width="452" height="228"/>
                                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                                 <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
@@ -1007,10 +1010,11 @@
                                 </connections>
                             </tabView>
                             <openGLView useAuxiliaryDepthBufferStencil="NO" allowOffline="YES" translatesAutoresizingMaskIntoConstraints="NO" id="8HV-AN-ZeJ" customClass="MyOpenGLView">
-                                <rect key="frame" x="20" y="298" width="256" height="240"/>
+                                <rect key="frame" x="20" y="298" width="400" height="375"/>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="256" id="05l-6d-fek"/>
-                                    <constraint firstAttribute="height" constant="240" id="Ema-9o-q71"/>
+                                    <constraint firstAttribute="width" relation="greaterThanOrEqual" constant="256" id="05l-6d-fek"/>
+                                    <constraint firstAttribute="width" secondItem="8HV-AN-ZeJ" secondAttribute="height" multiplier="256:240" id="C37-IZ-r31"/>
+                                    <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="240" id="Ema-9o-q71"/>
                                 </constraints>
                             </openGLView>
                         </subviews>
@@ -1026,6 +1030,7 @@
                             <constraint firstAttribute="bottom" secondItem="oOV-Ln-XTL" secondAttribute="bottom" constant="20" id="V9M-rl-bth"/>
                             <constraint firstItem="oOV-Ln-XTL" firstAttribute="leading" secondItem="dum-Wx-ZIB" secondAttribute="trailing" constant="20" id="XG4-AH-Hav"/>
                             <constraint firstItem="8HV-AN-ZeJ" firstAttribute="top" secondItem="m2S-Jp-Qdl" secondAttribute="top" constant="20" id="cQM-g4-Ev9"/>
+                            <constraint firstItem="dum-Wx-ZIB" firstAttribute="width" secondItem="8HV-AN-ZeJ" secondAttribute="width" id="dAX-FO-2KA"/>
                             <constraint firstItem="oOV-Ln-XTL" firstAttribute="top" secondItem="hsI-oI-CmB" secondAttribute="bottom" constant="20" id="hua-g5-hfl"/>
                             <constraint firstAttribute="trailing" secondItem="hsI-oI-CmB" secondAttribute="trailing" constant="20" id="l9d-Ti-yqW"/>
                             <constraint firstAttribute="trailing" secondItem="my7-70-8J6" secondAttribute="trailing" constant="20" id="llt-Wt-D6M"/>
