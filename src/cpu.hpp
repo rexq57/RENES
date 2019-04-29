@@ -600,6 +600,7 @@ namespace ReNes {
             _mutex.unlock();
         }
         
+        // 执行指令，返回当前指令所需的cpu周期数（周期数来自CMD_LIST定义）
         int exec()
         {
             if (error)

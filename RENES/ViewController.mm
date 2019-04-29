@@ -128,35 +128,31 @@ using namespace ReNes;
                     }
                 }
                 
-                
                 return true;
             };
             
             _nes->ppu_callback = [self](PPU* ppu){
                 
-                //            @synchronized ((__bridge id)_nes)
+                if (ppu == _nes->ppu())
                 {
-                    if (ppu == _nes->ppu())
                     {
-                        {
-                            // 显示图片
-                            int width  = ppu->width();
-                            int height = ppu->height();
-                            uint8_t* srcBuffer = ppu->buffer();
-                            
-                            [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
-                            
-                        }
+                        // 显示图片
+                        int width  = ppu->width();
+                        int height = ppu->height();
+                        uint8_t* srcBuffer = ppu->buffer();
                         
-                        {
-                            // 显示图片
-                            int width  = _nes->ppu()->width()*2;
-                            int height = _nes->ppu()->height()*2;
-                            uint8_t* srcBuffer = _nes->ppu()->scrollBuffer();
-                            
-                            [_scrollMirroringView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
-                            
-                        }
+                        [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+                        
+                    }
+                    
+                    {
+                        // 显示图片
+                        int width  = _nes->ppu()->width()*2;
+                        int height = _nes->ppu()->height()*2;
+                        uint8_t* srcBuffer = _nes->ppu()->scrollBuffer();
+                        
+                        [_scrollMirroringView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+                        
                     }
                 }
                 
@@ -452,9 +448,11 @@ using namespace ReNes;
             
             const bool* statues = _nes->ctr()->statues();
             
+            double perFrameTime = (double)_nes->perFrameTime() / 1e9; // 每帧花费时间: 秒
+            
             _registersView.stringValue = [NSString stringWithFormat:@"PC: 0x%04X SP: 0x%04X\n\
 C:%d Z:%d I:%d D:%d B:%d _:%d V:%d N:%d\n\
-A:%d X:%d Y:%d (%.9lf, %lf)\n\
+A:%d X:%d Y:%d (%lf - fps %d)\n\
 %d %d %d %d %d %d %d %d\n\
 %s", regs.PC, regs.SP,
                                           regs.P.get(CPU::__registers::C),
@@ -466,7 +464,7 @@ A:%d X:%d Y:%d (%.9lf, %lf)\n\
                                           regs.P.get(CPU::__registers::V),
                                           regs.P.get(CPU::__registers::N),
                                           regs.A,regs.X,regs.Y,
-                                          (double)_nes->cmdTime() / 1e9, (double)_nes->renderTime() / 1e9,
+                                          perFrameTime, (int)(1.0 / perFrameTime),
                                           statues[0], statues[1], statues[2], statues[3], statues[4], statues[5], statues[6], statues[7],
                                           _nes->ppu()->testLog.c_str()];
         

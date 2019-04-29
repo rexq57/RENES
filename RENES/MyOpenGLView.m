@@ -214,7 +214,6 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
 
 - (void) _updateRGBData:(uint8_t*) data size:(CGSize) size
 {
-    
     if (_textureId == 0)
     {
         glActiveTexture(GL_TEXTURE0);
@@ -253,7 +252,7 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
                 _lastSize = size;
             }
         
-//            NSData* dt = [NSData dataWithBytes:data length:len];
+            // 拷贝数据到显示缓冲区
             memcpy(_buffer, data, len);
             
             if (self.updateData == nil)
@@ -261,20 +260,15 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
                 __weak MyOpenGLView* unsafe_self = self;
                 uint8_t* buffer = _buffer;
                 self.updateData = ^() {
-                    
-                    //                [unsafe_self _updateRGBData:(uint8_t*)[dt bytes] size:size];
                     [unsafe_self _updateRGBData:buffer size:size];
                 };
             }
             
-            
+            // 异步主线程进行显示
             dispatch_async(dispatch_get_main_queue(), ^{
-                
                 @autoreleasepool {
-                    //        [self setNeedsDisplay:YES];
                     [self display];
                 }
-                
             });
         }
     }

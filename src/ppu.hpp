@@ -183,7 +183,7 @@ namespace ReNes {
         
     public:
         
-        int fps = 60; // default = 60
+        uint32_t timePerScanline;
         
         bit8* io_regs; // I/O 寄存器, 8 x 8bit
         bit8* mask_regs;    // PPU屏蔽寄存器
@@ -818,7 +818,7 @@ namespace ReNes {
                 // 模拟60Hz扫描线，每帧1/60秒，每条扫描线 1/60/240 秒 的延迟
                 if (line_y<line_y_max-1)
                 {
-                    const long p_t = 1.0 / fps / 240 * 1e9; // 纳秒
+                    const long p_t = this->timePerScanline; // 纳秒
                     //                        printf("fuck %f", p_t);
                     
                     auto t1=std::chrono::system_clock::now();
