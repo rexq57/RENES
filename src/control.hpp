@@ -18,8 +18,6 @@ namespace ReNes {
             KEY_LEFT,
             KEY_RIGHT,
             
-            
-            
             __KEY_MAX
         };
         
@@ -33,51 +31,61 @@ namespace ReNes {
             _mem = mem;
         }
         
+        inline
         void up(bool pressDown)
         {
             _statues[KEY_UP] = pressDown;
         }
         
+        inline
         void down(bool pressDown)
         {
             _statues[KEY_DOWN] = pressDown;
         }
         
+        inline
         void left(bool pressDown)
         {
             _statues[KEY_LEFT] = pressDown;
         }
         
+        inline
         void right(bool pressDown)
         {
             _statues[KEY_RIGHT] = pressDown;
         }
         
+        inline
         void A(bool pressDown)
         {
             _statues[KEY_A] = pressDown;
         }
         
+        inline
         void B(bool pressDown)
         {
             _statues[KEY_B] = pressDown;
         }
         
+        inline
         void select(bool pressDown)
         {
             _statues[KEY_SELECT] = pressDown;
         }
         
+        inline
         void start(bool pressDown)
         {
             _statues[KEY_START] = pressDown;
         }
         
+        inline
         void setNextKey(KEY key)
         {
             _nextKey = key;
         }
         
+        inline
         int nextKeyStatue() 
         {
             int statue = _statues[_nextKey];
@@ -88,11 +96,13 @@ namespace ReNes {
             return statue;
         }
         
+        inline
         void reset()
         {
             setNextKey(KEY_A);
         }
         
+        inline
         const bool* statues() const
         {
             return _statues;

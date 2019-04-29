@@ -195,11 +195,13 @@ namespace ReNes {
             return &_ctr;
         }
         
+        inline
         long cmdTime() const
         {
             return _cmdTime;
         }
         
+        inline
         long renderTime() const
         {
             return _renderTime;
@@ -314,6 +316,7 @@ namespace ReNes {
                     // 执行指令
                     int cyles = _cpu.exec();
                     
+                    // 发生错误，退出
                     if (_cpu.error)
                         break;
                     
@@ -329,9 +332,17 @@ namespace ReNes {
                         
                         if (_ppu.isOverScanline())
                         {
-                            _displaySem.unlock(); // 显示图像
+                            // 通知图像显示 - 最后一条扫描线完成，距离下一帧第一条扫描线开始，期间是vblank
+                            // (显示图像)
+                            {
+                                if (dumpScrollBuffer)
+                                    _ppu.dumpScrollToBuffer();
+                                
+                                ppu_callback(&_ppu);
+                            }
+                            // 显示完成 vblank 结束
                             
-                            // 每帧等待
+                            // 模拟等待，模拟每一帧完整时间花费
                             auto dif_ns = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒
                             if ( dif_ns < TimePerFrame )
                                 usleep( (uint32_t)(TimePerFrame - dif_ns) / 1000 );
@@ -346,24 +357,8 @@ namespace ReNes {
                 
             });
             
-            std::thread display_thread = std::thread([this](){
-                
-                do {
-                    
-                    _displaySem.lock();
-                    
-                    if (dumpScrollBuffer)
-                        _ppu.dumpScrollToBuffer();
-                    
-                    ppu_callback(&_ppu);
-                    
-                }while(!_stoped);
-            });
-            
             // 等待线程结束
             cpu_thread.join();
-            _displaySem.unlock(); // ppu线程结束时再次通知
-            display_thread.join();
             
             if (_cpu.error)
             {
@@ -396,8 +391,6 @@ namespace ReNes {
         std::function<void()> _stopedCallback;
         
         std::thread _runningThread;
-        
-        std::mutex _displaySem;
     };
     
     

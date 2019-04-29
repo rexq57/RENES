@@ -7,10 +7,6 @@
 
 
 namespace ReNes {
-    
-    const uint16_t MEMORY_WRITE_ONLY[] = {
-        0x2000, 0x2001, 0x2003, 0x2005, 0x2006, 0x4014
-    };
 
     struct Memory{
 
@@ -40,7 +36,7 @@ namespace ReNes {
         // 读取数据
         uint8_t read8bitData(uint16_t addr, bool event=false, bool* cancel = 0)
         {
-            auto data = *getRealAddr(addr, READ);
+            auto data = *_getRealAddr(addr, READ);
             
             // 处理2005,2006读取，每次读取之后重置bit7
 //            switch (addr)
@@ -72,19 +68,19 @@ namespace ReNes {
         }
         
         // 16bit读取访问属于直接访问，没有事件处理
-        uint16_t read16bitData(uint16_t addr) 
+        inline
+        uint16_t read16bitData(uint16_t addr) const
         {
-            uint16_t data = *(uint16_t*)getRealAddr(addr, READ);
-            
-//            processReadingEvent(addr, &data);
-            
+            uint16_t data = *(uint16_t*)const_cast<Memory*>(this)->_getRealAddr(addr, READ);
             return data;
         }
         
+        inline
         void write8bitData(uint16_t addr, uint8_t value)
         {
-            *getRealAddr(addr, WRITE) = value;
+            *_getRealAddr(addr, WRITE) = value;
             
+//            for test
 //            if ((addr == 0x0100 + 0xfe || addr == 0x0100 + 0xff))
 //            {
 //                log("fuck\n");
@@ -118,52 +114,54 @@ namespace ReNes {
             WRITE,
             MASTER
         };
-        
-//        const std::vector<uint16_t> WRITE_ONLY = {
-//        const static uint16_t WRITE_ONLY[] = {
-//            0x2000, 0x2001, 0x2003, 0x2005, 0x2006, 0x4014
-//        };
 
         // 得到实际内存地址
-        uint8_t* getRealAddr(uint16_t addr, ACCESS access)
+        inline
+        uint8_t* _getRealAddr(uint16_t addr, ACCESS access)
         {
-            uint16_t fixedAddr = addr;
-            
-            // 处理I/O寄存器镜像
-            if (addr >= 0x2008 && addr <= 0x3FFF)
+            // 对访问地址做镜像修正
+            if (addr >= 0x2008 && addr <= 0x3FFF)       // 处理I/O寄存器镜像
             {
-                fixedAddr = 0x2000 + (addr % 8);
+                addr = 0x2000 + (addr % 8);
             }
-            // 2KB internal RAM 镜像
-            else if (addr >= 0x0800 && addr <= 0x1FFF)
+            else if (addr >= 0x0800 && addr <= 0x1FFF)  // 2KB internal RAM 镜像
             {
-                fixedAddr = addr % 0x0800;
+                addr = addr % 0x0800;
             }
             
-            
-            
-            // 2000 2001 只写
-            // 2002 只读
-            
-            // 非法读取
-//            if (access == READ && VECTOR_FIND(WRITE_ONLY, addr))
-            if (access == READ && ARRAY_FIND(MEMORY_WRITE_ONLY, addr))
+            // 只在debug模式下检查内存错误，以提高release速度
+#ifdef DEBUG
+            if (access == READ) // 检查非法读取
             {
-                log("该内存只能写!\n");
-                error = true;
-                return (uint8_t*)0;
+                // 该内存只写
+                const static uint16_t MEMORY_WRITE_ONLY[] = {
+                    0x2000, 0x2001, 0x2003, 0x2005, 0x2006, 0x4014
+                };
+                
+                if (ARRAY_FIND(MEMORY_WRITE_ONLY, addr))
+                {
+                    log("该内存只能写!\n");
+                    error = true;
+                    return (uint8_t*)0;
+                }
             }
-            
-            // 非法写入
-            if (access == WRITE && (addr == 0x2002))
+            else if (access == WRITE) // 检查非法写入
             {
-                log("该内存只能读!\n");
-                error = true;
-                return (uint8_t*)0;
+                // 该内存只读
+                const static uint16_t MEMORY_READ_ONLY[] = {
+                    0x2002
+                };
+                
+                if (ARRAY_FIND(MEMORY_READ_ONLY, addr))
+                {
+                    log("该内存只能读!\n");
+                    error = true;
+                    return (uint8_t*)0;
+                }
             }
-            
-            
-            return _data + fixedAddr;
+#endif
+
+            return _data + addr;
         }
         
         
