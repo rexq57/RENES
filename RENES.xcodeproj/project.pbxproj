@@ -193,8 +193,6 @@
 				2156BFB21EFF5976001B3025 /* Sources */,
 				2156BFB31EFF5976001B3025 /* Frameworks */,
 				2156BFB41EFF5976001B3025 /* Resources */,
-				5DC50C99B15FEA5272A7BBA2 /* [CP] Embed Pods Frameworks */,
-				2F1448A4EA17A9397194ABD5 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -213,7 +211,6 @@
 				21BA86151F72BA6C00183B0F /* Sources */,
 				21BA86161F72BA6C00183B0F /* Frameworks */,
 				21BA86171F72BA6C00183B0F /* Resources */,
-				CEC580D7EF6E2E97F1D5D0F7 /* [CP] Embed Pods Frameworks */,
 				0BBCF73E673BDB08E082D617 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
@@ -298,7 +295,7 @@
 			files = (
 			);
 			inputPaths = (
-				"${SRCROOT}/Pods/Target Support Files/Pods-RENES_IOS/Pods-RENES_IOS-resources.sh",
+				"${PODS_ROOT}/Target Support Files/Pods-RENES_IOS/Pods-RENES_IOS-resources.sh",
 				"${PODS_ROOT}/GPUImage/framework/Resources/lookup.png",
 				"${PODS_ROOT}/GPUImage/framework/Resources/lookup_amatorka.png",
 				"${PODS_ROOT}/GPUImage/framework/Resources/lookup_miss_etikate.png",
@@ -315,37 +312,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-RENES_IOS/Pods-RENES_IOS-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		2F1448A4EA17A9397194ABD5 /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "[CP] Copy Pods Resources";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-RENES/Pods-RENES-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		5DC50C99B15FEA5272A7BBA2 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-RENES/Pods-RENES-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-RENES_IOS/Pods-RENES_IOS-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		5E38099E972A1F03D9175C25 /* [CP] Check Pods Manifest.lock */ = {
@@ -382,21 +349,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		CEC580D7EF6E2E97F1D5D0F7 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-RENES_IOS/Pods-RENES_IOS-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
