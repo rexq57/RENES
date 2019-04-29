@@ -464,7 +464,7 @@ A:%d X:%d Y:%d - %.9lf(%.9lf), %lf - fps %d\n\
                                           regs.P.get(CPU::__registers::V),
                                           regs.P.get(CPU::__registers::N),
                                           regs.A,regs.X,regs.Y,
-                                          (double)_nes->cpuCyleTime() / 1e9, (double)572 / 1e9, perFrameTime, (int)(1.0 / perFrameTime),
+                                          (double)_nes->cpuCycleTime() / 1e9, (double)572 / 1e9, perFrameTime, (int)(1.0 / perFrameTime),
                                           statues[0], statues[1], statues[2], statues[3], statues[4], statues[5], statues[6], statues[7],
                                           _nes->ppu()->testLog.c_str()];
         

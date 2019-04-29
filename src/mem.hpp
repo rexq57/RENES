@@ -38,16 +38,13 @@ namespace ReNes {
         {
             auto data = *_getRealAddr(addr, READ);
             
-            // 处理2005,2006读取，每次读取之后重置bit7
+            // 处理2005,2006读取，每次读取之后重置bit7 ?
 //            switch (addr)
 //            {
 //                case 0x2005:
 //                case 0x2006:
 //                    ((bit8*)&_data[addr])->set(7, 0);
 //            }
-            
-            // master访问不处理事件，或者是 0x4016 接口（0x4016属于特殊接口，映射控制器的值）
-//            if (!master || addr == 0x4016)
             
             bool tmp;
             if (cancel == 0)

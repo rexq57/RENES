@@ -186,7 +186,7 @@ namespace ReNes {
         }
         
         inline
-        long cpuCyleTime() const { return _cpuCyleTime; }
+        long cpuCycleTime() const { return _cpuCycleTime; }
         
         inline
         long renderTime() const { return _renderTime; }
@@ -235,13 +235,6 @@ namespace ReNes {
                 // 写0x4016 2次，以设置从0x4016读取的硬件信息
                 std::function<void(int&,uint16_t&, uint16_t&)> dstAddrWriting = [value](int& dstWrite, uint16_t& dstAddrTmp, uint16_t& dstAddr){
                     
-                    //                    int writeBitIndex = dstWrite;
-                    //                    dstWrite = (dstWrite+1) % 2;
-                    //
-                    //
-                    //                    dstAddr &= (0xFF << dstWrite*8); // 清理高/低位
-                    //                    dstAddr |= (value << writeBitIndex*8); // 设置对应位
-                    
                     int writeBitIndex = (dstWrite+1) % 2;
                     
                     dstAddrTmp &= (0xFF << dstWrite*8); // 清理相反的高/低位
@@ -272,10 +265,6 @@ namespace ReNes {
                 }
             });
             //-----------------------------------
-            
-            // 标准
-            // const static double CPUFrequency = 1.789773; // 1.79Mhz
-            // const static uint32_t cpu_cyles = (1.0/(1024*1000*CPUFrequency)) * 1e9 ; // 每个CPU时钟为 572 ns
             
             // CPU周期线程
             std::thread cpu_thread = std::thread([this](){
@@ -309,14 +298,14 @@ namespace ReNes {
                     }
                     
                     // 执行指令
-                    int cyles = _cpu.exec();
+                    int cycles = _cpu.exec();
                     
                     // 发生错误，退出
                     if (_cpu.error)
                         break;
                     
-                    cpuCyclesCountForFrame += cyles;
-                    cpuCyclesCountForScanline += cyles;
+                    cpuCyclesCountForFrame += cycles;
+                    cpuCyclesCountForScanline += cycles;
                     
                     if (cpuCyclesCountForScanline >= NumCyclesPerScanline)
                     {
@@ -344,7 +333,7 @@ namespace ReNes {
                             // 模拟等待，模拟每一帧完整时间花费
                             auto currentFrameTime = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒
                             _perFrameTime = currentFrameTime;
-                            _cpuCyleTime  = currentFrameTime / cpuCyclesCountForFrame;
+                            _cpuCycleTime  = currentFrameTime / cpuCyclesCountForFrame;
                             
                             // 计数器重置
                             cpuCyclesCountForFrame -= NumCyclesPerScanline * NumScanline;
@@ -386,7 +375,7 @@ namespace ReNes {
         Memory _mem;
         Control _ctr;
         
-        long _cpuCyleTime;
+        long _cpuCycleTime;
         long _renderTime;
         long _perFrameTime;
         

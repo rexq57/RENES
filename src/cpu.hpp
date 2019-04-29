@@ -166,7 +166,7 @@ namespace ReNes {
         AddressingMode mode;
         
         int bytes;
-        int cyles;
+        int cycles;
         
         int flags; // 寄存器影响标签，用于检查执行错误
     };
@@ -485,6 +485,11 @@ namespace ReNes {
     // 2A03
     struct CPU {
         
+        // 标准
+        constexpr const static double StandardFrequency = 1.789773; // 标准频率 1.79Mhz
+        const static uint32_t TimePerCpuCycle = (1.0/(1024*1000*StandardFrequency)) * 1e9 ; // 每个CPU时钟为 572 ns
+        
+        // 用于调试
         bool debug = false;
         
         struct __registers {
@@ -518,7 +523,8 @@ namespace ReNes {
         
         std::set<std::string> usedCmds;
         
-        bool error; // 错误标记
+        // 错误标记
+        bool error;
         
         long execCmdLine = 0;
         
@@ -1433,7 +1439,7 @@ namespace ReNes {
             
             execCmdLine ++;
             
-            return info.cyles;
+            return info.cycles;
         }
         
     private:
