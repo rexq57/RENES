@@ -53,6 +53,8 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
     
     CGSize _lastSize;
     uint8_t* _buffer;
+    
+    NSTimer* _displayTimer;
 }
 
 @property (copy) void(^updateData)();
@@ -89,9 +91,22 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
 {
     if ((self = [super initWithCoder:coder]))
     {
-
+        NSTimer* displayTimer = [NSTimer timerWithTimeInterval:0.02   //time interval
+                                            target:self
+                                          selector:@selector(timerFired:)
+                                          userInfo:nil
+                                           repeats:YES];
+        
+        [[NSRunLoop currentRunLoop] addTimer:displayTimer
+                                     forMode:NSDefaultRunLoopMode];
+        _displayTimer = displayTimer;
     }
     return self;
+}
+
+- (void)timerFired:(id)sender
+{
+    [self setNeedsDisplay:YES];
 }
 
 - (GLuint) loadProgramWithVertexShader:(const char*) strVSource fragmentShader:(const char*) strFSource
@@ -264,20 +279,21 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
                 };
             }
             
+            // 在主线程调用视图渲染，会造成主线程卡顿，影响按键事件的检测
+//            dispatch_async(dispatch_get_main_queue(), ^{
+//                @autoreleasepool {
+//                    [self display];
+//                }
+//            });
             // 异步主线程进行显示
-            dispatch_async(dispatch_get_main_queue(), ^{
-                @autoreleasepool {
-                    [self display];
-                }
-            });
+//            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+//                @autoreleasepool {
+////                    [self setNeedsDisplay:YES]; // 只能在主线程调用
+//                    [self display];
+//                }
+//            });
         }
     }
-//    [[self openGLContext] flushBuffer];
-//    [self update];
-//    self.needsDisplay = YES;
-    
-    
-    
 }
 
 - (void) mouseDown:(NSEvent *)event
