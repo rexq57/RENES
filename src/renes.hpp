@@ -186,7 +186,7 @@ namespace ReNes {
         }
         
         inline
-        long cmdTime() const { return _cmdTime; }
+        long cpuCyleTime() const { return _cpuCyleTime; }
         
         inline
         long renderTime() const { return _renderTime; }
@@ -273,8 +273,9 @@ namespace ReNes {
             });
             //-----------------------------------
             
-//            const static double CPUFrequency = 1.789773; // 1.79Mhz
-//            const static uint32_t cpu_cyles = (1.0/(1024*1000*CPUFrequency)) * 1e9 ; // 572 ns
+            // 标准
+            // const static double CPUFrequency = 1.789773; // 1.79Mhz
+            // const static uint32_t cpu_cyles = (1.0/(1024*1000*CPUFrequency)) * 1e9 ; // 每个CPU时钟为 572 ns
             
             // CPU周期线程
             std::thread cpu_thread = std::thread([this](){
@@ -324,10 +325,9 @@ namespace ReNes {
                         if (vblankEvent)
                             _cpu.interrupts(CPU::InterruptTypeNMI);
                         
-                        // 最后一条扫描线完成
-                        if (_ppu.isOverScanline())
+                        if (_ppu.currentScanline() == NumVisibleScanline)
                         {
-                            // 通知图像显示 - 最后一条扫描线完成，距离下一帧第一条扫描线开始，期间是vblank
+                            // vblank开始 通知图像显示
                             // (显示图像: 拷贝内存(同步) -> 刷新视图(异步) 也许不能完美模拟60fps)
                             {
                                 if (dumpScrollBuffer)
@@ -336,14 +336,20 @@ namespace ReNes {
                                 ppu_callback(&_ppu);
                             }
                             // 显示完成 vblank 结束
+                        }
+                        
+                        // 最后一条扫描线完成(第261条扫描线，scanline+1 == 262)
+                        if (_ppu.currentScanline() == NumScanline)
+                        {
+                            // 模拟等待，模拟每一帧完整时间花费
+                            auto currentFrameTime = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒
+                            _perFrameTime = currentFrameTime;
+                            _cpuCyleTime  = currentFrameTime / cpuCyclesCountForFrame;
                             
                             // 计数器重置
                             cpuCyclesCountForFrame -= NumCyclesPerScanline * NumScanline;
                             isFirstCPUCycleForFrame = true;
                             
-                            // 模拟等待，模拟每一帧完整时间花费
-                            auto currentFrameTime = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒
-                            _perFrameTime = currentFrameTime;
                             if ( currentFrameTime < TimePerFrame )
                                 usleep( (uint32_t)(TimePerFrame - currentFrameTime) / 1000 );
                         }
@@ -380,7 +386,7 @@ namespace ReNes {
         Memory _mem;
         Control _ctr;
         
-        long _cmdTime;
+        long _cpuCyleTime;
         long _renderTime;
         long _perFrameTime;
         

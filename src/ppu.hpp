@@ -17,7 +17,7 @@
  每个CPU周期是 1.0 / (1024*1000*1.789773) = 0.000000545634837s，所以一帧绘制时间是 0.011174601471807s
  
  【VBlank时间】
- 图片尺寸是256x240，NTSC标称可见高度是224
+ 图片尺寸是256x240，NTSC标称可见高度是224 (只是显示y轴居中，数值224不影响计算)
  实际上，NTSC每帧尺寸是341x262 (见 https://wiki.nesdev.com/w/index.php/File:Ntsc_timing.png)
  VBlank我理解为PPU跑 [240,261] 这段扫描线的时间（假设261过后，下一条扫描线就是下一帧的第一条扫描线，如下图:）
  [239]...... (当前帧最后一条扫描线)
@@ -800,9 +800,11 @@ namespace ReNes {
             return false;
         }
         
-        bool isOverScanline()
+        // 当前扫描线
+        inline
+        int currentScanline() const
         {
-            return _scanline_y >= 262;
+            return _scanline_y;
         }
 
         void draw()
