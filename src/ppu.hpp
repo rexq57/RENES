@@ -409,7 +409,6 @@ namespace ReNes {
         void readyOnFirstLine()
         {
             status_regs->set(7, 0); // 清除 vblank
-            _vblankEvent = false;
             status_regs->set(6, 0);
             
             // 准备当前帧的OAM
@@ -537,8 +536,9 @@ namespace ReNes {
         }
         
         // 模拟扫描线 ? 但是应该是每条指令执行完成后，绘制这一行上的一定数量的点
-        void drawScanline()
+        void drawScanline(bool* vblankEvent)
         {
+            *vblankEvent = false;
             auto* VRAM = _vram.masterData();
             
             // 绘制背景
@@ -732,17 +732,9 @@ namespace ReNes {
                 {
                     status_regs->set(7, 1);
                     // 设置vblank事件
-                    _vblankEvent = true;
+                    *vblankEvent = true;
                 }
             }
-        }
-        
-        // 用于外部检测
-        bool _vblankEvent = false;
-        inline
-        bool vblankEvent() const
-        {
-            return _vblankEvent;
         }
         
         // 当前扫描线

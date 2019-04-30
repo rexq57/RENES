@@ -306,9 +306,10 @@ namespace ReNes {
                     {
                         cpuCyclesCountForScanline -= NumCyclesPerScanline;
                         
-                        _ppu.drawScanline();
+                        bool vblankEvent;
+                        _ppu.drawScanline(&vblankEvent);
                         
-                        if (_ppu.vblankEvent())
+                        if (vblankEvent)
                         {
                             // vblank发生的时候，设置NMI中断
                             _cpu.interrupts(CPU::InterruptTypeNMI);
