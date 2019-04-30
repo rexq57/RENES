@@ -81,7 +81,7 @@ namespace ReNes {
             bit8 b8_6 = *(bit8*)&rom[6];
             bit8 b8_7 = *(bit8*)&rom[7];
             
-            printf("文件长度 %d\n", length);
+            printf("文件长度 %zu\n", length);
             
             printf("[4] 16kB ROM: %d\n\
                    [5] 8kB VROM: %d\n\
@@ -252,7 +252,7 @@ namespace ReNes {
                 }
             });
             
-            _mem.addReadingObserver(0x4016, [this, &dstWrite4016, &dstAddr4016](uint16_t addr, uint8_t* value, bool* cancel){
+            _mem.addReadingObserver(0x4016, [this, &dstWrite4016, &dstAddr4016](uint16_t addr, uint8_t* value){
                 
                 if (dstAddr4016 == 0x100)
                 {
@@ -272,7 +272,6 @@ namespace ReNes {
                 // 显示器制式数据: NTSC
                 const int NumPixelsPerScanline = 341;
                 const int NumScanline = 262;
-                const int NumVisibleScanline = 240;
                 const int FPS = 60; // 包含vblank时间
                 
                 uint32_t cpuCyclesCountForFrame = 0;            // 每一帧内：cpu周期数计数器

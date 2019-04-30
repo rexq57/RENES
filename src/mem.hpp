@@ -36,7 +36,7 @@ namespace ReNes {
         
         // 读取数据
         inline
-        uint8_t read8bitData(uint16_t addr, bool event=false, bool* cancel = 0)
+        uint8_t read8bitData(uint16_t addr, bool event=false)
         {
             auto data = *_getRealAddr(addr, READ);
             
@@ -48,18 +48,12 @@ namespace ReNes {
 //                    ((bit8*)&_data[addr])->set(7, 0);
 //            }
             
-            bool tmp;
-            if (cancel == 0)
-                cancel = &tmp;
-            else
-                *cancel = false;
-            
             if (event)
             {
                 // 检查地址监听
                 if (SET_FIND(addr8bitReadingObserver, addr))
                 {
-                    addr8bitReadingObserver.at(addr)(addr, &data, cancel);
+                    addr8bitReadingObserver.at(addr)(addr, &data);
                 }
             }
 
@@ -99,7 +93,7 @@ namespace ReNes {
         }
         
         // 添加读取监听者
-        void addReadingObserver(uint16_t addr, std::function<void(uint16_t, uint8_t*, bool*)> callback)
+        void addReadingObserver(uint16_t addr, std::function<void(uint16_t, uint8_t*)> callback)
         {
             addr8bitReadingObserver[addr] = callback;
         }
@@ -167,7 +161,7 @@ namespace ReNes {
         uint8_t* _data = 0;
         
         
-        std::map<uint16_t, std::function<void(uint16_t, uint8_t*, bool*)>> addr8bitReadingObserver;
+        std::map<uint16_t, std::function<void(uint16_t, uint8_t*)>> addr8bitReadingObserver;
         std::map<uint16_t, std::function<void(uint16_t, uint8_t)>> addrWritingObserver;
     };
 }

@@ -322,7 +322,7 @@ namespace ReNes {
                 }
             };
             
-            std::function<void(uint16_t, uint8_t*, bool*)> readingObserver = [this](uint16_t addr, uint8_t* value, bool* cancel)
+            std::function<void(uint16_t, uint8_t*)> readingObserver = [this](uint16_t addr, uint8_t* value)
             {
                 switch (addr) {
                     case 0x2002: // 读取 0x2002会重置 _w 状态
@@ -339,7 +339,6 @@ namespace ReNes {
                         // 据说第一次读取的值是无效的，会缓冲到下一次读取才返回
                         if (_2007ReadingStep == 0)
                         {
-                            *cancel = true; // 取消这次操作
                         }
                         else
                         {
