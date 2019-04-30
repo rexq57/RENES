@@ -553,58 +553,51 @@ namespace ReNes {
             interrupts(InterruptTypeReset); // 复位中断
         }
         
+        // 中断类型
         enum InterruptType{
-            InterruptTypeNone,
-            InterruptTypeBreak,
-            InterruptTypeIRQs,
-            InterruptTypeNMI,
-            InterruptTypeReset
+            InterruptTypeNone,  // 无
+            InterruptTypeBreak, // 指令中断
+            InterruptTypeIRQs,  // 软中断
+            InterruptTypeNMI,   // NMI中断
+            InterruptTypeReset  // 重置
         };
         
-        std::mutex _mutex;
+        std::mutex _interrupt_mtx;
         
         // 中断
         void interrupts(InterruptType type)
         {
-            _mutex.lock();
+            std::lock_guard<std::mutex> lock(_interrupt_mtx);
+            
+            bool hasInterrupts = false;
             {
-                bool hasInterrupts = false;
+                // 检查中断是否允许被执行
+                switch(type)
                 {
-                    // 检查中断是否允许被执行
-                    switch(type)
+                    case InterruptTypeNMI:
+                        // NMI中断可以被0x2000的第7位屏蔽，== 0 就是屏蔽，这里不通过read访问
+                        if (((bit8*)&_mem->masterData()[0x2000])->get(7) == 0) break;
+                    case InterruptTypeReset:
+                        // 不可屏蔽中断
+                        hasInterrupts = true;
+                        break;
+                    case InterruptTypeBreak:
+                        // break中断由代码产生，这个也不能屏蔽
+                        hasInterrupts = true;
+                        break;
+                    case InterruptTypeIRQs:
                     {
-                        case InterruptTypeNMI:
-                        {
-                            // NMI中断可以被0x2000的第7位屏蔽，== 0 就是屏蔽，这里不通过read访问
-                            if (((bit8*)&_mem->masterData()[0x2000])->get(7) == 0)
-                            {
-                                break;
-                            }
-                        }
-                        case InterruptTypeReset:
-                            // 不可屏蔽中断
+                        // 软中断，由系统硬件发出，可以屏蔽。如果中断禁止标记为0，才可继续此中断
+                        if (regs.P.get(__registers::I) == 0)
                             hasInterrupts = true;
-                            break;
-                        case InterruptTypeBreak:
-                            // break中断由代码产生，这个也不能屏蔽
-                            hasInterrupts = true;
-                            break;
-                        case InterruptTypeIRQs:
-                        {
-                            // 软中断，由系统硬件发出，可以屏蔽。如果中断禁止标记为0，才可继续此中断
-                            if (regs.P.get(__registers::I) == 0)
-                                hasInterrupts = true;
-                            break;
-                        }
-                        default:
-                            break;
+                        break;
                     }
+                    default:
+                        break;
                 }
-                
-                if (hasInterrupts)
-                    _currentInterruptType = type;
             }
-            _mutex.unlock();
+            
+            if (hasInterrupts) _currentInterruptType = type;
         }
         
         // 执行指令，返回当前指令所需的cpu周期数（周期数来自CMD_LIST定义）
@@ -621,7 +614,7 @@ namespace ReNes {
             auto& SR = *(uint8_t*)&regs.P;
             
             // 检查中断和处理中断
-            _mutex.lock();
+            _interrupt_mtx.lock();
             {
                 // 处理中断
                 if (_currentInterruptType != InterruptTypeNone)
@@ -656,11 +649,6 @@ namespace ReNes {
                         // Reset 不需要保存现场
                         if (_currentInterruptType != InterruptTypeReset)
                         {
-                            // 保存现场
-                            
-//                            auto& PC = regs.PC;
-//                            PC --;
-                            
                             if (_currentInterruptType == InterruptTypeBreak)
                             {
                                 PC ++; // break 返回地址会+1，所以这里先增加
@@ -672,15 +660,12 @@ namespace ReNes {
 //                            push(*(uint8_t*)&regs.P);
 //                            SET_BREAK((1));             /* Set BFlag before pushing */
                             
-                            
                             // 在推入之前修改状态
                             switch(_currentInterruptType)
                             {
                                 case InterruptTypeBreak:
                                 {
                                     push(SR | 0x30); // 4,5 = 1
-                                    
-//                                    printf("break 入栈P %x\n", SR | 0x30);
                                     break;
                                 }
                                 case InterruptTypeNMI:
@@ -692,10 +677,7 @@ namespace ReNes {
                                 default:
                                     break;
                             }
-                            
-//                            push(SR);
                         }
-                        
                         
                         // 设置中断屏蔽标志(I)防止新的中断进来
                         regs.P.set(__registers::I, 1);
@@ -703,12 +685,11 @@ namespace ReNes {
                         // 取消中断标记
                         _currentInterruptType = InterruptTypeNone;
                         
-//                        regs.PC = interruptHandlerAddr;
                         PC = interruptHandlerAddr;
                     }
                 }
             }
-            _mutex.unlock();
+            _interrupt_mtx.unlock();
             
             
             

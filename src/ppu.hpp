@@ -406,21 +406,15 @@ namespace ReNes {
         }
         
 #define line_y_max 31*8
-#define line_x_max 33*8
         
         void readyOnFirstLine()
         {
             status_regs->set(7, 0); // 清除 vblank
+            _vblankEvent = false;
             status_regs->set(6, 0);
             
             // 准备当前帧的OAM
             memcpy(_OAM, _sprram, 256);
-            
-            // clear
-            //            memset(_buffer, 0, RGB_BUFFER_LENGTH);
-            //            memset(_scrollBuffer, 0, bufferLength()*4);
-            
-            
             
             // 设置背景色
             
@@ -445,21 +439,6 @@ namespace ReNes {
              
              */
             
-            
-            //            uint8_t paletteBuffer[32];
-            //            {
-            //                memcpy(paletteBuffer, &VRAM[0x3F00], 32);
-            //
-            //                // 第一组调色板的0号颜色被作为整个屏幕背景的默认颜色，其他每组的第0号颜色都会跟背景颜色一样，也可以说这些颜色是透明的，所以会显示背景颜色（图中也可以见到），因此实际上调色板最多可标示颜色25种。
-            //                paletteBuffer[0] = paletteBuffer[0x10];
-            //
-            //                // 当写入精灵调色板第一位时，设置好其他镜像
-            //                for (int i=0; i<8; i++)
-            //                {
-            //                    if (i != 0 && i != 4)
-            //                        paletteBuffer[0x00 + i*4] = paletteBuffer[0x10];
-            //                }
-            //            }
             auto* VRAM = _vram.masterData();
             
             // 绘制背景
@@ -552,9 +531,6 @@ namespace ReNes {
                 bool flipH = spr->info.get(6); // 水平翻转
                 bool flipV = spr->info.get(7); // 竖直翻转
                 
-                //                if (showSp)
-                //                drawTile(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, showSp);
-                
                 drawSprBuffer(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
             }
             
@@ -562,7 +538,7 @@ namespace ReNes {
         }
         
         // 模拟扫描线 ? 但是应该是每条指令执行完成后，绘制这一行上的一定数量的点
-        bool drawScanline()
+        void drawScanline()
         {
             auto* VRAM = _vram.masterData();
             
@@ -583,14 +559,9 @@ namespace ReNes {
             uint8_t* tileAddr;
             int high2;
             
-            // 获取时间点
-            //                auto startTime=std::chrono::system_clock::now();
-            //                for (int line_y=0; line_y<line_y_max; line_y++)
-            int line_y = this->_scanline_y ++;
+            int line_y = this->_scanline_y ++; // 使用了再增加
             if (line_y <= 239) // 只绘制可见扫描线
             {
-                
-                
                 // 从 _t 中取出tile坐标偏移
                 int bg_offset_x = v & 0x1F;         // tile整体偏移[0,31]
                 int bg_offset_y = (v >> 5) & 0x1F;
@@ -615,10 +586,14 @@ namespace ReNes {
                 int draw_line_y = line_y/8*8-bg_t_y;
                 int ty = (line_y+bg_t_y)%8;
                 
+                // 瓦片坐标位于不可见的扫描线
                 if (draw_line_y + ty < 0)
-                    return false;
+                    return;
                 
-                for (int line_x=0; line_x<line_x_max; line_x++)
+                // 宽度应该是256，刚好填满32个tile。但是如果发生错位的情况，是需要33个tile
+                const static int LINE_X_MAX = 33*8;
+                
+                for (int line_x=0; line_x<LINE_X_MAX; line_x++)
                 {
                     int draw_line_x = line_x/8*8-bg_t_x;
                     int tx = (line_x+bg_t_x)%8;
@@ -753,14 +728,22 @@ namespace ReNes {
                     
                 }
                 
-                // 绘制了最后一条可见扫描线，则进入VBlank
+                // 绘制了最后一条可见扫描线，则设置VBlank标记
                 if (line_y == 239)
                 {
                     status_regs->set(7, 1);
-                    return true;
+                    // 设置vblank事件
+                    _vblankEvent = true;
                 }
             }
-            return false;
+        }
+        
+        // 用于外部检测
+        bool _vblankEvent = false;
+        inline
+        bool vblankEvent() const
+        {
+            return _vblankEvent;
         }
         
         // 当前扫描线
@@ -812,11 +795,6 @@ namespace ReNes {
         {
             return BUFFER_PIXEL_BPP;
         }
-        
-//        size_t bufferLength() const
-//        {
-//            return width()*height() * bpp();
-//        }
         
         uint8_t* buffer() const
         {
@@ -1035,8 +1013,6 @@ namespace ReNes {
         uint8_t* _buffer = 0;       // 显示缓冲区
         uint8_t* _scrollBuffer = 0; // 卷轴缓冲区
         uint8_t* _scrollBufferTmp = 0;
-        
-//        uint8_t* test7774;
         
         uint8_t _sprram[256]; // 精灵内存, 64 个，每个4字节
         uint8_t _OAM[256];    // 每帧的OAM

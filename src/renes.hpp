@@ -279,7 +279,6 @@ namespace ReNes {
                 uint32_t cpuCyclesCountForScanline = 0;         // 每一条扫描线绘制期间：cpu周期数计数器
                 const uint32_t NumCyclesPerScanline = NumPixelsPerScanline / 3;  // 每条扫描线需要的cpu周期数(每个像素需要1/3 CPU周期，由CPU和PPU的频率算得，见ppu.hpp)
                 const uint32_t TimePerFrame = 1.0 / FPS * 1e9; // 每帧需要的时间(纳秒)
-//                const uint32_t TimePerScanline = TimePerFrame / NumScanline; // 纳秒
                 
                 // 主循环
                 do {
@@ -307,14 +306,16 @@ namespace ReNes {
                     if (cpuCyclesCountForScanline >= NumCyclesPerScanline)
                     {
                         cpuCyclesCountForScanline -= NumCyclesPerScanline;
-                        bool vblankEvent = _ppu.drawScanline();
-                        if (vblankEvent)
-                            _cpu.interrupts(CPU::InterruptTypeNMI);
                         
-                        // NES规定的240条扫描线已经绘制完成，[240, 261] 期间是vblank时间
-                        // 假设硬件上每一帧显示不需要时间，而模拟需要，所以把显示开销放到这里，帧末再统计时间花费，模拟等待
-                        if (_ppu.currentScanline() == NumVisibleScanline)
+                        _ppu.drawScanline();
+                        
+                        if (_ppu.vblankEvent())
                         {
+                            // vblank发生的时候，设置NMI中断
+                            _cpu.interrupts(CPU::InterruptTypeNMI);
+                            
+                            // NES规定的240条扫描线已经绘制完成，[240, 261] 期间是vblank时间
+                            // 假设硬件上每一帧显示不需要时间，而模拟需要，所以把显示开销放到这里，帧末再统计时间花费，模拟等待
                             // 拷贝显示所需的数据到内存(同步)
                             if (dumpScrollBuffer)
                                 _ppu.dumpScrollToBuffer();
