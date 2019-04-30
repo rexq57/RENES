@@ -91,7 +91,6 @@ using namespace ReNes;
         
         @autoreleasepool {
             
-            //            NSString* filePath = [[NSBundle mainBundle] pathForResource:@"OUR.NES" ofType:@""];
             NSData* data = [NSData dataWithContentsOfFile:filePath];
             
             if (_nes != 0)
@@ -130,7 +129,7 @@ using namespace ReNes;
                 return true;
             };
             
-            _nes->ppu_callback = [self](PPU* ppu){
+            _nes->ppu_displayCallback = [self](PPU* ppu){
                 
                 //            @synchronized ((__bridge id)_nes)
                 {

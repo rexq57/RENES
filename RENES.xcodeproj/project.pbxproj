@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		214C3C8A1F002C540069C001 /* OUR.NES in Resources */ = {isa = PBXBuildFile; fileRef = 214C3C891F002C4F0069C001 /* OUR.NES */; };
 		2156BFBB1EFF5976001B3025 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 2156BFBA1EFF5976001B3025 /* AppDelegate.m */; };
 		2156BFBE1EFF5976001B3025 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2156BFBD1EFF5976001B3025 /* main.mm */; };
 		2156BFC11EFF5976001B3025 /* ViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2156BFC01EFF5976001B3025 /* ViewController.mm */; };
@@ -32,7 +31,6 @@
 /* Begin PBXFileReference section */
 		050B38F3EA0EC6CF433963B5 /* libPods-RENES_IOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-RENES_IOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		19CA15BACCD628EEE57098FB /* libPods-RENES.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-RENES.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		214C3C891F002C4F0069C001 /* OUR.NES */ = {isa = PBXFileReference; lastKnownFileType = file; path = OUR.NES; sourceTree = "<group>"; };
 		2156BFB61EFF5976001B3025 /* RENES.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RENES.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2156BFB91EFF5976001B3025 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		2156BFBA1EFF5976001B3025 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -119,7 +117,6 @@
 				216B866C1F1684BE00C27040 /* PetternTableView.m */,
 				2167AF7B1F05117C000E6D99 /* MyOpenGLView.h */,
 				2167AF7C1F05117C000E6D99 /* MyOpenGLView.m */,
-				214C3C891F002C4F0069C001 /* OUR.NES */,
 				2156BFC41EFF5976001B3025 /* Main.storyboard */,
 				2156BFC71EFF5976001B3025 /* Info.plist */,
 				2156BFBC1EFF5976001B3025 /* Supporting Files */,
@@ -268,7 +265,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				214C3C8A1F002C540069C001 /* OUR.NES in Resources */,
 				21BA86361F72D9DE00183B0F /* Roms in Resources */,
 				2156BFC31EFF5976001B3025 /* Assets.xcassets in Resources */,
 				2156BFC61EFF5976001B3025 /* Main.storyboard in Resources */,

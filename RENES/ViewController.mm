@@ -93,7 +93,6 @@ using namespace ReNes;
         
 //        @autoreleasepool {
         
-            //            NSString* filePath = [[NSBundle mainBundle] pathForResource:@"OUR.NES" ofType:@""];
             NSData* data = [NSData dataWithContentsOfFile:filePath];
             
             if (_nes != 0)
@@ -131,7 +130,7 @@ using namespace ReNes;
                 return true;
             };
             
-            _nes->ppu_callback = [self](PPU* ppu){
+            _nes->ppu_displayCallback = [self](PPU* ppu){
                 
                 if (ppu == _nes->ppu())
                 {
@@ -158,7 +157,8 @@ using namespace ReNes;
                 
                 return true;
             };
-            
+        
+            // for test
             //        _nes->mem()->addWritingObserver(0x2000, [self](uint16_t addr, uint8_t value){
             //
             //            if (addr == 0x2000 && (*(bit8*)&value).get(7) == 1)

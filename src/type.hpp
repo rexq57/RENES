@@ -1,10 +1,9 @@
+#pragma once
 
 #include <stdio.h>
 #include <functional>
 #include <chrono>
 #include <mutex>
-
-#pragma once
 
 namespace ReNes {
     

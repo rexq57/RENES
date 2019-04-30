@@ -1,3 +1,4 @@
+#pragma once
 
 #include "cpu.hpp"
 #include "ppu.hpp"
@@ -56,8 +57,6 @@ namespace ReNes {
         ~Nes()
         {
             // 等待线程退出
-            //            _stopMutex.lock();
-            
             stop();
             
             _runningThread.join();
@@ -197,7 +196,7 @@ namespace ReNes {
         
         // 回调函数
         std::function<bool(CPU*)> cpu_callback;
-        std::function<bool(PPU*)> ppu_callback;
+        std::function<bool(PPU*)> ppu_displayCallback;
         std::function<void()> willRunning;
         
         bool isRunning() const {return _isRunning;};
@@ -211,8 +210,6 @@ namespace ReNes {
         }
         
         void _run() {
-            
-            //            _stopMutex.lock();
             
             _stoped = false;
             
@@ -261,7 +258,7 @@ namespace ReNes {
                 {
                     *value = _ctr.nextKeyStatue();
                     
-                    //                        dstWrite4016 = 0;
+                    // dstWrite4016 = 0; ?
                 }
             });
             //-----------------------------------
@@ -275,16 +272,14 @@ namespace ReNes {
                 // 显示器制式数据: NTSC
                 const int NumPixelsPerScanline = 341;
                 const int NumScanline = 262;
-                const int NumVisibleScanline = 240; // 暂时没用
+                const int NumVisibleScanline = 240;
                 const int FPS = 60; // 包含vblank时间
                 
                 uint32_t cpuCyclesCountForFrame = 0;            // 每一帧内：cpu周期数计数器
                 uint32_t cpuCyclesCountForScanline = 0;         // 每一条扫描线绘制期间：cpu周期数计数器
-                const uint32_t NumCyclesPerScanline = NumPixelsPerScanline / 3;  // 每条扫描线需要的cpu周期数(每个像素需要3cpu周期)
+                const uint32_t NumCyclesPerScanline = NumPixelsPerScanline / 3;  // 每条扫描线需要的cpu周期数(每个像素需要1/3 CPU周期，由CPU和PPU的频率算得，见ppu.hpp)
                 const uint32_t TimePerFrame = 1.0 / FPS * 1e9; // 每帧需要的时间(纳秒)
-                const uint32_t TimePerScanline = TimePerFrame / NumScanline; // 纳秒
-                
-                _ppu.timePerScanline = TimePerScanline;
+//                const uint32_t TimePerScanline = TimePerFrame / NumScanline; // 纳秒
                 
                 // 主循环
                 do {
@@ -307,6 +302,8 @@ namespace ReNes {
                     cpuCyclesCountForFrame += cycles;
                     cpuCyclesCountForScanline += cycles;
                     
+                    // 满足一次扫描线所经过的CPU周期，执行下面代码，模拟这段时间内，PPU发生的工作
+                    // 写在一个线程，而不是模拟PPU线程的同步工作，同步需要开销
                     if (cpuCyclesCountForScanline >= NumCyclesPerScanline)
                     {
                         cpuCyclesCountForScanline -= NumCyclesPerScanline;
@@ -314,17 +311,16 @@ namespace ReNes {
                         if (vblankEvent)
                             _cpu.interrupts(CPU::InterruptTypeNMI);
                         
+                        // NES规定的240条扫描线已经绘制完成，[240, 261] 期间是vblank时间
+                        // 假设硬件上每一帧显示不需要时间，而模拟需要，所以把显示开销放到这里，帧末再统计时间花费，模拟等待
                         if (_ppu.currentScanline() == NumVisibleScanline)
                         {
-                            // vblank开始 通知图像显示
-                            // (显示图像: 拷贝内存(同步) -> 刷新视图(异步) 也许不能完美模拟60fps)
-                            {
-                                if (dumpScrollBuffer)
-                                    _ppu.dumpScrollToBuffer();
-                                
-                                ppu_callback(&_ppu);
-                            }
-                            // 显示完成 vblank 结束
+                            // 拷贝显示所需的数据到内存(同步)
+                            if (dumpScrollBuffer)
+                                _ppu.dumpScrollToBuffer();
+                            
+                            // 刷新视图(异步) 刷新率由UI决定
+                            ppu_displayCallback(&_ppu);
                         }
                         
                         // 最后一条扫描线完成(第261条扫描线，scanline+1 == 262)
@@ -339,6 +335,7 @@ namespace ReNes {
                             cpuCyclesCountForFrame -= NumCyclesPerScanline * NumScanline;
                             isFirstCPUCycleForFrame = true;
                             
+                            // 检查是否需要等待
                             if ( currentFrameTime < TimePerFrame )
                                 usleep( (uint32_t)(TimePerFrame - currentFrameTime) / 1000 );
                         }

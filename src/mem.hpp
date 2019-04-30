@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <map>
@@ -23,17 +22,20 @@ namespace ReNes {
                 free(_data);
         }
         
+        inline
         uint8_t* getIORegsAddr()
         {
             return &_data[0x2000];
         }
         
+        inline
         uint8_t* masterData()
         {
             return _data;
         }
         
         // 读取数据
+        inline
         uint8_t read8bitData(uint16_t addr, bool event=false, bool* cancel = 0)
         {
             auto data = *_getRealAddr(addr, READ);
