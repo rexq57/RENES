@@ -620,31 +620,16 @@ namespace ReNes {
                 if (_currentInterruptType != InterruptTypeNone)
                 {
                     // 获取中断处理函数地址
-                    uint16_t interruptHandlerAddr;
+                    uint16_t interruptHandlerAddr = _getInterruptHandlerAddr(_currentInterruptType);
                     {
-                        // 函数地址是一个16bit数值，分别存储在两个8bit的内存上，这里定义一个结构体表示内存地址偏移
-                        struct ADDR2{
-                            uint16_t low;
-                            uint16_t high;
-                        };
+                        log("中断函数地址: %04X\n", interruptHandlerAddr);
                         
-                        std::map<int, ADDR2> handler = {
-                            {InterruptTypeNMI, {0xFFFA, 0xFFFB}},
-                            {InterruptTypeReset, {0xFFFC, 0xFFFD}},
-                            {InterruptTypeIRQs, {0xFFFE, 0xFFFF}},
-                            {InterruptTypeBreak, {0xFFFE, 0xFFFF}},
-                        };
-                        
-                        ADDR2 addr2 = handler[_currentInterruptType];
-                        interruptHandlerAddr = (_mem->read8bitData(addr2.high) << 8) + _mem->read8bitData(addr2.low);
+                        // 地址修正
+                        if (interruptHandlerAddr == 0)
+                            interruptHandlerAddr = 0x8000;
                     }
                     
-                    log("中断函数地址: %04X\n", interruptHandlerAddr);
-                    
                     // 跳转到中断向量指向的处理函数地址
-                    if (interruptHandlerAddr == 0)
-                        interruptHandlerAddr = 0x8000;
-                        
                     {
                         // Reset 不需要保存现场
                         if (_currentInterruptType != InterruptTypeReset)
@@ -725,104 +710,30 @@ namespace ReNes {
                 }
                 
                 {
-                    std::function<void(uint8_t)> SET_SR = [this](uint8_t src)
-                    {
-                        // 忽略4/5位
-                        src &= ~0x30;
-                        
-                        regs.P = *(bit8*)&src;
-                    };
-                    
-                    std::function<void(int)> SET_CARRY = [this](int src)
-                    {
-                        regs.P.set(__registers::C, src != 0 ? 1 : 0);
-                    };
-                    
-                    std::function<void(int)> SET_DECIMAL = [this](int src)
-                    {
-                        regs.P.set(__registers::D, src != 0 ? 1 : 0);
-                    };
-                    
-                    std::function<void(int)> SET_INTERRUPT = [this](int src)
-                    {
-                        regs.P.set(__registers::I, src != 0 ? 1 : 0);
-                    };
-                    
-                    
-                    
-                    
-                    std::function<void(int8_t)> SET_SIGN = [this](int8_t src)
-                    {
-                        regs.P.set(__registers::N, src & 0x80 ? 1 : 0);
-                    };
-                    
-                    std::function<void(int8_t)> SET_ZERO = [this](int8_t src)
-                    {
-                        regs.P.set(__registers::Z, src == 0 ? 1 : 0);
-                    };
-                    
-                    std::function<void(bool)> SET_OVERFLOW = [this](bool src)
-                    {
-                        regs.P.set(__registers::V, src);
-                    };
-                    
-                    std::function<void(uint16_t, int8_t)> STORE = [this](uint16_t addr, int8_t src)
-                    {
-                        _mem->write8bitData(addr, src);
-                    };
-                    
-                    std::function<uint16_t(uint16_t, int8_t)> REL_ADDR = [this](uint16_t addr, int8_t src)
-                    {
-                        return addr + src;
-                    };
-
-                    std::function<bool()> IF_CARRY = [this]()
-                    {
-                        return regs.P.get(__registers::C);
-                    };
-                    
-                    std::function<bool()> IF_DECIMAL = [this]()
-                    {
-                        return regs.P.get(__registers::D);
-                    };
-                    
-                    
-                    
-                    std::function<bool()> IF_ZERO = [this]()
-                    {
-                        return regs.P.get(__registers::Z);
-                    };
-                    
-                    std::function<bool()> IF_SIGN = [this]()
-                    {
-                        return regs.P.get(__registers::N);
-                    };
-                    
-                    std::function<bool()> IF_OVERFLOW = [this]()
-                    {
-                        return regs.P.get(__registers::V);
-                    };
                     
                     bool cancelOpt = false;
                     
                     uint16_t address = 0;
+                    
+                    // 得到 src 和 dst
                     unsigned int src = 0;
                     {
                         switch(mode)
                         {
-                            case IMPLIED:
+                            case IMPLIED:       // 没有寻址，不操作任何内存
                                 break;
-                            case ACCUMULATOR:
+                            case ACCUMULATOR:   // 累加器寻址，不访问内存
                             {
                                 src = (uint8_t)AC;
                                 dst = DST_REGS_A;
                                 break;
                             }
                             default:
+                            {
+                                // 先得到地址，该地址可用于读写访问
+                                address = memoryAddressingByMode(mode);
                                 
-                                address = addressingByMode(mode);
-//                                src = _mem->read8bitData(address, true);
-                                
+                                // 寄存器 存储到 地址
                                 const static CF _noSrcAccess[] = {
                                     CF_STA, CF_STX, CF_STY
                                 };
@@ -834,6 +745,7 @@ namespace ReNes {
                                 
                                 dst = DST_M;
                                 break;
+                            }
                         }
                     }
                     
@@ -863,10 +775,6 @@ namespace ReNes {
                                 break;
                         }
                     };
-                    
-                    
-
-                    
                     
 //                    int8_t r = _mem->read8bitData(0x0006);
 //                    if (PC == 0xC878 && YR == 0x0)
@@ -909,7 +817,7 @@ namespace ReNes {
                             case CF_BCC:
                             {
                                 if (!IF_CARRY()) {
-                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+
                                     PC = REL_ADDR(PC, src);
                                 }
                                 
@@ -918,7 +826,7 @@ namespace ReNes {
                             case CF_BCS:
                             {
                                 if (IF_CARRY()) {
-                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+
                                     PC = REL_ADDR(PC, src);
                                 }
                                 
@@ -927,7 +835,7 @@ namespace ReNes {
                             case CF_BEQ:
                             {
                                 if (IF_ZERO()) {
-                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+
                                     PC = REL_ADDR(PC, src);
                                 }
                                 
@@ -936,7 +844,7 @@ namespace ReNes {
                             case CF_BMI:
                             {
                                 if (IF_SIGN()) {
-                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+
                                     PC = REL_ADDR(PC, src);
                                 }
                                 
@@ -945,7 +853,7 @@ namespace ReNes {
                             case CF_BNE:
                             {
                                 if (!IF_ZERO()) {
-                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+
                                     PC = REL_ADDR(PC, src);
                                 }
                                 
@@ -954,7 +862,7 @@ namespace ReNes {
                             case CF_BPL:
                             {
                                 if (!IF_SIGN()) {
-                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+
                                     PC = REL_ADDR(PC, src);
                                 }
                                 
@@ -963,7 +871,7 @@ namespace ReNes {
                             case CF_BVC:
                             {
                                 if (!IF_OVERFLOW()) {
-                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+
                                     PC = REL_ADDR(PC, src);
                                 }
                                 
@@ -972,7 +880,7 @@ namespace ReNes {
                             case CF_BVS:
                             {
                                 if (IF_OVERFLOW()) {
-                                    //                                clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
+
                                     PC = REL_ADDR(PC, src);
                                 }
                                 
@@ -1426,36 +1334,77 @@ namespace ReNes {
         
     private:
         
+        //////////////////////////////////////////////////////////////////
+        // 操作函数
+        inline void SET_SR(uint8_t src)
+        {
+            // 忽略4/5位
+            src &= ~0x30;
+            regs.P = *(bit8*)&src;
+        };
+        inline void SET_CARRY(int src) { regs.P.set(__registers::C, src != 0 ? 1 : 0); };
+        inline void SET_DECIMAL(int src) { regs.P.set(__registers::D, src != 0 ? 1 : 0); };
+        inline void SET_INTERRUPT(int src) { regs.P.set(__registers::I, src != 0 ? 1 : 0); };
+        inline void SET_SIGN(int8_t src) { regs.P.set(__registers::N, src & 0x80 ? 1 : 0); };
+        inline void SET_ZERO(int8_t src) { regs.P.set(__registers::Z, src == 0 ? 1 : 0); };
+        inline void SET_OVERFLOW(bool src) { regs.P.set(__registers::V, src); };
+        inline void STORE(uint16_t addr, int8_t src) { _mem->write8bitData(addr, src); };
+        inline uint16_t REL_ADDR(uint16_t addr, int8_t src) const { return addr + src; };
+        inline bool IF_CARRY() const { return regs.P.get(__registers::C); };
+        inline bool IF_DECIMAL() const { return regs.P.get(__registers::D); };
+        inline bool IF_ZERO() const { return regs.P.get(__registers::Z); };
+        inline bool IF_SIGN() const { return regs.P.get(__registers::N); };
+        inline bool IF_OVERFLOW() const { return regs.P.get(__registers::V); };
+        
+        //////////////////////////////////////////////////////////////////
+        
+        // 得到中断处理函数的地址
+        inline
+        uint16_t _getInterruptHandlerAddr(InterruptType interruptType) const
+        {
+            // 函数地址是一个16bit数值，分别存储在两个8bit的内存上，这里定义一个结构体表示内存地址偏移
+            struct ADDR2{
+                uint16_t low;
+                uint16_t high;
+            };
+            
+            const static std::map<int, ADDR2> handler = {
+                {InterruptTypeNMI, {0xFFFA, 0xFFFB}},
+                {InterruptTypeReset, {0xFFFC, 0xFFFD}},
+                {InterruptTypeIRQs, {0xFFFE, 0xFFFF}},
+                {InterruptTypeBreak, {0xFFFE, 0xFFFF}},
+            };
+            
+            const ADDR2& addr2 = handler.at(interruptType);
+            uint16_t interruptHandlerAddr = (_mem->read8bitData(addr2.high) << 8) + _mem->read8bitData(addr2.low);
+            return interruptHandlerAddr;
+        }
+        
         void SET_BREAK(int src)
         {
             regs.P.set(__registers::B, src != 0 ? 1 : 0);
         };
 
-        uint16_t addressingByMode(AddressingMode mode)
+        // 内存寻址，得到操作数所在的地址
+        inline
+        uint16_t memoryAddressingByMode(AddressingMode mode) const
         {
+            // PC: cmd (8bit)
+            // PC+1: 数据
             uint16_t dataAddr = regs.PC + 1; // 操作数位置 = PC + 1
             
+            // 操作数实际存在的地址
             uint16_t addr;
             bool data16bit = false;
             
-            //                        uint8_t* data;
             switch (mode)
             {
-                    //                case ZERO_PAGE:
-                    //                {
-                    //                    addr = _mem->read8bitData(dataAddr);
-                    //                }
-                case RELATIVE:
-                case IMMIDIATE:
+                case RELATIVE:      // 相对寻址  [8bit] 跳转
+                case IMMIDIATE:     // 立即数寻址 [8bit] 直接
                 {
                     addr = dataAddr;
                     break;
                 }
-//                case ACCUMULATOR:
-//                {
-//                    addr = regs.A;
-//                    break;
-//                }
                 case ZERO_PAGE:
                 {
                     addr = _mem->read8bitData(dataAddr);
@@ -1522,13 +1471,9 @@ namespace ReNes {
                 uint8_t* d = &_mem->masterData()[addr];
                 int dd;
                 if (data16bit)
-                {
                     dd = (int)*((uint16_t*)d);
-                }
                 else
-                {
                     dd = (int)*d;
-                }
                 
                 log("立即数 %X 值 %d\n", addr, dd);
             }
@@ -1540,6 +1485,8 @@ namespace ReNes {
             return addr;
         }
         
+        // 入栈
+        inline
         void push(uint8_t value)
         {
             uint16_t stack_addr = STACK_ADDR_OFFSET + regs.SP;
@@ -1548,21 +1495,15 @@ namespace ReNes {
         }
         
         // 出栈
+        inline
         uint8_t pop()
         {
             regs.SP ++;
             return _mem->read8bitData(STACK_ADDR_OFFSET + regs.SP);
         }
-        
 
-        
-        
         Memory* _mem;
-        
-        
         InterruptType _currentInterruptType;
-
-        
     };
     
     
