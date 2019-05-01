@@ -587,26 +587,12 @@ namespace ReNes {
                     return;
                 
                 // 宽度应该是256，刚好填满32个tile。但是如果发生错位的情况，是需要33个tile
-                const static int LINE_X_MAX = 33*8;
+                const static int LINE_X_MAX = 32*8;
                 
                 for (int line_x=0; line_x<LINE_X_MAX; line_x++)
                 {
-                    // 如果偏移 = 0，tx始终等于line_x
-                    int tx = (line_x+bg_t_x)%8;
-                    //int tx = (line_x+bg_t_x) - (line_x+bg_t_x)/8*8;
-                    int draw_line_x = line_x/8*8-bg_t_x + tx;
-//
-                    
-                    
-//                    if (draw_line_x < 0)
-//                        continue;
-//                  for (int draw_line_x=0; draw_line_x<LINE_X_MAX; draw_line_x++)
-//                  {
-//                      int line_x2 = draw_line_x + bg_t_x/8*8;
-//                      int tx2 = (line_x+bg_t_x)%8;
-//                    
-//                    if (bg_t_x > 0)
-//                        bg_t_x = bg_t_x;
+                    int tx = (line_x+bg_t_x)%8; // 对应当前瓦片上的index
+                    int draw_line_x = line_x/8*8-bg_t_x; // 背景绘制的整体起始点
                 
                     uint8_t* paletteAddr = bkPaletteAddr;
                     bool flipV = false;
@@ -638,7 +624,7 @@ namespace ReNes {
                     
 //                    if (line_x % 8 == 0) // 每次跨界才计算新的瓦片地址
                     {
-                        int bg_x = line_x/8;
+                        int bg_x = (line_x + bg_t_x)/8;
                         int s_x = (bg_x+bg_offset_x); // 目标tile
                         int x = s_x % 32; // 32个tile 水平循环
                         
@@ -703,8 +689,7 @@ namespace ReNes {
                     {
                         {
                             int bg_systemPaletteUnitIndex = paletteAddr[peletteIndex.merge()]; // 系统默认调色板颜色索引 [0,63]
-                            
-                            int pixelIndex = (NES_MIN(draw_line_y + ty, 239) * 32*8 + NES_MIN(draw_line_x, 255)); // 最低位是右边第一像素，所以渲染顺序要从右往左
+                            int pixelIndex = NES_MIN(draw_line_y + ty, 239) * 32*8 + line_x;
                             
                             // 获取当前像素的精灵数据，并检测碰撞
                             int spr_systemPaletteUnitIndex = 0; // 取低6位[0,63]
