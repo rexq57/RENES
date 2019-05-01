@@ -555,12 +555,10 @@ namespace ReNes {
             
             const auto& v = _t;
             
-            int high2;
-            
             int line_y = this->_scanline_y ++; // 使用了再增加
             if (line_y <= 239) // 只绘制可见扫描线
             {
-                // 从 _t 中取出tile坐标偏移
+                // 从 _t 中取出tile坐标偏移，相当于表中的起始位置
                 int bg_offset_x = v & 0x1F;         // tile整体偏移[0,31]
                 int bg_offset_y = (v >> 5) & 0x1F;
                 
@@ -579,10 +577,10 @@ namespace ReNes {
                 // 计算当前扫描线所在瓦片，瓦片偏移发生在相对当前屏幕的tile上，而不是指图案表相对屏幕左上角发生的偏移
                 int bg_y = line_y/8;
                 int s_y = bg_y+bg_offset_y;         // 实际瓦片坐标，向上[0,31]
-                int y = s_y % 30; // 30个tile 垂直循环
+                int tile_y = s_y % 30; // 30个tile 垂直循环
                 
-                int draw_line_y = line_y/8*8-bg_t_y;
                 int ty = (line_y+bg_t_y)%8;
+                int draw_line_y = line_y/8*8-bg_t_y;
                 
                 // 瓦片坐标位于不可见的扫描线
                 if (draw_line_y + ty < 0)
@@ -593,13 +591,23 @@ namespace ReNes {
                 
                 for (int line_x=0; line_x<LINE_X_MAX; line_x++)
                 {
-                    int draw_line_x = line_x/8*8-bg_t_x;
+                    // 如果偏移 = 0，tx始终等于line_x
                     int tx = (line_x+bg_t_x)%8;
-                    if (draw_line_x + tx < 0)
-                        continue;
+                    //int tx = (line_x+bg_t_x) - (line_x+bg_t_x)/8*8;
+                    int draw_line_x = line_x/8*8-bg_t_x + tx;
+//
                     
                     
-                    
+//                    if (draw_line_x < 0)
+//                        continue;
+//                  for (int draw_line_x=0; draw_line_x<LINE_X_MAX; draw_line_x++)
+//                  {
+//                      int line_x2 = draw_line_x + bg_t_x/8*8;
+//                      int tx2 = (line_x+bg_t_x)%8;
+//                    
+//                    if (bg_t_x > 0)
+//                        bg_t_x = bg_t_x;
+                
                     uint8_t* paletteAddr = bkPaletteAddr;
                     bool flipV = false;
                     bool flipH = false;
@@ -650,7 +658,8 @@ namespace ReNes {
                             {
                                 // 名称表是32x30连续空间，960字节，每个字节是一个索引，表示[0,255]的数
                                 // 可以定位256个瓦片的地址（瓦片：图案表中的单位）
-                                int tileIndex = nameTableAddr[y*32 + x]; // 得到 bkg tile index
+                                int tileIndex = nameTableAddr[tile_y*32 + x]; // 得到 bkg tile index
+                                
                                 /* 图案表：一个4KB的空间，PPU有两个图案表，映射在VRAM里 供背景和精灵使用
                                 $0000-$0FFF    $1000    Pattern table 0
                                 $1000-$1FFF    $1000    Pattern table 1
@@ -674,17 +683,17 @@ namespace ReNes {
                             }
                             
                             /*
-                             属性表
-                             
+                             属性表 - 位于名称表未使用的64字节空间
+                             64字节 = 名称表0x400(1024)-960(32x30)
                              */
                             uint8_t* attributeTableAddr = &VRAM[0x23C0 + nameTableIndex*0x0400];
                             {
-                                // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
-                                uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(y / 4 * (32/4) + x / 4)];
-                                int bit = (y % 4) / 2 * 4 + (x % 4) / 2 * 2;
-                                high2 = (attributeAddrFor4x4Tile >> bit) & 0x3;
-                                
-                                peletteIndex.high2bit = high2;
+                                // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节（即属性）
+                                // 每2bit用于2x2的tile，作为peletteIndex的高2位
+                                uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(tile_y / 4 * (32/4) + x / 4)];
+                                // 换算tile(x,y)所使用的bit位
+                                int bit = (tile_y % 4) / 2 * 4 + (x % 4) / 2 * 2;
+                                peletteIndex.high2bit = (attributeAddrFor4x4Tile >> bit) & 0x3;
                             }
                         }
                     }
@@ -695,7 +704,7 @@ namespace ReNes {
                         {
                             int bg_systemPaletteUnitIndex = paletteAddr[peletteIndex.merge()]; // 系统默认调色板颜色索引 [0,63]
                             
-                            int pixelIndex = (NES_MIN(draw_line_y + ty, 239) * 32*8 + NES_MIN(draw_line_x+tx, 255)); // 最低位是右边第一像素，所以渲染顺序要从右往左
+                            int pixelIndex = (NES_MIN(draw_line_y + ty, 239) * 32*8 + NES_MIN(draw_line_x, 255)); // 最低位是右边第一像素，所以渲染顺序要从右往左
                             
                             // 获取当前像素的精灵数据，并检测碰撞
                             int spr_systemPaletteUnitIndex = 0; // 取低6位[0,63]
