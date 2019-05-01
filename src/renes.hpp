@@ -297,6 +297,9 @@ namespace ReNes {
                     if (_cpu.error)
                         break;
                     
+                    // 当前CPU指令周期内，可以绘制多少个点
+//                    int pixelNum = cycles * 3;
+                    
                     cpuCyclesCountForFrame += cycles;
                     cpuCyclesCountForScanline += cycles;
                     

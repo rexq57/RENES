@@ -555,7 +555,6 @@ namespace ReNes {
             
             const auto& v = _t;
             
-            uint8_t* tileAddr;
             int high2;
             
             int line_y = this->_scanline_y ++; // 使用了再增加
@@ -569,11 +568,11 @@ namespace ReNes {
                 int bg_t_y = (v >> 12) & 0x7;
                 //            int bg_base = (v >> 10) & 0x3;
                 
-                // 需要实时获取
-                int nameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
+                // 起始名称表索引
+                int firstNameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
                 
 #ifdef DEBUG
-                testLog = std::to_string(nameTableIndex) + ": " + std::to_string(bg_offset_x) + "-" + std::to_string(bg_t_x);
+                testLog = std::to_string(firstNameTableIndex) + ": " + std::to_string(bg_offset_x) + "-" + std::to_string(bg_t_x);
 #endif
                 
                 
@@ -599,67 +598,102 @@ namespace ReNes {
                     if (draw_line_x + tx < 0)
                         continue;
                     
-                    if (line_x % 8 == 0) // 每次跨界才计算新的瓦片地址
+                    
+                    
+                    uint8_t* paletteAddr = bkPaletteAddr;
+                    bool flipV = false;
+                    bool flipH = false;
+                    
+                    int tx_ = flipH ? tx : 7-tx;
+                    int ty_ = flipV ? 7-ty : ty;
+                    
+                    
+                    /*
+                     调色板
+                     0x3F00 16字节
+                     */
+                    /* 调色板索引 [16]颜色
+                     11 11
+                     高2bit: 属性表
+                     低2bit: 来自图案表 <- 名称表
+                     */
+                    struct PaletteIndex{
+                        int high2bit;
+                        int low2bit;
+                        inline
+                        int merge() const
+                        {
+                            return (high2bit << 2) + low2bit;
+                        }
+                    };
+                    PaletteIndex peletteIndex;
+                    
+//                    if (line_x % 8 == 0) // 每次跨界才计算新的瓦片地址
                     {
                         int bg_x = line_x/8;
                         int s_x = (bg_x+bg_offset_x); // 目标tile
                         int x = s_x % 32; // 32个tile 水平循环
                         
+                        // 用于确定一个像素，必须输入参数 tileIndex
                         //                            if (line_y % 8 == 0)
                         {
-                            int realNameTableIndex = ((nameTableIndex + s_x/32) % 2);
+                            int nameTableIndex = ((firstNameTableIndex + s_x/32) % 2);
                             // 未处理左右镜像，需要计算s_y
                             
-                            uint8_t* nameTableAddr = &VRAM[0x2000 + realNameTableIndex*0x0400];
-                            uint8_t* attributeTableAddr = &VRAM[0x23C0 + realNameTableIndex*0x0400];
+                            /* 名称表
+                             $2000-$23FF    $0400    Nametable 0
+                             $2400-$27FF    $0400    Nametable 1
+                             $2800-$2BFF    $0400    Nametable 2
+                             $2C00-$2FFF    $0400    Nametable 3
+                             */
+                            uint8_t* nameTableAddr = &VRAM[0x2000 + nameTableIndex*0x0400];
+                            {
+                                // 名称表是32x30连续空间，960字节，每个字节是一个索引，表示[0,255]的数
+                                // 可以定位256个瓦片的地址（瓦片：图案表中的单位）
+                                int tileIndex = nameTableAddr[y*32 + x]; // 得到 bkg tile index
+                                /* 图案表：一个4KB的空间，PPU有两个图案表，映射在VRAM里 供背景和精灵使用
+                                $0000-$0FFF    $1000    Pattern table 0
+                                $1000-$1FFF    $1000    Pattern table 1
+                                 
+                                确定在图案表里的tile地址，每个tile控制8x8像素（64个像素），8字节一组，共2组，16字节
+                                两组8字节
+                                64bit: 11111111 11111111 11111111 11111111 11111111 11111111 11111111 11111111
+                                64bit: 11111111 11111111 11111111 11111111 11111111 11111111 11111111 11111111
+                                       1 (低)
+                                       1 (高)
+                                   构成2bit
+                                */
+                                
+                                uint8_t* bkTileAddr = &bkPetternTableAddr[tileIndex * 16];
+                                {
+                                    // 图案表tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
+                                    int low0 = ((bit8*)&bkTileAddr[ty_])->get(tx_);
+                                    int low1 = ((bit8*)&bkTileAddr[ty_+8])->get(tx_);
+                                    peletteIndex.low2bit = low0 | (low1 << 1);
+                                }
+                            }
                             
-                            //                            NameTableInfo& info = infos[s_x];
-                            //                            uint8_t* nameTableAddr = info.nameTableAddr;
-                            //                            uint8_t* attributeTableAddr = info.attributeTableAddr;
-                            
-                            // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
-                            uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(y / 4 * (32/4) + x / 4)];
-                            int bit = (y % 4) / 2 * 4 + (x % 4) / 2 * 2;
-                            high2 = (attributeAddrFor4x4Tile >> bit) & 0x3;
-                            
-                            int tileIndex = nameTableAddr[y*32 + x]; // 得到 bkg tile index
-                            
-                            // 确定在图案表里的tile地址，每个tile是8x8像素，占用16字节。
-                            // 前8字节(8x8) + 后8字节(8x8)
-                            tileAddr = &bkPetternTableAddr[tileIndex * 16];
-                            
-                            // 记录当前tile信息
-                            //                                infos[bg_x] = {tileAddr, high2};
+                            /*
+                             属性表
+                             
+                             */
+                            uint8_t* attributeTableAddr = &VRAM[0x23C0 + nameTableIndex*0x0400];
+                            {
+                                // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
+                                uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(y / 4 * (32/4) + x / 4)];
+                                int bit = (y % 4) / 2 * 4 + (x % 4) / 2 * 2;
+                                high2 = (attributeAddrFor4x4Tile >> bit) & 0x3;
+                                
+                                peletteIndex.high2bit = high2;
+                            }
                         }
-                        //                            else
-                        //                            {
-                        //                                tileAddr = infos[bg_x].tileAddr;
-                        //                                high2 = infos[bg_x].high2;
-                        //                            }
                     }
                     
                     // line_x/8*8 为当前tile的标准坐标，bg_t_x 为偏移位置
                     
                     {
-                        uint8_t* paletteAddr = bkPaletteAddr;
-                        bool flipV = false;
-                        bool flipH = false;
-                        
                         {
-                            int tx_ = flipH ? tx : 7-tx;
-                            int ty_ = flipV ? 7-ty : ty;
-                            
-                            int paletteUnitIndex;
-                            {
-                                // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
-                                int low0 = ((bit8*)&tileAddr[ty_])->get(tx_);
-                                int low1 = ((bit8*)&tileAddr[ty_+8])->get(tx_);
-                                int low2 = low0 | (low1 << 1);
-                                
-                                paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
-                            }
-                            
-                            int bg_systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
+                            int bg_systemPaletteUnitIndex = paletteAddr[peletteIndex.merge()]; // 系统默认调色板颜色索引 [0,63]
                             
                             int pixelIndex = (NES_MIN(draw_line_y + ty, 239) * 32*8 + NES_MIN(draw_line_x+tx, 255)); // 最低位是右边第一像素，所以渲染顺序要从右往左
                             
@@ -697,7 +731,7 @@ namespace ReNes {
                                 if (showSpr && spr_systemPaletteUnitIndex != 0)
                                 {
                                     // 判断前后
-                                    if (showBg && !sprFront && paletteUnitIndex != 0)
+                                    if (showBg && !sprFront && peletteIndex.merge() != 0)
                                     {
                                         systemPaletteUnitIndex = bg_systemPaletteUnitIndex;
                                     }
@@ -752,50 +786,51 @@ namespace ReNes {
             uint8_t* bkPetternTableAddr = &VRAM[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址 0x0000或0x1000
             uint8_t* bkPaletteAddr = &VRAM[0x3F00];   // 背景调色板地址
             
+            // 上下镜像模式，水平复制
             for (int i=0; i<4; i++)
             {
                 drawBackground(_scrollBufferTmp, i, bkPetternTableAddr, bkPaletteAddr);
                 
-                //                    if (i<2) for test
+                // copy to buffer
+                size_t lineLength = BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_BPP;
+                
+                uint8_t* dst = _scrollBuffer + (i%2)*lineLength + i/2*RGB_BUFFER_LENGTH*2;
+                size_t dstStride = lineLength*2;
+                
+                for (int y=0; y<BUFFER_PIXEL_HEIGHT; y++)
                 {
-                    // copy to buffer
-                    size_t lineLength = BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_BPP;
-                    
-                    uint8_t* dst = _scrollBuffer + (i%2)*lineLength + i/2*RGB_BUFFER_LENGTH*2;
-                    size_t dstStride = lineLength*2;
-                    
-                    for (int y=0; y<BUFFER_PIXEL_HEIGHT; y++)
-                    {
-                        memcpy(dst+y*dstStride, _scrollBufferTmp+y*lineLength, lineLength);
-                    }
+                    memcpy(dst+y*dstStride, _scrollBufferTmp+y*lineLength, lineLength);
                 }
             }
         }
         
+        inline
         int width() const
         {
             return BUFFER_PIXEL_WIDTH;
         }
         
+        inline
         int height() const
         {
             return BUFFER_PIXEL_HEIGHT;
         }
         
+        inline
         int bpp() const
         {
             return BUFFER_PIXEL_BPP;
         }
         
+        inline
         uint8_t* buffer() const
         {
             return _buffer;
         }
         
+        inline
         uint8_t* scrollBuffer() const
         {
-//            assert(dumpScrollBuffer);
-            
             return _scrollBuffer;
         }
         
@@ -832,6 +867,9 @@ namespace ReNes {
                     int low1 = ((bit8*)&tileAddr[ty_+8])->get(tx_);
                     int low2 = low0 | (low1 << 1);
                     
+                    // 11 1111
+                    // 来自名称表 来自图案表tile
+                    // 3字节表示[0-63]
                     int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
                     
                     int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
@@ -897,17 +935,36 @@ namespace ReNes {
             }
         };
         
-        void drawBackground(uint8_t* buffer, int nameTableIndex, uint8_t* bkPetternTableAddr, uint8_t* bkPaletteAddr){
+        // 名称表长度是0x0400，
+        
+        // 名称表地址
+        inline
+        uint8_t* nameTableAddress(int index)
+        {
+            return &_vram.masterData()[0x2000 + index*0x0400];
+        }
+        
+        // 属性表地址
+        inline
+        uint8_t* attributeTableAddress(int index)
+        {
+            return &_vram.masterData()[0x23C0 + index*0x0400];
+        }
+        
+        // 从第nameTableIndex个名称表开始绘制（竖直镜像）
+        void drawBackground(uint8_t* buffer, int tableIndex, uint8_t* bkPetternTableAddr, uint8_t* bkPaletteAddr){
             
+            // 背景的tile偏移（图案表中的tile偏移）
             int bg_offset_x = 0;
             int bg_offset_y = 0;
+            
+            // 精细偏移
             int bg_t_x = 0;
             int bg_t_y = 0;
             
+            // 总共需要绘制的tiles个数，水平|竖直
             int tiles_y = bg_t_y == 0 ? 30 : 31;
             int tiles_x = bg_t_x == 0 ? 32 : 33;
-            
-            auto* VRAM = _vram.masterData();
             
             //                uint8_t* nameTableAddr = &_vram.masterData()[0x2000 + nameTableIndex*0x0400];
             //                uint8_t* attributeTableAddr = &_vram.masterData()[0x23C0 + nameTableIndex*0x0400];
@@ -915,19 +972,21 @@ namespace ReNes {
             for (int bg_y=0; bg_y<tiles_y; bg_y++) // 只显示 30/30 行tile
             {
                 int s_y = bg_y+bg_offset_y;
-                int y = s_y % 30; // 30个tile 垂直循环
+                int y = s_y % 30; // 竖直第_y个tile，30个tile 垂直循环
                 
                 
                 for (int bg_x=0; bg_x<tiles_x; bg_x++)
                 {
                     int s_x = (bg_x+bg_offset_x);
-                    int x = s_x % 32; // 32个tile 水平循环
+                    int x = s_x % 32; // 水平第_x个tile，32个tile 水平循环
                     
-                    int realNameTableIndex = ((nameTableIndex + s_x/32) % 2);
-                    // 未处理左右镜像，需要计算s_y
+                    // 实际
+                    int nameTableIndex = ((tableIndex + s_x/32) % 2);
+                    int attributeTableIndex = nameTableIndex;
+                    // 未处理左右镜像，需要计算s_y ?
                     
-                    uint8_t* nameTableAddr = &VRAM[0x2000 + realNameTableIndex*0x0400];
-                    uint8_t* attributeTableAddr = &VRAM[0x23C0 + realNameTableIndex*0x0400];
+                    uint8_t* nameTableAddr = nameTableAddress(nameTableIndex);
+                    uint8_t* attributeTableAddr = attributeTableAddress(attributeTableIndex);
                     
                     // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节
                     uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(y / 4 * (32/4) + x / 4)];
