@@ -148,7 +148,7 @@ using namespace ReNes;
                         // 显示图片
                         int width  = _nes->ppu()->width()*2;
                         int height = _nes->ppu()->height()*2;
-                        uint8_t* srcBuffer = _nes->ppu()->scrollBuffer();
+                        uint8_t* srcBuffer = _nes->ppu()->scrollBufferRGB();
                         
                         [_scrollMirroringView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
                         
