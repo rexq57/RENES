@@ -236,7 +236,13 @@ namespace ReNes {
                     {
                         // 在每一次向$2007写数据后，地址会根据$2000的2bit位增加1或者32
                         _vram->write8bitData(_v, value);
+                        
+                        // 通知
+                        _vramDidUpdated(_v);
+                        
+                        // 自动增加
                         _v += io_regs[0].get(2) == 0 ? 1 : 32;
+                        
                         break;
                     }
                     case 0x4014:
@@ -446,7 +452,10 @@ namespace ReNes {
             }
             
             // test 暂时全部绘制
+            static bool inited = false;
+            if (!inited)
             {
+//                inited = true;
                 const uint8_t* bkPetternTableAddr = _bkPetternTableAddress(); // 第4bit决定背景图案表地址 0x0000或0x1000
                 const uint8_t* bkPaletteAddr = _bkPaletteAddress();   // 背景调色板地址
                 
@@ -474,6 +483,7 @@ namespace ReNes {
             
             _scanline_y = 0;
         }
+        
         
         // 模拟扫描线 ? 但是应该是每条指令执行完成后，绘制这一行上的一定数量的点
         void drawScanline2(bool* vblankEvent)
@@ -801,6 +811,24 @@ namespace ReNes {
                 
                 // 起始名称表索引
                 int firstNameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
+//                // 需要检查硬件控制器上，控制当前起始名称表的镜像设置
+//                struct MirroringMode {
+//                    VERTICAL,       // 垂直镜像 0x2000 == 0x2800, 0x2400 == 0x2C00
+//                    HORIZONTAL,     // 水平镜像 0x2000 == 0x2400, 0x2800 == 0x2C00
+//                };
+//                MirroringMode mirrMode = VERTICAL; // ? 这里需要有默认值，并且检测硬件
+//                switch (mirrMode)
+//                {
+//                    case VERTICAL:
+//                    {
+//                        const static int VerticalMirroring[] = {
+//
+//                        };
+//                    }
+//                    default:
+//                        assert();
+//                }
+                
                 
 #ifdef DEBUG
                 testLog = std::to_string(firstNameTableIndex) + ": " + std::to_string(bg_offset_x) + "-" + std::to_string(bg_t_x);
@@ -1081,6 +1109,70 @@ namespace ReNes {
         
     private:
         
+        void _vramDidUpdated(uint16_t addr)
+        {
+            return;
+            
+            // VRAM数据与内存的交互，通过2007最后来确定。在这里，可以确定那部分VRAM内存被修改，进行tile更新
+            int nameTableIndex;
+            int tile_x, tile_y;
+            if (addr < 0x2000) // 图案表更新 [0x0000, 0x1FFF]
+            {
+                // 单个图案是8x8 * 2的空间，可以根据地址得到影响的图案index in [256]
+                // 遍历名称表中使用了该图案index的tile，进行更新
+            }
+            else if (addr < 0x3000) // 名称表更新 [0x2000, 0x2FFF]
+            {
+                // 名称表 32x20 的空间
+                int offset = addr - 0x2000;
+                
+                nameTableIndex = offset / 0x0400;
+                
+                tile_y = (offset % 0x400) / 32;
+                tile_x = (offset % 0x400) % 32;
+                
+                {
+                    int stride = BUFFER_PIXEL_WIDTH * 2;
+                    const static int offset[] = {
+                        0, BUFFER_PIXEL_WIDTH,
+                        2*BUFFER_PIXEL_CONUT, 2*BUFFER_PIXEL_CONUT+BUFFER_PIXEL_WIDTH
+                    };
+                    printf("更新 %d %d,%d\n", nameTableIndex, tile_x, tile_y);
+                    drawBackground(_scrollBuffer + offset[nameTableIndex], stride, tile_x, tile_y, 1, 1, nameTableIndex, _bkPetternTableAddress(), _bkPaletteAddress());
+                }
+            }
+            // 以下不触发tile更新
+//            else if (addr < 0x3F00) // [0x2000, 0x2EFF] 镜像
+//            {
+//
+//            }
+//            else if (addr < 0x3F20) // 调色板 0,1
+//            {
+//
+//            }
+//            else if (addr < 0x4000) // 调色板镜像
+//            {
+//
+//            }
+            else
+            {
+                
+            }
+            
+            
+        }
+        
+        void updateBackgroundTile(int nameTableIndex, int tile_x, int tile_y)
+        {
+            int stride = BUFFER_PIXEL_WIDTH * 2;
+            const static int offset[] = {
+                0, BUFFER_PIXEL_WIDTH,
+                2*BUFFER_PIXEL_CONUT, 2*BUFFER_PIXEL_CONUT+BUFFER_PIXEL_WIDTH
+            };
+            
+            drawBackground(_scrollBuffer + offset[nameTableIndex], stride, tile_x, tile_y, 1, 1, nameTableIndex, _bkPetternTableAddress(), _bkPaletteAddress());
+        }
+        
         // 绘制瓦片到缓冲区
         void drawTile(uint8_t* buffer, int stride, int x, int y, int high2, const uint8_t* tileAddr, const uint8_t* paletteAddr)
         {
@@ -1193,12 +1285,14 @@ namespace ReNes {
         };
         
         // 背景图案表地址
+        // 图案表：256*16(4KB)的空间
         const uint8_t* _bkPetternTableAddress() const
         {
             return &_vram->masterData()[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址 0x0000或0x1000
         }
         
         // 精灵图案表地址
+        // 图案表：256*16(4KB)的空间
         const uint8_t* _sprPetternTableAddress() const
         {
             return &_vram->masterData()[0x1000 * io_regs[0].get(3)]; // 第3bit决定精灵图案表地址 0x0000或0x1000
@@ -1235,12 +1329,15 @@ namespace ReNes {
             int bg_offset_x = 0;
             int bg_offset_y = 0;
             
-            for (int bg_y=tile_y_start; bg_y<tile_y_count; bg_y++) // 只显示 30/30 行tile
+            int tile_x_max = tile_x_start + tile_x_count;
+            int tile_y_max = tile_y_start + tile_y_count;
+            
+            for (int bg_y=tile_y_start; bg_y<tile_y_max; bg_y++) // 只显示 30/30 行tile
             {
                 int s_y = bg_y+bg_offset_y;
                 int tile_y = s_y % 30; // 竖直第_y个tile，30个tile 垂直循环
                 
-                for (int bg_x=tile_x_start; bg_x<tile_x_count; bg_x++)
+                for (int bg_x=tile_x_start; bg_x<tile_x_max; bg_x++)
                 {
                     int s_x = (bg_x+bg_offset_x);
                     int tile_x = s_x % 32; // 水平第_x个tile，32个tile 水平循环

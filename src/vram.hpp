@@ -41,7 +41,6 @@ namespace ReNes {
         {
             *_getRealAddr(addr, WRITE) = value;
         }
-        
 
         bool error = false;
         
