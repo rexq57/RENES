@@ -151,16 +151,19 @@ namespace ReNes {
         
         std::string testLog;
         
-//        uint8_t VRAM[1024*16]; // 16kb
-        
-        uint8_t* sprram()
+        const uint8_t* sprram() const
         {
             return _sprram;
         }
         
-        VRAM* vram()
+        const VRAM* vram() const
         {
             return _vram;
+        }
+        
+        void loadPetternTable(const uint8_t* addr)
+        {
+            memcpy(_vram->masterData(), addr, 1024*8);
         }
         
         PPU()
@@ -196,23 +199,21 @@ namespace ReNes {
             
             if (_scrollBufferRGB != 0)
                 free(_scrollBufferRGB);
+            
+            if (_vram)
+                delete _vram;
         }
         
         void init(Memory* mem)
         {
-//            printf("%x %x\n", this, &_mem);
-            
             _mem = mem;
             io_regs = (bit8*)mem->getIORegsAddr(); // 直接映射地址，不走mem请求，因为mem读写请求模拟了内存访问限制，那部分是留给cpu访问的
             mask_regs = (bit8*)&io_regs[1];
             status_regs = (bit8*)&io_regs[2];
             
             std::function<void(uint16_t, uint8_t)> writtingObserver = [this](uint16_t addr, uint8_t value){
-
-                
                 // 接收来自2007的数据
                 switch (addr) {
-                        
                     case 0x2000:
                     {
                         _t &= ~(0x3 << 10);
@@ -235,48 +236,23 @@ namespace ReNes {
                         {
                             // 低3位写入 _x
                             // 高5位写入 _t 低5位
-                            
                             _t &= ~0x1F;
                             _t |= value >> 3;
-                            
                             _x = value & 7; // 取低3位
-                            
-//                            printf("2005 0 %d\n", value);
                         }
                         else
                         {
                             // 低3位写入 _t 12~14位
                             // 高5位写入 _t 位5~9
-                            
-//                            printf("2005 %d -> %d\n", value, _t);
-                            
                             _t &= ~0x73E0; // 清理 111 0011 1110 0000
                             _t |= ((value & 0x7) << 12) | ((value >> 3) << 5);
-                            
-                            
-                            
-//                            auto&v = _t;
-//                            int bg_offset_x = v & 0x1F;
-//                            int bg_offset_y = (v >> 5) & 0x1F;
-//                            int bg_t_x = _x;
-//                            int bg_t_y = (v >> 12) & 0x7;
-//                            int bg_base = (v >> 10) & 0x3;
-//                            printf("2005 %d %d %d - %d,%d (%d)\n", _t, bg_offset_x, bg_offset_y, bg_t_x, bg_t_y, bg_base);
                         }
-                        
-                        
-                        
+
                         _w = 1 - _w;
-                        
                         break;
                     }
                     case 0x2006:
                     {
-//                        if (value == 0x20)
-//                            log("fuck\n");
-                        
-//                        dstAddrWriting(_dstWrite2006, _dstAddr2007tmp, _dstAddr2007);
-                        
                         if (_w == 0)
                         {
                             // 低6位写入 _t 的8~13位 并将14位置零
@@ -288,15 +264,10 @@ namespace ReNes {
                             // 将8位全部写入 _t 的低8位
                             _t &= ~0xFF;
                             _t |= (value & 0xFF);
-                            
                             _v = _t; // 第二次写入会覆盖 _v
-                            
-//                            printf("%x\n", _v);
                             _2007ReadingStep = 0; // 每次_v生效，忽略从2007读取的第一个字节
                         }
                         _w = 1 - _w;
-                        
-
                         break;
                     }
                     case 0x2007:
@@ -304,14 +275,6 @@ namespace ReNes {
                         // 在每一次向$2007写数据后，地址会根据$2000的2bit位增加1或者32
                         _vram->write8bitData(_v, value);
                         _v += io_regs[0].get(2) == 0 ? 1 : 32;
-                        
-//                        if (value == 0x39)
-//                            printf("fuck\n");
-//                        printf("2007 %x <= %d\n", _v, value);
-//                        printf("2007 %x == %d\n", _v, _vram.read8bitData(_v));
-                        
-//                        _2007ReadingStep = 2;
-                        
                         break;
                     }
                     case 0x4014:
@@ -336,9 +299,6 @@ namespace ReNes {
                         *value = _sprram[_dstAddr2004++ % 256];
                         break;
                     case 0x2007:
-                        
-//                        printf("读取 2007 %x - ", _v);
-                        
                         // 据说第一次读取的值是无效的，会缓冲到下一次读取才返回
                         if (_2007ReadingStep == 0)
                         {
@@ -347,14 +307,9 @@ namespace ReNes {
                         {
                             *value = _2007ReadingCache;
                         }
-                        
                         _2007ReadingCache = _vram->read8bitData(_v);
                         _v += io_regs[0].get(2) == 0 ? 1 : 32;
-                        
-//                        printf("%d\n", *value);
-                        
                         _2007ReadingStep = 1;
-                        
                         break;
                     default:
                         assert(!"error!");

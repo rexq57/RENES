@@ -266,7 +266,7 @@ using namespace ReNes;
             std::string str;
             int count;
             NSTextView* dstView;
-            uint8_t* srcData;
+            const uint8_t* srcData;
             
             switch ([[_memTabView.selectedTabViewItem identifier] integerValue]) {
                 case 0:
@@ -277,7 +277,7 @@ using namespace ReNes;
                 case 1:
                     dstView = _vramView;
                     count = 1024*16;
-                    srcData = _nes->ppu()->vram()->masterData();
+                    srcData = const_cast<VRAM*>(_nes->ppu()->vram())->masterData();
                     break;
                     
                 case 2:

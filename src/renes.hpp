@@ -101,7 +101,7 @@ namespace ReNes {
             {
                 const uint8_t* vromAddr = &rom[16+1024*16*rom16kB_count + 1024*8*i];
                 
-                memcpy(_ppu.vram()->masterData(), vromAddr, 1024*8);
+                _ppu.loadPetternTable(vromAddr);
             }
         }
         
