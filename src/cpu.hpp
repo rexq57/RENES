@@ -21,6 +21,7 @@ namespace ReNes {
     
     #define STACK_ADDR_OFFSET 0x0100
     
+    #define RENES_REGS auto& AC = regs.A;auto& XR = regs.X;auto& YR = regs.Y;auto& SP = regs.SP;auto& PC = regs.PC;auto& SR = *(uint8_t*)&regs.P;(void)AC;(void)XR;(void)YR;(void)SP;(void)PC;(void)SR;
 
     // 寻址模式
     // IMMIDIATE = 立即，INDEXED = 间接，跳转时 RELATIVE = 相对8bit，ABSOLUTE = 16bit
@@ -461,27 +462,6 @@ namespace ReNes {
         /* (implied) TXS */ {0x9A, {"TXS", CF_TXS, IMPLIED, 1, 2, 130}},
         /* (implied) TYA */ {0x98, {"TYA", CF_TYA, IMPLIED, 1, 2, 130}},
     };
-    
-    static
-    std::vector< std::string > split(const std::string& s, const std::string& delim)
-    {
-        std::vector< std::string > ret;
-        
-        size_t last = 0;
-        size_t index=s.find_first_of(delim,last);
-        while (index!=std::string::npos)
-        {
-            ret.push_back(s.substr(last,index-last));
-            last=index+1;
-            index=s.find_first_of(delim,last);
-        }
-        if (index-last>0)
-        {
-            ret.push_back(s.substr(last,index-last));
-        }
-        
-        return ret;
-    }
 
     // 2A03
     struct CPU {
@@ -606,12 +586,7 @@ namespace ReNes {
             if (error)
                 return 0;
             
-            auto& AC = regs.A;
-            auto& XR = regs.X;
-            auto& YR = regs.Y;
-            auto& SP = regs.SP;
-            auto& PC = regs.PC;
-            auto& SR = *(uint8_t*)&regs.P;
+            RENES_REGS
             
             // 检查中断和处理中断
             _interrupt_mtx.lock();
@@ -748,12 +723,7 @@ namespace ReNes {
         inline
         void _runCmd(const CmdInfo& info)
         {
-            auto& AC = regs.A;
-            auto& XR = regs.X;
-            auto& YR = regs.Y;
-            auto& SP = regs.SP;
-            auto& PC = regs.PC;
-            auto& SR = *(uint8_t*)&regs.P;
+            RENES_REGS
             
             // 得到 dst、src、address
             DST dst = DST_NONE;
@@ -1295,8 +1265,7 @@ namespace ReNes {
         inline
         void _addressing(const CmdInfo& info, DST* dst, unsigned int* src, uint16_t* address)
         {
-            auto& AC = regs.A;
-            auto& PC = regs.PC;
+            RENES_REGS
             
             auto mode = info.mode;
             switch(mode)
@@ -1337,12 +1306,7 @@ namespace ReNes {
         inline
         void ValueToDST(DST dst, uint8_t value, uint16_t address)
         {
-            auto& AC = regs.A;
-            auto& XR = regs.X;
-            auto& YR = regs.Y;
-            auto& SP = regs.SP;
-            //auto& PC = regs.PC;
-            //auto& SR = *(uint8_t*)&regs.P;
+            RENES_REGS
             
             switch (dst)
             {
