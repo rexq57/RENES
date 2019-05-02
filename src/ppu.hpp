@@ -882,22 +882,23 @@ namespace ReNes {
                 
                 
                 // 计算当前扫描线所在瓦片，瓦片偏移发生在相对当前屏幕的tile上，而不是指图案表相对屏幕左上角发生的偏移
-                int bg_y = line_y/8;
-                int s_y = bg_y+bg_offset_y;         // 实际瓦片坐标，向上[0,31]
-                int tile_y = s_y % 30; // 30个tile 垂直循环
+//                int bg_y = line_y/8 + bg_offset_y; [瓦片扫描]
+                int bg_tile_y = (line_y + bg_t_y)/8 + bg_offset_y; // [屏幕扫描]
+                int tile_y = bg_tile_y % 30; // 30个tile 垂直循环
                 
-//                int ty = (line_y+bg_t_y)%8;
-                int ty = line_y%8;
+//                int ty = line_y%8; // [瓦片扫描]
+                int ty = (line_y+bg_t_y)%8; // [屏幕扫描]
                 int draw_line_y = line_y/8*8-bg_t_y;
                 int dst_y = draw_line_y + ty;
                 
                 // 瓦片坐标位于不可见的扫描线
                 
-                if (dst_y >= 240)
-                    return;
-                
-                if (dst_y < 0)
-                    return;
+                // [瓦片扫描]
+//                if (dst_y >= 240)
+//                    return;
+//
+//                if (dst_y < 0)
+//                    return;
                 
                 // 需要将计算模式设计为屏幕点扫描
                 
@@ -913,6 +914,7 @@ namespace ReNes {
 
                     int dst_x = draw_line_x + tx;
                     
+                    // [瓦片扫描]
 //                    if (dst_x >= 256)
 //                        continue;
 //
@@ -1019,8 +1021,8 @@ namespace ReNes {
                         {
                             int bg_systemPaletteUnitIndex = paletteAddr[peletteIndex.merge()]; // 系统默认调色板颜色索引 [0,63]
                             
-                            int pixelIndex = (dst_y * 32*8 + dst_x); // 最低位是右边第一像素，所以渲染顺序要从右往左
-                            
+//                            int pixelIndex = (dst_y * 32*8 + dst_x); // [瓦片扫描] 最低位是右边第一像素，所以渲染顺序要从右往左
+                            int pixelIndex = (line_y * 32*8 + line_x); // [屏幕扫描] 最低位是右边第一像素，所以渲染顺序要从右往左
                             
                             // 获取当前像素的精灵数据，并检测碰撞
                             int spr_systemPaletteUnitIndex = 0; // 取低6位[0,63]

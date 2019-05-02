@@ -186,6 +186,8 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
         self.updateData = nil;
     }
     
+    // 必须设置，否则不能适应全视图显示（估计是参数没有更新，导致坐标点计算step不匹配）
+    glViewport(0, 0, self.bounds.size.width, self.bounds.size.height);
     
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -198,14 +200,14 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
         glBindTexture(_uniformTexture, _textureId);
     }
     
-    const GLfloat vertex[] = {
+    const static GLfloat vertex[] = {
         -1.0f, 1.0f,
         1.0f, 1.0f,
         -1.0f, -1.0f,
         1.0f, -1.0f
     };
     
-    const GLfloat textureCoordinate[] = {
+    const static GLfloat textureCoordinate[] = {
 
         0.0f, 0.0f,
         1.0f, 0.0f,
