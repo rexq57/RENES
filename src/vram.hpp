@@ -34,6 +34,14 @@ namespace ReNes {
             // 设置镜像
             addMirroring(&_data[0x2000], 0x3000, 0x3EFF); // 名称表镜像
             addMirroring(&_data[0x3F00], 0x3F20, 0x3FFF); // 调色板镜像
+            
+            // 名称表垂直镜像
+            addMirroring(&_data[0x2000], 0x2800, 0x2BFF);
+            addMirroring(&_data[0x2400], 0x2C00, 0x2FFF);
+            
+            // 水平镜像
+//            addMirroring(&_data[0x2000], 0x2400, 0x27FF);
+//            addMirroring(&_data[0x2800], 0x2C00, 0x2FFF);
         }
         
         ~VRAM()
@@ -88,6 +96,12 @@ namespace ReNes {
                 }
             }
         }
+        
+        void loadPetternTable(const uint8_t* addr)
+        {
+            // 8KB
+            memcpy(_getRealAddr(0x0000), addr, 0x2000);
+        }
 
         bool error = false;
         
@@ -98,31 +112,53 @@ namespace ReNes {
         const uint8_t* petternTableAddress(int index) const
         {
             RENESAssert(index == 0 || index == 1);
-            return &_data[0x1000 * index]; // 第3bit决定精灵图案表地址 0x0000或0x1000
+            return const_cast<VRAM*>(this)->_getRealAddr(0x1000 * index);
+//            return &_data[0x1000 * index]; // 第3bit决定精灵图案表地址 0x0000或0x1000
         }
         
         // 背景调色板地址
         const uint8_t* bkPaletteAddress() const
         {
-            return &_data[0x3F00];
+            return const_cast<VRAM*>(this)->_getRealAddr(0x3F00);
+//            return &_data[0x3F00];
         }
         
         // 精灵调色板地址
         const uint8_t* sprPaletteAddress() const
         {
-            return &_data[0x3F10];
+            return const_cast<VRAM*>(this)->_getRealAddr(0x3F10);
+//            return &_data[0x3F10];
         }
         
         // 名称表地址
         const uint8_t* nameTableAddress(int index) const
         {
-            return &_data[0x2000 + index*0x0400];
+            return const_cast<VRAM*>(this)->_getRealAddr(0x2000 + index*0x0400);
+//            return &_data[0x2000 + index*0x0400];
         }
         
         // 属性表地址
         const uint8_t* attributeTableAddress(int index) const
         {
-            return &_data[0x23C0 + index*0x0400];
+            return const_cast<VRAM*>(this)->_getRealAddr(0x23C0 + index*0x0400);
+//            return &_data[0x23C0 + index*0x0400];
+        }
+        
+        // 得到名称表镜像index，支持检测互为镜像index
+        const int nameTableMirroring(int index) const
+        {
+            // 通过判断内存地址来比较是否是镜像
+            const uint8_t* addr = nameTableAddress(index);
+            int i = index;
+            do
+            {
+                i = (i + 1) % 4;
+                if (nameTableAddress(i) == addr)
+                {
+                    return i;
+                }
+            }while (i != index);
+            return index;
         }
         
     private:
@@ -171,33 +207,33 @@ namespace ReNes {
         inline
         uint8_t* _getRealAddr(uint16_t addr)
         {
-#ifdef DEBUG
-            // 处理调色板镜像
-            uint16_t testAddr = addr;
-            if (addr >= 0x3F20 && addr <= 0x3FFF)
-            {
-                testAddr = 0x3F00 + ((addr-0x3F20) % 0x20);
-            }
-            else if (addr >= 0x3000 && addr <= 0x3EFF)
-            {
-                testAddr = 0x2000 + (addr - 0x3000);
-            }
-            else if (addr > 0x3FFF)
-            {
-                testAddr = addr % 0x4000;
-//                printf("fix %x -> %x\n", addr, fixedAddr);
-            }
-#endif
+//#ifdef DEBUG
+//            // 处理调色板镜像
+//            uint16_t testAddr = addr;
+//            if (addr >= 0x3F20 && addr <= 0x3FFF)
+//            {
+//                testAddr = 0x3F00 + ((addr-0x3F20) % 0x20);
+//            }
+//            else if (addr >= 0x3000 && addr <= 0x3EFF)
+//            {
+//                testAddr = 0x2000 + (addr - 0x3000);
+//            }
+//            else if (addr > 0x3FFF)
+//            {
+//                testAddr = addr % 0x4000;
+////                printf("fix %x -> %x\n", addr, fixedAddr);
+//            }
+//#endif
             // 遍历镜像设置
             for (auto& mirr : _mirrorings)
             {
                 if (mirr.hit(addr))
                 {
                     uint8_t *retAddr = mirr.address(addr);
-#ifdef DEBUG
-                    // 检查默认镜像设置问题
-                    RENESAssert(&_data[addr] == retAddr);
-#endif
+//#ifdef DEBUG
+//                    // 检查默认镜像设置问题
+//                    RENESAssert(&_data[addr] == retAddr);
+//#endif
                     return retAddr;
                 }
             }
