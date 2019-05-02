@@ -172,7 +172,6 @@ namespace ReNes {
             _buffer = (uint8_t*)malloc(RGB_BUFFER_LENGTH);
             
             _spr_buffer = (uint8_t*)malloc(SPR_BUFFER_LENGTH);
-            _bk_buffer  = (uint8_t*)malloc(BK_BUFFER_LENGTH);
             
             // 卷轴缓冲区
             _scrollBuffer = (uint8_t*)malloc(RGB_BUFFER_LENGTH*4);
@@ -188,9 +187,6 @@ namespace ReNes {
             
             if (_spr_buffer != 0)
                 free(_spr_buffer);
-            
-            if (_bk_buffer != 0)
-                free(_bk_buffer);
             
             if (_scrollBuffer != 0)
                 free(_scrollBuffer);
@@ -444,11 +440,11 @@ namespace ReNes {
             auto* VRAM = _vram.masterData();
             
             // 绘制背景
-            uint8_t* bkPetternTableAddr = &VRAM[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址 0x0000或0x1000
-            uint8_t* sprPetternTableAddr = &VRAM[0x1000 * io_regs[0].get(3)]; // 第3bit决定精灵图案表地址 0x0000或0x1000
+            uint8_t* bkPetternTableAddr = _bkPetternTableAddr(); // 第4bit决定背景图案表地址 0x0000或0x1000
+            uint8_t* sprPetternTableAddr = _sprPetternTableAddr(); // 第3bit决定精灵图案表地址 0x0000或0x1000
             
-            uint8_t* bkPaletteAddr = &VRAM[0x3F00];   // 背景调色板地址
-            uint8_t* sprPaletteAddr = &VRAM[0x3F10];  // 精灵调色板地址
+            uint8_t* bkPaletteAddr = _bkPaletteAddr();   // 背景调色板地址
+            uint8_t* sprPaletteAddr = _sprPaletteAddr();  // 精灵调色板地址
             
             //            const static RGB* pTRANSPARENT_RGB = (RGB*)&DEFAULT_PALETTE[bkPaletteAddr[0]*3];
             
@@ -536,9 +532,9 @@ namespace ReNes {
                 drawSprBuffer(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
             }
             
-            memset(_bk_buffer, 0, BK_BUFFER_LENGTH);
-//            uint8_t* bkPetternTableAddr = &VRAM[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址 0x0000或0x1000
-//            uint8_t* bkPaletteAddr = &VRAM[0x3F00];   // 背景调色板地址
+//            memset(_bk_buffer, 0, BK_BUFFER_LENGTH);
+//            uint8_t* bkPetternTableAddr = _bkPetternTableAddr(); // 第4bit决定背景图案表地址 0x0000或0x1000
+//            uint8_t* bkPaletteAddr = _bkPaletteAddr();   // 背景调色板地址
 //            drawBackground(_scrollBufferTmp, 0, 32, 0, 30, i, bkPetternTableAddr, bkPaletteAddr);
             
             
@@ -552,11 +548,11 @@ namespace ReNes {
             auto* VRAM = _vram.masterData();
             
             // 绘制背景
-            uint8_t* bkPetternTableAddr = &VRAM[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址 0x0000或0x1000
-            uint8_t* sprPetternTableAddr = &VRAM[0x1000 * io_regs[0].get(3)]; // 第3bit决定精灵图案表地址 0x0000或0x1000
+            uint8_t* bkPetternTableAddr = _bkPetternTableAddr(); // 第4bit决定背景图案表地址 0x0000或0x1000
+            uint8_t* sprPetternTableAddr = _sprPetternTableAddr(); // 第3bit决定精灵图案表地址 0x0000或0x1000
             
-            uint8_t* bkPaletteAddr = &VRAM[0x3F00];   // 背景调色板地址
-            uint8_t* sprPaletteAddr = &VRAM[0x3F10];  // 精灵调色板地址
+            uint8_t* bkPaletteAddr = _bkPaletteAddr();   // 背景调色板地址
+            uint8_t* sprPaletteAddr = _sprPaletteAddr();  // 精灵调色板地址
             
             bool showBg  = this->_showBg;
             bool showSpr = this->_showSpr;
@@ -849,11 +845,11 @@ namespace ReNes {
             auto* VRAM = _vram.masterData();
             
             // 绘制背景
-            uint8_t* bkPetternTableAddr = &VRAM[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址 0x0000或0x1000
-            uint8_t* sprPetternTableAddr = &VRAM[0x1000 * io_regs[0].get(3)]; // 第3bit决定精灵图案表地址 0x0000或0x1000
+            uint8_t* bkPetternTableAddr = _bkPetternTableAddr();
+            uint8_t* sprPetternTableAddr = _sprPetternTableAddr();
             
-            uint8_t* bkPaletteAddr = &VRAM[0x3F00];   // 背景调色板地址
-            uint8_t* sprPaletteAddr = &VRAM[0x3F10];  // 精灵调色板地址
+            uint8_t* bkPaletteAddr = _bkPaletteAddr();
+            uint8_t* sprPaletteAddr = _sprPaletteAddr();
             
             bool showBg  = this->_showBg;
             bool showSpr = this->_showSpr;
@@ -911,8 +907,7 @@ namespace ReNes {
                     int tx = (line_x+bg_t_x)%8; // [屏幕扫描] 对应当前瓦片上的index
 //                    int tx = line_x%8; // [瓦片扫描] 对应当前瓦片上的index
                     int draw_line_x = line_x/8*8-bg_t_x; // 背景绘制的整体起始点
-
-                    int dst_x = draw_line_x + tx;
+                    int dst_x = draw_line_x + tx; // 屏幕上的坐标
                     
                     // [瓦片扫描]
 //                    if (dst_x >= 256)
@@ -923,44 +918,48 @@ namespace ReNes {
 //                        continue;
 //                    }
                     
-                    uint8_t* paletteAddr = bkPaletteAddr;
                     bool flipV = false;
                     bool flipH = false;
                     
                     int tx_ = flipH ? tx : 7-tx;
                     int ty_ = flipV ? 7-ty : ty;
                     
+                    int first_tile_x = (line_x + bg_t_x)/8 + bg_offset_x; // [屏幕扫描]
                     
-                    /*
-                     调色板
-                     0x3F00 16字节
-                     */
-                    /* 调色板索引 [16]颜色
-                     11 11
-                     高2bit: 属性表
-                     低2bit: 来自图案表 <- 名称表
-                     */
-                    struct PaletteIndex{
-                        int high2bit;
-                        int low2bit;
-                        inline
-                        int merge() const
-                        {
-                            return (high2bit << 2) + low2bit;
-                        }
-                    };
-                    PaletteIndex peletteIndex;
+                    // 从基础名称表开始绘制，并根据tile偏移+瓦片索引
+                    int nameTableIndex = ((firstNameTableIndex + first_tile_x/32) % 2);
                     
-                    //                    if (line_x % 8 == 0) // 每次跨界才计算新的瓦片地址
+                    // int bg_tile_x = line_x/8 + bg_offset_x; // [瓦片扫描] 当前位置的tile
+                    // 32个tile 水平循环在屏幕上的对应瓦片坐标，用来定位在对应（当前/下一个）名称表里的位置，确定tileIndex
+                    int tile_x = first_tile_x % 32;
+                    
+                    int bg_systemPaletteUnitIndex;
+                    
+                    int bg_peletteIndex;
+                    // #def RENES_BG_MODE_0
+                    #ifdef RENES_BG_MODE_0
                     {
+                        /*
+                         调色板
+                         0x3F00 16字节
+                         */
+                        /* 调色板索引 [16]颜色
+                         11 11
+                         高2bit: 属性表
+                         低2bit: 来自图案表 <- 名称表
+                         */
+                        struct PaletteIndex{
+                            int high2bit;
+                            int low2bit;
+                            inline
+                            int merge() const
+                            {
+                                return (high2bit << 2) + low2bit;
+                            }
+                        };
+                        
+                        PaletteIndex peletteIndex;
                         {
-                            int bg_tile_x = (line_x + bg_t_x)/8 + bg_offset_x; // [屏幕扫描]
-//                            int bg_tile_x = line_x/8 + bg_offset_x; // [瓦片扫描] 当前位置的tile
-                            // 32个tile 水平循环在屏幕上的对应瓦片坐标，用来定位在对应（当前/下一个）名称表里的位置，确定tileIndex
-                            int tile_x = bg_tile_x % 32;
-                            
-                            // 从基础名称表开始绘制，并根据tile偏移+瓦片索引
-                            int nameTableIndex = ((firstNameTableIndex + bg_tile_x/32) % 2);
                             // 未处理左右镜像，需要计算s_y
                             
                             /* 名称表
@@ -1011,82 +1010,94 @@ namespace ReNes {
                                 peletteIndex.high2bit = (attributeAddrFor4x4Tile >> bit) & 0x3;
                             }
                         }
+                        bg_peletteIndex = peletteIndex.merge();
                     }
+                    #else
+                    {
+                        // 瓦片绝对坐标 = 屏幕坐标 + 瓦片偏移(含精细偏移)
+                        // 当前模式：名称表分屏
+                        // 需要直接加名称表虚拟起始坐标即可: 名称表坐标 + 瓦片偏移(含精细偏移)
+                        const static int NameTablePosition[] = {
+                            0,0, 256,0,
+                            0,240, 256,240
+                        };
+                        const int *map_table_pos = &NameTablePosition[nameTableIndex*2];
+                        
+                        int map_pos_x = map_table_pos[0] + tile_x*8 + tx;
+                        int map_pos_y = map_table_pos[1] + tile_y*8 + ty;
+                        
+                        bg_peletteIndex = _scrollBuffer[map_pos_y*512 + map_pos_x];
+                    }
+                    #endif
                     
-                    // line_x/8*8 为当前tile的标准坐标，bg_t_x 为偏移位置
+                    bg_systemPaletteUnitIndex = bkPaletteAddr[bg_peletteIndex]; // 系统默认调色板颜色索引 [0,63]
                     
                     // 根据滚屏信息，计算屏幕
-                    
                     {
+                        //                            int pixelIndex = (dst_y * 32*8 + dst_x); // [瓦片扫描] 最低位是右边第一像素，所以渲染顺序要从右往左
+                        int pixelIndex = (line_y * 32*8 + line_x); // [屏幕扫描] 最低位是右边第一像素，所以渲染顺序要从右往左
+                        
+                        // 获取当前像素的精灵数据，并检测碰撞
+                        int spr_systemPaletteUnitIndex = 0; // 取低6位[0,63]
+                        bool sprFront = true;
                         {
-                            int bg_systemPaletteUnitIndex = paletteAddr[peletteIndex.merge()]; // 系统默认调色板颜色索引 [0,63]
-                            
-//                            int pixelIndex = (dst_y * 32*8 + dst_x); // [瓦片扫描] 最低位是右边第一像素，所以渲染顺序要从右往左
-                            int pixelIndex = (line_y * 32*8 + line_x); // [屏幕扫描] 最低位是右边第一像素，所以渲染顺序要从右往左
-                            
-                            // 获取当前像素的精灵数据，并检测碰撞
-                            int spr_systemPaletteUnitIndex = 0; // 取低6位[0,63]
-                            bool sprFront = true;
+                            for (int i=0; i<1; i++)
                             {
-                                for (int i=0; i<1; i++)
+                                uint8_t& spr_data = _spr_buffer[pixelIndex + i*BUFFER_PIXEL_CONUT];
+                                
+                                
+                                if (spr_data == 0)
                                 {
-                                    uint8_t& spr_data = _spr_buffer[pixelIndex + i*BUFFER_PIXEL_CONUT];
+                                    break;
+                                }
+                                
+                                //                                        spr_systemPaletteUnitIndex = spr_data & 63;
+                                sprFront = (spr_data & 32) == 0;
+                                spr_systemPaletteUnitIndex = sprPaletteAddr[spr_data & 15];
+                                
+                                {
+                                    bool isFirstSprite = spr_data > 63;
                                     
-                                    
-                                    if (spr_data == 0)
+                                    // 碰撞条件，第一精灵 & 非0调色板第一位（透明色）& 允许碰撞
+                                    if (isFirstSprite && spr_systemPaletteUnitIndex != sprPaletteAddr[0] && status_regs->get(6) == 0)
                                     {
-                                        break;
-                                    }
-                                    
-                                    //                                        spr_systemPaletteUnitIndex = spr_data & 63;
-                                    sprFront = (spr_data & 32) == 0;
-                                    spr_systemPaletteUnitIndex = sprPaletteAddr[spr_data & 15];
-                                    
-                                    {
-                                        bool isFirstSprite = spr_data > 63;
-                                        
-                                        // 碰撞条件，第一精灵 & 非0调色板第一位（透明色）& 允许碰撞
-                                        if (isFirstSprite && spr_systemPaletteUnitIndex != sprPaletteAddr[0] && status_regs->get(6) == 0)
-                                        {
-                                            status_regs->set(6, 1);
-                                        }
+                                        status_regs->set(6, 1);
                                     }
                                 }
                             }
-                            
-                            int systemPaletteUnitIndex = -1;
+                        }
+                        
+                        int systemPaletteUnitIndex = -1;
+                        {
+                            if (showSpr && spr_systemPaletteUnitIndex != 0)
                             {
-                                if (showSpr && spr_systemPaletteUnitIndex != 0)
-                                {
-                                    // 判断前后
-                                    if (showBg && !sprFront && peletteIndex.merge() != 0)
-                                    {
-                                        systemPaletteUnitIndex = bg_systemPaletteUnitIndex;
-                                    }
-                                    else
-                                    {
-                                        systemPaletteUnitIndex = spr_systemPaletteUnitIndex;
-                                    }
-                                }
-                                else if (showBg)
+                                // 判断前后
+                                if (showBg && !sprFront && bg_peletteIndex != 0)
                                 {
                                     systemPaletteUnitIndex = bg_systemPaletteUnitIndex;
                                 }
+                                else
+                                {
+                                    systemPaletteUnitIndex = spr_systemPaletteUnitIndex;
+                                }
                             }
-                            
-                            auto* pb = (RGB*)&buffer[pixelIndex*3];
-                            if (systemPaletteUnitIndex != -1)
+                            else if (showBg)
                             {
-                                RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
-                                *pb = *rgb;
-                            }
-                            else
-                            {
-                                memset(pb, 0, 3);
+                                systemPaletteUnitIndex = bg_systemPaletteUnitIndex;
                             }
                         }
+                        
+                        auto* pb = (RGB*)&buffer[pixelIndex*3];
+                        if (systemPaletteUnitIndex != -1)
+                        {
+                            RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
+                            *pb = *rgb;
+                        }
+                        else
+                        {
+                            memset(pb, 0, 3);
+                        }
                     }
-                    
                 }
                 
                 // 绘制了最后一条可见扫描线，则设置VBlank标记
@@ -1111,8 +1122,8 @@ namespace ReNes {
         {
             auto* VRAM = _vram.masterData();
             
-            uint8_t* bkPetternTableAddr = &VRAM[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址 0x0000或0x1000
-            uint8_t* bkPaletteAddr = &VRAM[0x3F00];   // 背景调色板地址
+            uint8_t* bkPetternTableAddr = _bkPetternTableAddr(); // 第4bit决定背景图案表地址 0x0000或0x1000
+            uint8_t* bkPaletteAddr = _bkPaletteAddr();   // 背景调色板地址
             
             // 上下镜像模式，水平复制
             for (int i=0; i<4; i++)
@@ -1296,17 +1307,33 @@ namespace ReNes {
             }
         };
         
-        // 名称表长度是0x0400，
+        uint8_t* _bkPetternTableAddr()
+        {
+            return &_vram.masterData()[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址 0x0000或0x1000
+        }
+        
+        uint8_t* _sprPetternTableAddr()
+        {
+            return &_vram.masterData()[0x1000 * io_regs[0].get(3)]; // 第3bit决定精灵图案表地址 0x0000或0x1000
+        }
+        
+        uint8_t* _bkPaletteAddr()
+        {
+            return &_vram.masterData()[0x3F00]; // 背景调色板地址
+        }
+        
+        uint8_t* _sprPaletteAddr()
+        {
+            return &_vram.masterData()[0x3F10]; // 精灵调色板地址
+        }
         
         // 名称表地址
-        inline
         uint8_t* nameTableAddress(int index)
         {
             return &_vram.masterData()[0x2000 + index*0x0400];
         }
         
         // 属性表地址
-        inline
         uint8_t* attributeTableAddress(int index)
         {
             return &_vram.masterData()[0x23C0 + index*0x0400];
@@ -1374,8 +1401,6 @@ namespace ReNes {
             uint8_t b;
         };
 
-        
-        
         void reset()
         {
             _w = 0;
@@ -1407,10 +1432,8 @@ namespace ReNes {
         // 建立 w * h * 8 的缓冲区，每像素8字节，用来存储8个精灵的数据。
         // 如果该像素没有精灵，甚至没有叠加，则该位第一字节为0
         const int SPR_BUFFER_LENGTH = BUFFER_PIXEL_CONUT*8;
-        const int BK_BUFFER_LENGTH  = BUFFER_PIXEL_CONUT;
         
         uint8_t* _spr_buffer = 0;   // 精灵绘制缓冲区
-        uint8_t* _bk_buffer = 0;   // 精灵绘制缓冲区
         
         uint8_t* _buffer = 0;       // 显示缓冲区
         uint8_t* _scrollBuffer = 0; // 卷轴缓冲区
