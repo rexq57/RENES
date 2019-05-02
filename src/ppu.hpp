@@ -31,44 +31,6 @@
  
  */
 
-class Timer {
-    
-public:
-    
-    Timer& timerStart()
-    {
-        mCurrentTimeMillis=clock();
-        return *this;
-    }
-    
-    Timer& timerEnd(const char* log)
-    {
-        return timerEnd(log, true);
-    }
-    
-    Timer& timerEnd(const char* log, bool display)
-    {
-        float time = (clock() - mCurrentTimeMillis) / 1000000.0f;
-        mFpsCount ++;
-        mFpsTime += time;
-        float fps = mFpsCount/mFpsTime;
-        if (mFpsCount > 1000)
-        {
-            mFpsCount = 0;
-            mFpsTime = 0;
-        }
-        if (display)
-            printf("%s %f fps %fs %fs\n", log , fps , 1.0f/fps , time);
-        
-        return *this;
-    }
-    
-private:
-    float mFpsTime = 0;
-    long mFpsCount = 0;
-    long mCurrentTimeMillis;
-};
-
 namespace ReNes {
     
     /*
@@ -77,7 +39,7 @@ namespace ReNes {
      
      */
     
-    // 系统调色板
+    // 系统调色板，网上有多种颜色风格
     const static uint8_t DEFAULT_PALETTE[192] = {
         84,84,84,
         0,30,116,
@@ -1371,7 +1333,5 @@ namespace ReNes {
         
         VRAM* _vram;
         Memory* _mem;
-        
-        Timer _timer;
     };
 }
