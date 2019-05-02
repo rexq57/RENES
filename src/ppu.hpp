@@ -1103,7 +1103,7 @@ namespace ReNes {
         {
             for (int i=0; i<32; i++)
             {
-                p[i] = _vram->masterData()[0x3F00 + i];
+                p[i] = _vram->bkPaletteAddress()[i];
             }
         }
         
@@ -1288,38 +1288,40 @@ namespace ReNes {
         // 图案表：256*16(4KB)的空间
         const uint8_t* _bkPetternTableAddress() const
         {
-            return &_vram->masterData()[0x1000 * io_regs[0].get(4)]; // 第4bit决定背景图案表地址 0x0000或0x1000
+            // 第4bit决定背景图案表地址 0x0000或0x1000
+            return _vram->petternTableAddress(io_regs[0].get(4));
         }
         
         // 精灵图案表地址
         // 图案表：256*16(4KB)的空间
         const uint8_t* _sprPetternTableAddress() const
         {
-            return &_vram->masterData()[0x1000 * io_regs[0].get(3)]; // 第3bit决定精灵图案表地址 0x0000或0x1000
+            // 第3bit决定精灵图案表地址 0x0000或0x1000
+            return _vram->petternTableAddress(io_regs[0].get(3));
         }
         
         // 背景调色板地址
         const uint8_t* _bkPaletteAddress() const
         {
-            return &_vram->masterData()[0x3F00];
+            return _vram->bkPaletteAddress();
         }
         
         // 精灵调色板地址
         const uint8_t* _sprPaletteAddress() const
         {
-            return &_vram->masterData()[0x3F10];
+            return _vram->sprPaletteAddress();
         }
         
         // 名称表地址
         const uint8_t* _nameTableAddress(int index) const
         {
-            return &_vram->masterData()[0x2000 + index*0x0400];
+            return _vram->nameTableAddress(index);
         }
         
         // 属性表地址
         const uint8_t* _attributeTableAddress(int index) const
         {
-            return &_vram->masterData()[0x23C0 + index*0x0400];
+            return _vram->attributeTableAddress(index);
         }
         
         // 从第nameTableIndex个名称表开始绘制（竖直镜像）
