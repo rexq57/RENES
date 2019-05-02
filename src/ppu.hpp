@@ -889,36 +889,37 @@ namespace ReNes {
 //                int ty = (line_y+bg_t_y)%8;
                 int ty = line_y%8;
                 int draw_line_y = line_y/8*8-bg_t_y;
+                int dst_y = draw_line_y + ty;
                 
                 // 瓦片坐标位于不可见的扫描线
                 
-                if (draw_line_y + ty > 239)
+                if (dst_y >= 240)
                     return;
                 
-                if (draw_line_y + ty < 0)
+                if (dst_y < 0)
                     return;
+                
+                // 需要将计算模式设计为屏幕点扫描
                 
                 // 宽度应该是256，刚好填满32个tile。但是如果发生错位的情况，是需要33个tile
-                const static int LINE_X_MAX = 33*8;
+                //const static int LINE_X_MAX = 33*8; [瓦片扫描]
+                const static int LINE_X_MAX = 32*8; // [屏幕扫描]
 
                 for (int line_x=0; line_x<LINE_X_MAX; line_x++)
                 {
-                    struct Test {
-                        int x;
-                        int tx;
-                    };
-                    //                    int tx = (line_x+bg_t_x)%8; // 对应当前瓦片上的index
-                    //                    int tx = (line_x+bg_t_x)%8; // 对应当前瓦片上的index
-                    int tx = line_x%8; // 对应当前瓦片上的index
+                    int tx = (line_x+bg_t_x)%8; // [屏幕扫描] 对应当前瓦片上的index
+//                    int tx = line_x%8; // [瓦片扫描] 对应当前瓦片上的index
                     int draw_line_x = line_x/8*8-bg_t_x; // 背景绘制的整体起始点
 
-                    if (draw_line_x + tx > 255)
-                        continue;
+                    int dst_x = draw_line_x + tx;
                     
-                    if (draw_line_x + tx< 0)
-                    {
-                        continue;
-                    }
+//                    if (dst_x >= 256)
+//                        continue;
+//
+//                    if (dst_x < 0)
+//                    {
+//                        continue;
+//                    }
                     
                     uint8_t* paletteAddr = bkPaletteAddr;
                     bool flipV = false;
@@ -950,15 +951,9 @@ namespace ReNes {
                     
                     //                    if (line_x % 8 == 0) // 每次跨界才计算新的瓦片地址
                     {
-                        //                        int bg_x = line_x/8;
-                        //                        int s_x = (bg_x+bg_offset_x); // 目标tile
-                        //                        x = s_x % 32; // 32个tile 水平循环
-                        
-                        //                        int bg_x = (line_x + bg_t_x)/8;
-                        
-                        
                         {
-                            int bg_tile_x = line_x/8 + bg_offset_x; // 当前位置的tile
+                            int bg_tile_x = (line_x + bg_t_x)/8 + bg_offset_x; // [屏幕扫描]
+//                            int bg_tile_x = line_x/8 + bg_offset_x; // [瓦片扫描] 当前位置的tile
                             // 32个tile 水平循环在屏幕上的对应瓦片坐标，用来定位在对应（当前/下一个）名称表里的位置，确定tileIndex
                             int tile_x = bg_tile_x % 32;
                             
@@ -1018,13 +1013,13 @@ namespace ReNes {
                     
                     // line_x/8*8 为当前tile的标准坐标，bg_t_x 为偏移位置
                     
+                    // 根据滚屏信息，计算屏幕
+                    
                     {
                         {
                             int bg_systemPaletteUnitIndex = paletteAddr[peletteIndex.merge()]; // 系统默认调色板颜色索引 [0,63]
                             
-                            //                            int pixelIndex = (NES_MIN(draw_line_y + ty, 239) * 32*8 + NES_MIN(draw_line_x + tx, 255)); // 最低位是右边第一像素，所以渲染顺序要从右往左
-                            //                            int pixelIndex = (NES_MIN(draw_line_y + ty, 239) * 32*8 + NES_MIN(line_x, 255));
-                            int pixelIndex = (NES_MIN(draw_line_y + ty, 239) * 32*8 + NES_MIN(draw_line_x + tx, 255)); // 最低位是右边第一像素，所以渲染顺序要从右往左
+                            int pixelIndex = (dst_y * 32*8 + dst_x); // 最低位是右边第一像素，所以渲染顺序要从右往左
                             
                             
                             // 获取当前像素的精灵数据，并检测碰撞
@@ -1034,6 +1029,7 @@ namespace ReNes {
                                 for (int i=0; i<1; i++)
                                 {
                                     uint8_t& spr_data = _spr_buffer[pixelIndex + i*BUFFER_PIXEL_CONUT];
+                                    
                                     
                                     if (spr_data == 0)
                                     {
@@ -1269,8 +1265,6 @@ namespace ReNes {
                     int low2 = low0 | (low1 << 1);
                     
                     int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号 [0, 15]
-                    
-                    //                        int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
                     
                     // 如果绘制精灵，而且当前颜色引用到背景透明色（背景调色板第一位），就不绘制
                     //                        if (systemPaletteUnitIndex == bkPaletteAddr[0])
