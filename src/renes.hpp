@@ -153,13 +153,6 @@ namespace ReNes {
             log("设置debug模式: %d\n", debug);
         }
         
-        //        void setDumpScrollBuffer(bool enabled)
-        //        {
-        //            _ppu.dumpScrollBuffer = enabled;
-        //        }
-        
-        bool dumpScrollBuffer = false;
-        
         bool debug = false;
         float cmd_interval = 0;
         
@@ -316,12 +309,6 @@ namespace ReNes {
                         {
                             // vblank发生的时候，设置NMI中断
                             _cpu.interrupts(CPU::InterruptTypeNMI);
-                            
-                            // NES规定的240条扫描线已经绘制完成，[240, 261] 期间是vblank时间
-                            // 假设硬件上每一帧显示不需要时间，而模拟需要，所以把显示开销放到这里，帧末再统计时间花费，模拟等待
-                            // 拷贝显示所需的数据到内存(同步)
-                            if (dumpScrollBuffer)
-                                _ppu.dumpScrollToBuffer();
                             
                             // 刷新视图(异步) 刷新率由UI决定
                             ppu_displayCallback(&_ppu);

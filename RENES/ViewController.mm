@@ -145,13 +145,17 @@ using namespace ReNes;
                     }
                     
                     {
-                        // 显示图片
-                        int width  = _nes->ppu()->width()*2;
-                        int height = _nes->ppu()->height()*2;
-                        uint8_t* srcBuffer = _nes->ppu()->scrollBufferRGB();
-                        
-                        [_scrollMirroringView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
-                        
+                        if ([_memTabView.selectedTabViewItem.identifier isEqualToString:@"scroll"])
+                        {
+                            ppu->dumpScrollToBuffer();
+                            
+                            // 显示图片
+                            int width  = _nes->ppu()->width()*2;
+                            int height = _nes->ppu()->height()*2;
+                            uint8_t* srcBuffer = ppu->scrollBufferRGB();
+                            
+                            [_scrollMirroringView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+                        }
                     }
                 }
                 
@@ -173,8 +177,6 @@ using namespace ReNes;
             
             _nes->run();
             
-            _nes->dumpScrollBuffer = [_memTabView.selectedTabViewItem.identifier isEqualToString:@"scroll"];
-            
             NSLog(@"模拟器开始运行");
             
 //        }
@@ -186,23 +188,23 @@ using namespace ReNes;
     if ((self = [super initWithCoder:coder]))
     {
         // 相应tab切换
-        [[self rac_signalForSelector:@selector(tabView:didSelectTabViewItem:) fromProtocol:@protocol(NSTabViewDelegate)] subscribeNext:^(RACTuple* tuple) {
-            
-            if (tuple.first == _memTabView){
-                
-                NSString* identifier = [tuple.second identifier];
-                
-                if (_nes)
-                {
-                    _nes->dumpScrollBuffer = [identifier isEqualToString:@"scroll"];
-                }
-                
-//                _thread = std::thread(working);
-                
-                
-//                NSLog(@"%@", [tuple.second identifier]);
-            }
-        }];
+//        [[self rac_signalForSelector:@selector(tabView:didSelectTabViewItem:) fromProtocol:@protocol(NSTabViewDelegate)] subscribeNext:^(RACTuple* tuple) {
+//            
+//            if (tuple.first == _memTabView){
+//                
+//                NSString* identifier = [tuple.second identifier];
+//                
+//                if (_nes)
+//                {
+//                    _nes->dumpScrollBuffer = [identifier isEqualToString:@"scroll"];
+//                }
+//                
+////                _thread = std::thread(working);
+//                
+//                
+////                NSLog(@"%@", [tuple.second identifier]);
+//            }
+//        }];
     }
     
     return self;

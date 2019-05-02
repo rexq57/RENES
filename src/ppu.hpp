@@ -532,11 +532,33 @@ namespace ReNes {
                 drawSprBuffer(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
             }
             
-//            memset(_bk_buffer, 0, BK_BUFFER_LENGTH);
-//            uint8_t* bkPetternTableAddr = _bkPetternTableAddr(); // 第4bit决定背景图案表地址 0x0000或0x1000
-//            uint8_t* bkPaletteAddr = _bkPaletteAddr();   // 背景调色板地址
-//            drawBackground(_scrollBufferTmp, 0, 32, 0, 30, i, bkPetternTableAddr, bkPaletteAddr);
-            
+            // test 暂时全部绘制
+            {
+                uint8_t* bkPetternTableAddr = _bkPetternTableAddr(); // 第4bit决定背景图案表地址 0x0000或0x1000
+                uint8_t* bkPaletteAddr = _bkPaletteAddr();   // 背景调色板地址
+                
+                // 上下镜像模式，水平复制
+                for (int i=0; i<4; i++)
+                {
+                    //                size_t size = RGB_BUFFER_LENGTH;
+                    //                size_t lineLength = BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_BPP;
+                    //                const static int offset[] = {
+                    //                    0, BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_BPP,
+                    //                    2*RGB_BUFFER_LENGTH, 2*RGB_BUFFER_LENGTH+BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_BPP
+                    //                };
+                    //
+                    //                drawBackground(_scrollBuffer + offset[i], lineLength*2, 0, 32, 0, 30, i, bkPetternTableAddr, bkPaletteAddr);
+                    
+                    size_t size = BUFFER_PIXEL_CONUT;
+                    size_t stride = BUFFER_PIXEL_WIDTH * 2;
+                    const static int offset[] = {
+                        0, BUFFER_PIXEL_WIDTH,
+                        2*BUFFER_PIXEL_CONUT, 2*BUFFER_PIXEL_CONUT+BUFFER_PIXEL_WIDTH
+                    };
+                    
+                    drawBackground(_scrollBuffer + offset[i], stride, 0, 0, 32, 30, i, bkPetternTableAddr, bkPaletteAddr);
+                }
+            }
             
             _scanline_y = 0;
         }
@@ -1120,32 +1142,8 @@ namespace ReNes {
         // dump数据，给外部逻辑使用
         void dumpScrollToBuffer()
         {
-            auto* VRAM = _vram.masterData();
-            
             uint8_t* bkPetternTableAddr = _bkPetternTableAddr(); // 第4bit决定背景图案表地址 0x0000或0x1000
             uint8_t* bkPaletteAddr = _bkPaletteAddr();   // 背景调色板地址
-            
-            // 上下镜像模式，水平复制
-            for (int i=0; i<4; i++)
-            {
-//                size_t size = RGB_BUFFER_LENGTH;
-//                size_t lineLength = BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_BPP;
-//                const static int offset[] = {
-//                    0, BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_BPP,
-//                    2*RGB_BUFFER_LENGTH, 2*RGB_BUFFER_LENGTH+BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_BPP
-//                };
-//
-//                drawBackground(_scrollBuffer + offset[i], lineLength*2, 0, 32, 0, 30, i, bkPetternTableAddr, bkPaletteAddr);
-                
-                size_t size = BUFFER_PIXEL_CONUT;
-                size_t stride = BUFFER_PIXEL_WIDTH * 2;
-                const static int offset[] = {
-                    0, BUFFER_PIXEL_WIDTH,
-                    2*BUFFER_PIXEL_CONUT, 2*BUFFER_PIXEL_CONUT+BUFFER_PIXEL_WIDTH
-                };
-                
-                drawBackground(_scrollBuffer + offset[i], stride, 0, 0, 32, 30, i, bkPetternTableAddr, bkPaletteAddr);
-            }
             
             // convert to RGB buffer
             int size = BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_HEIGHT*4;
@@ -1155,7 +1153,6 @@ namespace ReNes {
                 RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
                 ((RGB*)_scrollBufferRGB)[i] = *rgb;
             }
-            
         }
         
         inline
