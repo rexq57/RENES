@@ -238,7 +238,7 @@ namespace ReNes {
                         _vram->write8bitData(_v, value);
                         
                         // 通知
-                        _vramDidUpdated(_v);
+//                        _vramDidUpdasted(_v);
                         
                         // 自动增加
                         _v += io_regs[0].get(2) == 0 ? 1 : 32;
@@ -444,31 +444,50 @@ namespace ReNes {
                 bool flipH = spr->info.get(6); // 水平翻转
                 bool flipV = spr->info.get(7); // 竖直翻转
                 
-                drawSprBuffer(_spr_buffer, spr->x, spr->y, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
+                drawSprBuffer(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
             }
             
-            // test 暂时全部绘制            
-//            static bool inited = false;
-//            if (!inited)
-            if (false)
+            // test 暂时全部绘制
+            if (true)
             {
-//                inited = true;
-                const uint8_t* bkPetternTableAddr = _bkPetternTableAddress(); // 第4bit决定背景图案表地址 0x0000或0x1000
-                const uint8_t* bkPaletteAddr = _bkPaletteAddress();   // 背景调色板地址
+//                for (int i=0; i<4; i++)
+//                {
+//                    updateBackgroundTile(i, 0, 0, 32, 30);
+//                }
                 
-                // 上下镜像模式，水平复制
+                bool updatedNameTableIndex[4] = {false};
+                
                 for (int i=0; i<4; i++)
                 {
-                    int stride = BUFFER_PIXEL_WIDTH * 2;
-                    const static int offset[] = {
-                        0, BUFFER_PIXEL_WIDTH,
-                        2*BUFFER_PIXEL_CONUT, 2*BUFFER_PIXEL_CONUT+BUFFER_PIXEL_WIDTH
-                    };
+                    if (updatedNameTableIndex[i])
+                        continue;
                     
-                    drawBackground(_scrollBuffer + offset[i], stride, 0, 0, 32, 30, i, bkPetternTableAddr, bkPaletteAddr);
+                    // 遍历里面32x30字节，更新其中 == index 的项目
+                    updateBackgroundTile(i, 0, 0, 32, 30);
+                    updatedNameTableIndex[i] = true;
+                    
+                    // 检查其镜像，有，则加入
+                    int mirroringIndex = _vram->nameTableMirroring(i);
+                    if (mirroringIndex != i)
+                    {
+                        updatedNameTableIndex[mirroringIndex] = true;
+                        // 复制src -> 镜像
+                        const static int scrollBufferOffset[] = {
+                            0, 256,
+                            BUFFER_PIXEL_CONUT*2, BUFFER_PIXEL_CONUT*2+256
+                        };
+                        
+                        const uint8_t* srcAddr = _scrollBuffer + scrollBufferOffset[i];
+                        const uint8_t* mirrAddr = _scrollBuffer + scrollBufferOffset[mirroringIndex];
+                        int stride = 256*2;
+                        for (int y=0; y<240; y++)
+                        {
+                            memcpy((void*)(mirrAddr+y*stride), (void*)(srcAddr+y*stride), 256);
+                        }
+                    }
                 }
             }
-            
+
             _scanline_y = 0;
         }
         
