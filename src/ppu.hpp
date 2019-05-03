@@ -879,7 +879,7 @@ namespace ReNes {
                     int bg_systemPaletteUnitIndex;
                     
                     int bg_peletteIndex;
-                    // #def RENES_BG_MODE_0
+//                    #define RENES_BG_MODE_0
                     #ifdef RENES_BG_MODE_0
                     {
                         /*
@@ -930,7 +930,7 @@ namespace ReNes {
                                  构成2bit
                                  */
                                 
-                                uint8_t* bkTileAddr = &bkPetternTableAddr[tileIndex * 16];
+                                const uint8_t* bkTileAddr = &bkPetternTableAddr[tileIndex * 16];
                                 {
                                     // 图案表tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
                                     int low0 = ((bit8*)&bkTileAddr[ty_])->get(tx_);
@@ -942,8 +942,10 @@ namespace ReNes {
                             /*
                              属性表 - 位于名称表未使用的64字节空间
                              64字节 = 名称表0x400(1024)-960(32x30)
+                             影响tile组: 4x4(i8x8)
+                             32x30 / (4x4) = 8x7.5
                              */
-                            uint8_t* attributeTableAddr = _attributeTableAddress(nameTableIndex);
+                            const uint8_t* attributeTableAddr = _attributeTableAddress(nameTableIndex);
                             {
                                 // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节（即属性）
                                 // 每2bit用于2x2的tile，作为peletteIndex的高2位
@@ -1094,11 +1096,9 @@ namespace ReNes {
         
     private:
         
-        
-        
         void _vramDidUpdated(uint16_t addr)
         {
-            // VRAM数据与内存的交互，通过2007最后来确定。在这里，可以确定那部分VRAM内存被修改，进行tile更新
+            // VRAM数据与内存的交互，通过2007最后来确定。在这里，可以确定哪部分VRAM内存被修改，进行tile更新
             int nameTableIndex;
             int tile_x, tile_y;
             if (addr < 0x2000) // 图案表更新 [0x0000, 0x1FFF]
@@ -1107,103 +1107,83 @@ namespace ReNes {
                 // 遍历名称表中使用了该图案index的tile，进行更新
                 // 只更新图案表，先确定图案表地址
                 int i = io_regs[0].get(4);
-                bool updateNameTable = false;
-                bool updateAttributeTable = false;
                 
-                if (addr < 0x1000-96) // 名称表
+                int offset = addr - i*0x1000;
+                int index = offset / 16; // 得到下标[0, 255]
+                bool updatedNameTableIndex[4] = {false};
+                for (int i=0; i<4; i++)
                 {
-                    updateNameTable = i == 0;
-                }
-                else if (addr < 0x1000) // 属性表
-                {
-                    updateAttributeTable = true;
-                }
-                else if (addr < 0x2000-96) // 名称表
-                {
-                    updateNameTable = i == 1;
-                }
-                else // 属性表
-                {
-                    updateAttributeTable = true;
-                }
-                
-                if (updateNameTable)
-                {
-                    int offset = addr - i*0x1000;
-                    int index = offset / 16; // 得到下标[0, 255]
-                    bool updatedNameTableIndex[4] = {false};
-                    for (int i=0; i<4; i++)
+                    if (updatedNameTableIndex[i])
+                        continue;
+                    
+                    // 遍历里面32x30字节，更新其中 == index 的项目
+                    updateBackgroundTile(i, index);
+                    updatedNameTableIndex[i] = true;
+                    
+                    // 检查其镜像，有，则加入
+                    int mirroringIndex = _vram->nameTableMirroring(i);
+                    if (mirroringIndex != i)
                     {
-                        if (updatedNameTableIndex[i])
-                            continue;
-                        
-                        // 遍历里面32x30字节，更新其中 == index 的项目
-                        updateBackgroundTile(i, index);
-                        updatedNameTableIndex[i] = true;
-                        
-                        // 检查其镜像，有，则加入
-                        int mirroringIndex = _vram->nameTableMirroring(i);
-                        if (mirroringIndex != i)
-                        {
-                            updateBackgroundTile(mirroringIndex, index);
-                            updatedNameTableIndex[mirroringIndex] = true;
-                        }
+                        updateBackgroundTile(mirroringIndex, index);
+                        updatedNameTableIndex[mirroringIndex] = true;
                     }
-                }
-                else if (updateAttributeTable)
-                {
-                    int offset = addr - i*(0x2000-96);
-                    printf("updateAttributeTable: %d\n", offset);
-//                    int index = offset / 16; // 得到下标[0, 255]
-//                    bool updatedNameTableIndex[4] = {false};
-//                    for (int i=0; i<4; i++)
-//                    {
-//                        if (updatedNameTableIndex[i])
-//                            continue;
-//
-//                        // 遍历里面4x4的tile组，更新其中 == index 的项目
-//                        updateBackgroundTile(i, index);
-//                        updatedNameTableIndex[i] = true;
-//
-//                        // 检查其镜像，有，则加入
-//                        int mirroringIndex = _vram->nameTableMirroring(i);
-//                        if (mirroringIndex != i)
-//                        {
-//                            updateBackgroundTile(mirroringIndex, index);
-//                            updatedNameTableIndex[mirroringIndex] = true;
-//                        }
-//                    }
-//
-//                    uint8_t* attributeTableAddr = _attributeTableAddress(nameTableIndex);
-//                    {
-//                        // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节（即属性）
-//                        // 每2bit用于2x2的tile，作为peletteIndex的高2位
-//                        uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(tile_y / 4 * (32/4) + tile_x / 4)];
-//                        // 换算tile(x,y)所使用的bit位
-//                        int bit = (tile_y % 4) / 2 * 4 + (tile_x % 4) / 2 * 2;
-//                        peletteIndex.high2bit = (attributeAddrFor4x4Tile >> bit) & 0x3;
-//                    }
                 }
             }
             else if (addr < 0x3000) // 名称表更新 [0x2000, 0x2FFF]
             {
                 // 名称表 32x20 的空间
                 int offset = addr - 0x2000;
-                
                 nameTableIndex = offset / 0x0400;
                 
-                tile_y = (offset % 0x400) / 32;
-                tile_x = (offset % 0x400) % 32;
-                
+                if (offset % 0x400 < 0x400 - 64) // 名称表范围 [0, 959]
                 {
-                    updateBackgroundTile(nameTableIndex, tile_x, tile_y);
+                    tile_y = (offset % 0x400) / 32;
+                    tile_x = (offset % 0x400) % 32;
                     
-                    // 更新镜像
-                    int mirroringIndex = _vram->nameTableMirroring(nameTableIndex);
-                    if (mirroringIndex != nameTableIndex)
                     {
-                        updateBackgroundTile(mirroringIndex, tile_x, tile_y);
+                        updateBackgroundTile(nameTableIndex, tile_x, tile_y);
+                        
+                        // 更新镜像
+                        int mirroringIndex = _vram->nameTableMirroring(nameTableIndex);
+                        if (mirroringIndex != nameTableIndex)
+                        {
+                            updateBackgroundTile(mirroringIndex, tile_x, tile_y);
+                        }
                     }
+                }
+                else
+                {
+                    int offset = addr % 0x400 - (0x400-64);
+                    printf("updateAttributeTable: %d\n", offset);
+                    //                    int index = offset / 16; // 得到下标[0, 255]
+                    //                    bool updatedNameTableIndex[4] = {false};
+                    //                    for (int i=0; i<4; i++)
+                    //                    {
+                    //                        if (updatedNameTableIndex[i])
+                    //                            continue;
+                    //
+                    //                        // 遍历里面4x4的tile组，更新其中 == index 的项目
+                    //                        updateBackgroundTile(i, index);
+                    //                        updatedNameTableIndex[i] = true;
+                    //
+                    //                        // 检查其镜像，有，则加入
+                    //                        int mirroringIndex = _vram->nameTableMirroring(i);
+                    //                        if (mirroringIndex != i)
+                    //                        {
+                    //                            updateBackgroundTile(mirroringIndex, index);
+                    //                            updatedNameTableIndex[mirroringIndex] = true;
+                    //                        }
+                    //                    }
+                    //
+                    //                    uint8_t* attributeTableAddr = _attributeTableAddress(nameTableIndex);
+                    //                    {
+                    //                        // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节（即属性）
+                    //                        // 每2bit用于2x2的tile，作为peletteIndex的高2位
+                    //                        uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(tile_y / 4 * (32/4) + tile_x / 4)];
+                    //                        // 换算tile(x,y)所使用的bit位
+                    //                        int bit = (tile_y % 4) / 2 * 4 + (tile_x % 4) / 2 * 2;
+                    //                        peletteIndex.high2bit = (attributeAddrFor4x4Tile >> bit) & 0x3;
+                    //                    }
                 }
             }
             else if (addr < 0x3F00) // [0x2000, 0x2EFF] 镜像
@@ -1238,14 +1218,14 @@ namespace ReNes {
                     }
                 }
             }
-            else if (addr < 0x4000) // 调色板镜像
-            {
-
-            }
-            else
-            {
-                
-            }
+//            else if (addr < 0x4000) // 调色板镜像
+//            {
+//
+//            }
+//            else
+//            {
+//
+//            }
             
             
         }

@@ -68,6 +68,15 @@ namespace ReNes {
         inline
         void write8bitData(uint16_t addr, uint8_t value)
         {
+            if (addr >= 0x1000-64 && addr < 0x1000)
+            {
+                addr = addr;
+            }
+            else if (addr >= 0x2000-64 && addr < 0x2000)
+            {
+                addr = addr;
+            }
+            
             *_getRealAddr(addr) = value;
             
             // 处理调色板第一位的镜像
