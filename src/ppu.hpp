@@ -427,8 +427,7 @@ namespace ReNes {
              pre-render line.
              
              */
-            
-            
+
             // 绘制精灵到缓冲区，用来给扫描线使用
             memset(_spr_buffer, 0, SPR_BUFFER_LENGTH);
             for (int i=0; i<64; i++)
@@ -444,17 +443,21 @@ namespace ReNes {
                 bool flipH = spr->info.get(6); // 水平翻转
                 bool flipV = spr->info.get(7); // 竖直翻转
                 
-                drawSprBuffer(_spr_buffer, spr->x + 1, spr->y + 1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
+//                printf("[%d] %d,%d\n", i, spr->x, spr->y);
+                
+                drawSprBuffer(_spr_buffer, spr->x, spr->y+1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
             }
             
             // test 暂时全部绘制
             if (true)
             {
+                // 绘制每个名称表 -> scrollBuffer
 //                for (int i=0; i<4; i++)
 //                {
 //                    updateBackgroundTile(i, 0, 0, 32, 30);
 //                }
                 
+                // 绘制部分名称表，拷贝其镜像 -> scrollBuffer
                 bool updatedNameTableIndex[4] = {false};
                 
                 for (int i=0; i<4; i++)
@@ -473,8 +476,8 @@ namespace ReNes {
                         updatedNameTableIndex[mirroringIndex] = true;
                         // 复制src -> 镜像
                         const static int scrollBufferOffset[] = {
-                            0, 256,
-                            BUFFER_PIXEL_CONUT*2, BUFFER_PIXEL_CONUT*2+256
+                            0, BUFFER_PIXEL_WIDTH,
+                            BUFFER_PIXEL_CONUT*2, BUFFER_PIXEL_CONUT*2+BUFFER_PIXEL_WIDTH
                         };
                         
                         const uint8_t* srcAddr = _scrollBuffer + scrollBufferOffset[i];
@@ -1043,11 +1046,17 @@ namespace ReNes {
                 if (y + ty < 0)
                     continue;
                 
+                if (y + ty >= 240)
+                    continue;
+                
                 int ty_ = flipV ? 7-ty : ty;
                 
                 for (int tx=0; tx<8; tx++)
                 {
                     if (x + tx < 0)
+                        continue;
+                    
+                    if (x + tx >= 256)
                         continue;
                     
                     int tx_ = flipH ? tx : 7-tx;
@@ -1173,7 +1182,7 @@ namespace ReNes {
             
             uint8_t y;
             uint8_t tileIndex;  // 精灵在图案表里的tile索引
-            bit8 info; // 精灵的信息
+            bit8 info;          // 精灵的信息
             uint8_t x;
         };
         
