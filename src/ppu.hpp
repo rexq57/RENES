@@ -768,7 +768,6 @@ namespace ReNes {
                             }
                         }
                     }
-                    
                 }
                 
                 // 绘制了最后一条可见扫描线，则设置VBlank标记
@@ -1129,10 +1128,17 @@ namespace ReNes {
                     }
                 }
             }
-            else if (addr < 0x3000) // 名称表更新 [0x2000, 0x2FFF]
+            //else if (addr < 0x3000) // 名称表更新 [0x2000, 0x2FFF]
+            else if (addr < 0x3F00) // [0x2000, 0x2EFF] 镜像，长度0x0F00
             {
                 // 名称表 32x20 的空间
                 int offset = addr - 0x2000;
+                
+                if (addr < 0x3000)
+                    offset = addr - 0x2000;
+                else
+                    offset = addr - 0x3000; // 镜像
+                
                 nameTableIndex = offset / 0x0400;
                 
                 if (offset % 0x400 < 0x400 - 64) // 名称表范围 [0, 959]
@@ -1153,42 +1159,26 @@ namespace ReNes {
                 }
                 else
                 {
+                    // 得到[64]偏移
                     int offset = addr % 0x400 - (0x400-64);
-                    printf("updateAttributeTable: %d\n", offset);
-                    //                    int index = offset / 16; // 得到下标[0, 255]
-                    //                    bool updatedNameTableIndex[4] = {false};
-                    //                    for (int i=0; i<4; i++)
-                    //                    {
-                    //                        if (updatedNameTableIndex[i])
-                    //                            continue;
-                    //
-                    //                        // 遍历里面4x4的tile组，更新其中 == index 的项目
-                    //                        updateBackgroundTile(i, index);
-                    //                        updatedNameTableIndex[i] = true;
-                    //
-                    //                        // 检查其镜像，有，则加入
-                    //                        int mirroringIndex = _vram->nameTableMirroring(i);
-                    //                        if (mirroringIndex != i)
-                    //                        {
-                    //                            updateBackgroundTile(mirroringIndex, index);
-                    //                            updatedNameTableIndex[mirroringIndex] = true;
-                    //                        }
-                    //                    }
-                    //
-                    //                    uint8_t* attributeTableAddr = _attributeTableAddress(nameTableIndex);
-                    //                    {
-                    //                        // 一个字节表示4x4的tile组，先确定当前(x,y)所在字节（即属性）
-                    //                        // 每2bit用于2x2的tile，作为peletteIndex的高2位
-                    //                        uint8_t attributeAddrFor4x4Tile = attributeTableAddr[(tile_y / 4 * (32/4) + tile_x / 4)];
-                    //                        // 换算tile(x,y)所使用的bit位
-                    //                        int bit = (tile_y % 4) / 2 * 4 + (tile_x % 4) / 2 * 2;
-                    //                        peletteIndex.high2bit = (attributeAddrFor4x4Tile >> bit) & 0x3;
-                    //                    }
+                    int tile_group_y = offset / 8;
+                    int tile_group_x = offset % 8;
+                    int tile_x = tile_group_x * 4;
+                    int tile_y = tile_group_y * 4;
+                    
+                    updateBackgroundTile(nameTableIndex, tile_x, tile_y, 4, 4);
+                    
+                    // 更新镜像
+                    int mirroringIndex = _vram->nameTableMirroring(nameTableIndex);
+                    if (mirroringIndex != nameTableIndex)
+                    {
+                        updateBackgroundTile(mirroringIndex, tile_x, tile_y, 4, 4);
+                    }
                 }
             }
             else if (addr < 0x3F00) // [0x2000, 0x2EFF] 镜像
             {
-
+                // 不知道会不会处理
             }
             else if (addr < 0x3F20) // 调色板 0,1
             {
@@ -1270,7 +1260,7 @@ namespace ReNes {
         }
         
         // 更新指定位置的tile
-        void updateBackgroundTile(int nameTableIndex, int tile_x, int tile_y)
+        void updateBackgroundTile(int nameTableIndex, int tile_x, int tile_y, int tile_x_count=1, int tile_y_count=1)
         {
             int stride = BUFFER_PIXEL_WIDTH * 2;
             const static int offset[] = {
@@ -1278,7 +1268,7 @@ namespace ReNes {
                 2*BUFFER_PIXEL_CONUT, 2*BUFFER_PIXEL_CONUT+BUFFER_PIXEL_WIDTH
             };
             
-            drawBackground(_scrollBuffer + offset[nameTableIndex], stride, tile_x, tile_y, 1, 1, nameTableIndex, _bkPetternTableAddress(), _bkPaletteAddress());
+            drawBackground(_scrollBuffer + offset[nameTableIndex], stride, tile_x, tile_y, tile_x_count, tile_y_count, nameTableIndex, _bkPetternTableAddress(), _bkPaletteAddress());
         }
         
         // 绘制瓦片到缓冲区
