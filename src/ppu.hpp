@@ -36,7 +36,7 @@ namespace ReNes {
     /*
      未完成：
      1、0x2000第5bit开启8x16精灵
-     
+     2、未确定OAM里精灵的坐标y
      */
     
     // 系统调色板，网上有多种颜色风格
@@ -494,7 +494,8 @@ namespace ReNes {
             _scanline_y = 0;
         }
         
-        void drawScanline(bool* vblankEvent)
+        // 在当前扫描线执行 pixelCount 次像素渲染
+        void drawScanline(bool* vblankEvent, int pixelCount)
         {
             *vblankEvent = false;
 
