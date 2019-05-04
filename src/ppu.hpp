@@ -137,7 +137,7 @@ namespace ReNes {
         PPU()
         {
             // 检查数据尺寸
-            assert(4 == sizeof(Sprite));
+            RENES_ASSERT(4 == sizeof(Sprite));
             
             // RGB 数据缓冲区
             _display_buffer = (uint8_t*)malloc(DISPLAY_BUFFER_LENGTH);
@@ -175,9 +175,9 @@ namespace ReNes {
         void init(Memory* mem)
         {
             _mem = mem;
-            io_regs = (bit8*)mem->getIORegsAddr(); // 直接映射地址，不走mem请求，因为mem读写请求模拟了内存访问限制，那部分是留给cpu访问的
-            mask_regs = (bit8*)&io_regs[1];
-            status_regs = (bit8*)&io_regs[2];
+            _io_regs = (bit8*)mem->getIORegsAddr(); // 直接映射地址，不走mem请求，因为mem读写请求模拟了内存访问限制，那部分是留给cpu访问的
+            _mask_regs = (bit8*)&_io_regs[1];
+            _status_regs = (bit8*)&_io_regs[2];
             
             std::function<void(uint16_t, uint8_t)> writtingObserver = [this](uint16_t addr, uint8_t value){
                 // 接收来自2007的数据
@@ -247,7 +247,7 @@ namespace ReNes {
 //                        _vramDidUpdasted(_v);
                         
                         // 自动增加
-                        _v += io_regs[0].get(2) == 0 ? 1 : 32;
+                        _v += _io_regs[0].get(2) == 0 ? 1 : 32;
                         
                         break;
                     }
@@ -267,7 +267,7 @@ namespace ReNes {
                 switch (addr) {
                     case 0x2002: // 读取 0x2002会重置 _w 状态
                         _w = 0;
-                        status_regs->set(7, 0);
+                        _status_regs->set(7, 0);
                         break;
                     case 0x2004:
                         *value = _sprram[_dstAddr2004++ % 256];
@@ -282,7 +282,7 @@ namespace ReNes {
                             *value = _2007ReadingCache;
                         }
                         _2007ReadingCache = _vram->read8bitData(_v);
-                        _v += io_regs[0].get(2) == 0 ? 1 : 32;
+                        _v += _io_regs[0].get(2) == 0 ? 1 : 32;
                         _2007ReadingStep = 1;
                         break;
                     default:
@@ -338,8 +338,8 @@ namespace ReNes {
         
         void readyOnFirstLine()
         {
-            status_regs->set(7, 0); // 清除 vblank
-            status_regs->set(6, 0);
+            _status_regs->set(7, 0); // 清除 vblank
+            _status_regs->set(6, 0);
             
             // 准备当前帧的OAM
             memcpy(_OAM, _sprram, 256);
@@ -390,8 +390,8 @@ namespace ReNes {
              +--------- Emphasize blue*
              
              */
-            bool showBg = mask_regs->get(3) == 1;
-            bool showSpr = mask_regs->get(4) == 1;
+            bool showBg = _mask_regs->get(3) == 1;
+            bool showSpr = _mask_regs->get(4) == 1;
             
             this->_showBg = showBg;
             this->_showSpr = showSpr;
@@ -457,6 +457,9 @@ namespace ReNes {
             // test 暂时全部绘制
             if (true)
             {
+                // 设置帧空白
+                memset(_display_buffer, 0, DISPLAY_BUFFER_LENGTH);
+                
                 // 绘制每个名称表 -> scrollBuffer
 //                for (int i=0; i<4; i++)
 //                {
@@ -575,7 +578,7 @@ namespace ReNes {
                 //            int bk_base = (v >> 10) & 0x3;
                 
                 // 起始名称表索引
-                int firstNameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
+                int firstNameTableIndex = _io_regs[0].get(0) | (_io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
                 
                 
                 
@@ -734,6 +737,11 @@ namespace ReNes {
                         int map_pos_y = map_table_pos[1] + tile_y*8 + ty;
                         
                         bk_peletteIndex = _scrollBuffer[map_pos_y*512 + map_pos_x];
+                        
+//                        if (line_x == 11*8 && line_y == 3*8)
+//                        {
+//                            printf("firstNameTableIndex %d\n", firstNameTableIndex);
+//                        }
                     }
 #endif
                     
@@ -758,9 +766,9 @@ namespace ReNes {
                                     bool isFirstSprite = spr_data > 63;
                                     
                                     // 碰撞条件，第一精灵 & 非0调色板第一位（透明色）& 允许碰撞
-                                    if (isFirstSprite && spr_systemPaletteUnitIndex != sprPaletteAddr[0] && status_regs->get(6) == 0)
+                                    if (isFirstSprite && spr_systemPaletteUnitIndex != sprPaletteAddr[0] && _status_regs->get(6) == 0)
                                     {
-                                        status_regs->set(6, 1);
+                                        _status_regs->set(6, 1);
                                     }
                                 }
                             }
@@ -792,10 +800,6 @@ namespace ReNes {
                             RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
                             *pb = *rgb;
                         }
-                        else
-                        {
-                            *(RGB*)pb = {0}; // memset(pb, 0, 3);
-                        }
                     }
                 }
             }
@@ -808,7 +812,7 @@ namespace ReNes {
                 // 绘制了最后一条可见扫描线，则设置VBlank标记
                 if (_scanline_y == 239)
                 {
-                    status_regs->set(7, 1);
+                    _status_regs->set(7, 1);
                     // 设置vblank事件
                     *vblankEvent = true;
                 }
@@ -833,7 +837,7 @@ namespace ReNes {
                 // 单个图案是8x8 * 2的空间，可以根据地址得到影响的图案index in [256]
                 // 遍历名称表中使用了该图案index的tile，进行更新
                 // 只更新图案表，先确定图案表地址
-                int i = io_regs[0].get(4);
+                int i = _io_regs[0].get(4);
                 
                 int offset = addr - i*0x1000;
                 int index = offset / 16; // 得到下标[0, 255]
@@ -1134,7 +1138,7 @@ namespace ReNes {
         const uint8_t* _bkPetternTableAddress() const
         {
             // 第4bit决定背景图案表地址 0x0000或0x1000
-            return _vram->petternTableAddress(io_regs[0].get(4));
+            return _vram->petternTableAddress(_io_regs[0].get(4));
         }
         
         // 精灵图案表地址
@@ -1142,38 +1146,17 @@ namespace ReNes {
         const uint8_t* _sprPetternTableAddress() const
         {
             // 第3bit决定精灵图案表地址 0x0000或0x1000
-            return _vram->petternTableAddress(io_regs[0].get(3));
+            return _vram->petternTableAddress(_io_regs[0].get(3));
         }
-        
-        // 背景调色板地址
-        const uint8_t* _bkPaletteAddress() const
-        {
-            return _vram->bkPaletteAddress();
-        }
-        
-        // 精灵调色板地址
-        const uint8_t* _sprPaletteAddress() const
-        {
-            return _vram->sprPaletteAddress();
-        }
-        
-        // 名称表地址
-        const uint8_t* _nameTableAddress(int index) const
-        {
-            return _vram->nameTableAddress(index);
-        }
-        
-        // 属性表地址
-        const uint8_t* _attributeTableAddress(int index) const
-        {
-            return _vram->attributeTableAddress(index);
-        }
+        const uint8_t* _bkPaletteAddress() const { return _vram->bkPaletteAddress(); }
+        const uint8_t* _sprPaletteAddress() const { return _vram->sprPaletteAddress(); }
+        const uint8_t* _nameTableAddress(int index) const { return _vram->nameTableAddress(index); }
+        const uint8_t* _attributeTableAddress(int index) const { return _vram->attributeTableAddress(index); }
         
         const static int DISPLAY_BUFFER_PIXEL_WIDTH = RENES_FRAME_VISIBLE_W;
         const static int DISPLAY_BUFFER_PIXEL_HEIGHT = RENES_FRAME_VISIBLE_H;
         const static int DISPLAY_BUFFER_PIXEL_BPP = 3;
         const static int DISPLAY_BUFFER_PIXEL_CONUT = DISPLAY_BUFFER_PIXEL_WIDTH * DISPLAY_BUFFER_PIXEL_HEIGHT;
-        
         const static int DISPLAY_BUFFER_LENGTH = DISPLAY_BUFFER_PIXEL_CONUT * 3;
         
         struct Sprite {
@@ -1235,9 +1218,9 @@ namespace ReNes {
         VRAM* _vram;
         Memory* _mem;
         
-        bit8* io_regs;      // I/O 寄存器, 8 x 8bit
-        bit8* mask_regs;    // PPU屏蔽寄存器
-        bit8* status_regs;  // PPU状态寄存器
+        bit8* _io_regs;      // I/O 寄存器, 8 x 8bit
+        bit8* _mask_regs;    // PPU屏蔽寄存器
+        bit8* _status_regs;  // PPU状态寄存器
         
         int _frame_w;
         int _frame_h;

@@ -264,7 +264,6 @@ namespace ReNes {
                     cpuCyclesCountForFrame += cycles;
 
                     // 满足一次扫描线所经过的CPU周期，执行下面代码，模拟这段时间内，PPU发生的工作
-                    // 写在一个线程，而不是模拟PPU线程的同步工作，同步需要开销
                     bool vblankEvent;
                     _ppu.drawScanline(&vblankEvent, cycles * NumScanpointPerCpuCycle);
                     
