@@ -186,7 +186,7 @@ namespace ReNes {
         //            DST dst = info.dst;
         
         std::function<std::string(DST)> dstCode = [](DST dst){
-            if (SET_FIND(REGS_NAME, dst))
+            if (RENES_SET_FIND(REGS_NAME, dst))
             {
                 return REGS_NAME.at(dst);
             }
@@ -286,7 +286,7 @@ namespace ReNes {
                     "BVS"
                 };
 //                if (VECTOR_FIND(JMP_STR, cmd))
-                if (ARRAY_FIND(JMP_STR, cmd))
+                if (RENES_ARRAY_FIND(JMP_STR, cmd))
                 {
                     addr = pc + info.bytes;
                     res = std::string("#") + int_to_hex((uint16_t)(immidiate_value + addr)) + "("+std::to_string(immidiate_value)+")";
@@ -660,7 +660,7 @@ namespace ReNes {
             
             log("[%ld][%04X] cmd: %x => ", execCmdLine, regs.PC, cmd);
             
-            if (!SET_FIND(CMD_LIST, cmd))
+            if (!RENES_SET_FIND(CMD_LIST, cmd))
             {
                 log("未知的指令！");
                 error = true;
@@ -1288,7 +1288,7 @@ namespace ReNes {
                         CF_STA, CF_STX, CF_STY
                     };
                     
-                    if (!ARRAY_FIND(_noSrcAccess, info.cf))
+                    if (!RENES_ARRAY_FIND(_noSrcAccess, info.cf))
                     {
                         *src = (uint8_t)_mem->read8bitData(*address, true);
                     }

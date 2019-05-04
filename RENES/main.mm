@@ -41,7 +41,7 @@ bool find(const T arr, size_t count, const V& val)
 
 
 
-#define ARRAY_FIND(s, v) find(s, sizeof(s)/sizeof(*s), v)
+#define RENES_ARRAY_FIND(s, v) find(s, sizeof(s)/sizeof(*s), v)
 #define VECTOR_FIND(s, v) (std::find(s.begin(), s.end(), v) != s.end())
 
 #define TIME_START auto t0=std::chrono::system_clock::now();
@@ -73,7 +73,7 @@ int main(int argc, const char * argv[]) {
         
         for (int i=0; i<10000; i++)
         {
-            if (ARRAY_FIND(ARRAY2, 0x4014))
+            if (RENES_ARRAY_FIND(ARRAY2, 0x4014))
             {
                 
             }

@@ -369,7 +369,7 @@ using namespace ReNes;
         
         //    log("[%ld][%04X] cmd: %x => ", execCmdLine, pc, cmd);
         
-        if (!SET_FIND(CMD_LIST, cmd))
+        if (!RENES_SET_FIND(CMD_LIST, cmd))
         {
 //            assert(!"未知的指令！");
 //            log("[%04X] cmd: %x => ", pc, cmd);

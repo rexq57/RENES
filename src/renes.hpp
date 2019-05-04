@@ -232,9 +232,11 @@ namespace ReNes {
                 std::chrono::steady_clock::time_point firstTime;
                 
                 // 显示器制式数据: NTSC
-                const int NumPixelsPerScanline = 341;
-                const int NumScanline = 262;
+                const int frame_w = 341;
+                const int frame_h = 262;
                 const int FPS = 60; // 包含vblank时间
+                
+                _ppu.setSystemInfo(frame_w, frame_h);
                 
                 uint32_t cpuCyclesCountForFrame = 0;            // 每一帧内：cpu周期数计数器
                 const uint32_t NumScanpointPerCpuCycle = 3;     // 每个cpu周期能绘制的点数(每个像素需要1/3 CPU周期，由CPU和PPU的频率算得，见ppu.hpp)
@@ -276,7 +278,7 @@ namespace ReNes {
                     }
                     
                     // 最后一条扫描线完成(第261条扫描线，scanline+1 == 262)
-                    if (_ppu.currentScanline() == NumScanline)
+                    if (_ppu.currentScanline() == frame_h)
                     {
                         // 模拟等待，模拟每一帧完整时间花费
                         auto currentFrameTime = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒

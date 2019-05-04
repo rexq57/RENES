@@ -8,9 +8,9 @@
 namespace ReNes {
     
 #ifdef DEBUG
-#define RENESAssert(...) assert(__VA_ARGS__)
+#define RENES_ASSERT(...) assert(__VA_ARGS__)
 #else
-#define RENESAssert(...)
+#define RENES_ASSERT(...)
 #endif
     
     //--------------------------------------
@@ -43,9 +43,9 @@ namespace ReNes {
         return true;
     }
     
-#define NES_DEBUG
+#define RENES_DEBUG
     
-#ifdef NES_DEBUG
+#ifdef RENES_DEBUG
     #define log(...) _log(__VA_ARGS__)
 #else
    #define log(...)
@@ -68,7 +68,7 @@ namespace ReNes {
         
         inline void set(uint8_t offset, int value)
         {
-            RENESAssert(value == 0 || value == 1);
+            RENES_ASSERT(value == 0 || value == 1);
             _data &= ~(0x1 << offset); // set 0
             _data |= ((value % 2) << offset);
         }
@@ -119,7 +119,7 @@ namespace ReNes {
 #endif
     
     template <typename T, typename V>
-    bool array_find(const T arr, size_t count, const V& val)
+    inline bool array_find(const T arr, size_t count, const V& val)
     {
         for (int i=0; i<count; i++)
         {
@@ -129,12 +129,9 @@ namespace ReNes {
         return false;
     }
     
-#define ARRAY_FIND(s, v) array_find(s, sizeof(s)/sizeof(*s), v)
-//#define VECTOR_FIND(s, v) (std::find(s.begin(), s.end(), v) != s.end())
-#define SET_FIND(s, v) (s.find(v) != s.end())
-    
-    //--------------------------------------
-    // 计时器
+#define RENES_ARRAY_FIND(s, v) array_find(s, sizeof(s)/sizeof(*s), v)
+//#define RENES_VECTOR_FIND(s, v) (std::find(s.begin(), s.end(), v) != s.end())
+#define RENES_SET_FIND(s, v) (s.find(v) != s.end())
     
     // 日志打印
     #ifdef __ANDROID__
@@ -147,98 +144,4 @@ namespace ReNes {
     #   define LOGD(...) printf("[%s] %s: ", LOG_TAG, __FUNCTION__);printf(__VA_ARGS__)
     #   define LOGE(...) printf("[%s] %s: ", LOG_TAG, __FUNCTION__);printf(__VA_ARGS__)
     #endif
-    
-    class Timer {
-        
-    public:
-        
-        Timer()
-        {
-            _m = new std::mutex();
-            mLog = (char*)malloc(512);
-        }
-
-        ~Timer()
-        {
-            delete _m;
-            free(mLog);
-        }
-        
-        Timer& start()
-        {
-            _m->lock();
-            mCurrentTimeMillis = std::chrono::steady_clock::now();
-            _m->unlock();
-            return *this;
-        }
-        
-        Timer& stop(const char* log="")
-        {
-            return stop(log, false);
-        }
-        
-        Timer& stop(const char* log, bool display)
-        {
-            _m->lock();
-            
-            long dif_ns = (std::chrono::steady_clock::now() - mCurrentTimeMillis).count(); // 纳秒
-            _dif = dif_ns;
-            
-            float time = dif_ns / 1.e9;
-            mFpsCount ++;
-            mFpsTime += time;
-            float fps = mFpsCount/mFpsTime;
-            if (mFpsCount > 1000)
-            {
-                mFpsCount = 0;
-                mFpsTime = 0;
-            }
-            
-            sprintf(mLog, "%s %f fps %fs %fs\n", log , fps , 1.0f/fps , time);
-            if (display)
-            {
-                LOGD("%s", mLog);
-            }
-            
-            _m->unlock();
-            
-            return *this;
-        }
-        
-        void reset()
-        {
-            _m->lock();
-            mFpsTime = 0;
-            mFpsCount = 0;
-            _m->unlock();
-        }
-        
-        const char* log() const
-        {
-            return mLog;
-        }
-        
-        float fps()
-        {
-            return mFpsCount/mFpsTime;
-        }
-        
-        // 返回秒差
-        long dif() const
-        {
-            return _dif;
-        }
-        
-    private:
-        
-        std::mutex* _m;
-        
-//        char mLog[512];
-        char* mLog = 0;
-        float mFpsTime = 0;
-        long mFpsCount = 0;
-        long _dif = 0;
-        
-        std::chrono::steady_clock::time_point mCurrentTimeMillis;
-    };
 }

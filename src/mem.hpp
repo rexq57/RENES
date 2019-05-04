@@ -51,7 +51,7 @@ namespace ReNes {
             if (event)
             {
                 // 检查地址监听
-                if (SET_FIND(addr8bitReadingObserver, addr))
+                if (RENES_SET_FIND(addr8bitReadingObserver, addr))
                 {
                     addr8bitReadingObserver.at(addr)(addr, &data);
                 }
@@ -80,7 +80,7 @@ namespace ReNes {
 //            }
             
             // 检查地址监听
-            if (SET_FIND(addrWritingObserver, addr))
+            if (RENES_SET_FIND(addrWritingObserver, addr))
             {
                 addrWritingObserver.at(addr)(addr, value);
             }
@@ -131,7 +131,7 @@ namespace ReNes {
                     0x2000, 0x2001, 0x2003, 0x2005, 0x2006, 0x4014
                 };
                 
-                if (ARRAY_FIND(MEMORY_WRITE_ONLY, addr))
+                if (RENES_ARRAY_FIND(MEMORY_WRITE_ONLY, addr))
                 {
                     log("该内存只能写!\n");
                     error = true;
@@ -145,7 +145,7 @@ namespace ReNes {
                     0x2002
                 };
                 
-                if (ARRAY_FIND(MEMORY_READ_ONLY, addr))
+                if (RENES_ARRAY_FIND(MEMORY_READ_ONLY, addr))
                 {
                     log("该内存只能读!\n");
                     error = true;

@@ -120,7 +120,7 @@ namespace ReNes {
         // 图案表：256*16(4KB)的空间 index in [2]
         const uint8_t* petternTableAddress(int index) const
         {
-            RENESAssert(index == 0 || index == 1);
+            RENES_ASSERT(index == 0 || index == 1);
             return const_cast<VRAM*>(this)->_getRealAddr(0x1000 * index);
 //            return &_data[0x1000 * index]; // 第3bit决定精灵图案表地址 0x0000或0x1000
         }
@@ -191,7 +191,7 @@ namespace ReNes {
             }
             inline uint8_t* address(uint16_t addr)
             {
-                RENESAssert(hit(addr));
+                RENES_ASSERT(hit(addr));
                 return &data[addr - start];
             }
         };
@@ -204,7 +204,7 @@ namespace ReNes {
             {
                 if (mirr.hit(start) || mirr.hit(end) || mirr.hit(data-_data))
                 {
-                    RENESAssert(!"无效的镜像设置");
+                    RENES_ASSERT(!"无效的镜像设置");
                     return;
                 }
             }
@@ -241,7 +241,7 @@ namespace ReNes {
                     uint8_t *retAddr = mirr.address(addr);
 //#ifdef DEBUG
 //                    // 检查默认镜像设置问题
-//                    RENESAssert(&_data[addr] == retAddr);
+//                    RENES_ASSERT(&_data[addr] == retAddr);
 //#endif
                     return retAddr;
                 }

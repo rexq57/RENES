@@ -31,6 +31,9 @@
  
  */
 
+#define RENES_FRAME_VISIBLE_W 256
+#define RENES_FRAME_VISIBLE_H 240
+
 namespace ReNes {
     
     /*
@@ -107,10 +110,6 @@ namespace ReNes {
         
     public:
         
-        bit8* io_regs; // I/O 寄存器, 8 x 8bit
-        bit8* mask_regs;    // PPU屏蔽寄存器
-        bit8* status_regs;  // PPU状态寄存器
-        
         std::string testLog;
         
         const uint8_t* sprram() const
@@ -128,20 +127,27 @@ namespace ReNes {
             _vram->loadPetternTable(addr);
         }
         
+        // 设置系统信息
+        void setSystemInfo(int w, int h)
+        {
+            _frame_w = w;
+            _frame_h = h;
+        }
+        
         PPU()
         {
             // 检查数据尺寸
             assert(4 == sizeof(Sprite));
             
             // RGB 数据缓冲区
-            _buffer = (uint8_t*)malloc(RGB_BUFFER_LENGTH);
+            _display_buffer = (uint8_t*)malloc(DISPLAY_BUFFER_LENGTH);
             
             // 精灵缓冲区
             _spr_buffer = (uint8_t*)malloc(SPR_BUFFER_LENGTH);
             
             // 卷轴缓冲区
-            _scrollBuffer = (uint8_t*)malloc(RGB_BUFFER_LENGTH*4);
-            _scrollBufferRGB = (uint8_t*)malloc(RGB_BUFFER_LENGTH*4);
+            _scrollBuffer = (uint8_t*)malloc(DISPLAY_BUFFER_LENGTH*4);
+            _scrollBufferRGB = (uint8_t*)malloc(DISPLAY_BUFFER_LENGTH*4);
             
             _vram = new VRAM();
             
@@ -150,8 +156,8 @@ namespace ReNes {
         
         ~PPU()
         {
-            if (_buffer != 0)
-                free(_buffer);
+            if (_display_buffer != 0)
+                free(_display_buffer);
             
             if (_spr_buffer != 0)
                 free(_spr_buffer);
@@ -476,8 +482,8 @@ namespace ReNes {
                         updatedNameTableIndex[mirroringIndex] = true;
                         // 复制src -> 镜像
                         const static int scrollBufferOffset[] = {
-                            0, BUFFER_PIXEL_WIDTH,
-                            BUFFER_PIXEL_CONUT*2, BUFFER_PIXEL_CONUT*2+BUFFER_PIXEL_WIDTH
+                            0, DISPLAY_BUFFER_PIXEL_WIDTH,
+                            DISPLAY_BUFFER_PIXEL_CONUT*2, DISPLAY_BUFFER_PIXEL_CONUT*2+DISPLAY_BUFFER_PIXEL_WIDTH
                         };
                         
                         const uint8_t* srcAddr = _scrollBuffer + scrollBufferOffset[i];
@@ -515,7 +521,7 @@ namespace ReNes {
             const uint8_t* bkPaletteAddr = _bkPaletteAddress();
             
             // convert to RGB buffer
-            int size = BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_HEIGHT*4;
+            int size = DISPLAY_BUFFER_PIXEL_WIDTH*DISPLAY_BUFFER_PIXEL_HEIGHT*4;
             for (int i=0; i<size; i++)
             {
                 int systemPaletteUnitIndex = bkPaletteAddr[_scrollBuffer[i]]; // 系统默认调色板颜色索引 [0,63]
@@ -525,10 +531,10 @@ namespace ReNes {
         }
         
         // 缓冲区信息
-        inline int width() const { return BUFFER_PIXEL_WIDTH; }
-        inline int height() const { return BUFFER_PIXEL_HEIGHT; }
-        inline int bpp() const { return BUFFER_PIXEL_BPP; }
-        inline uint8_t* buffer() const { return _buffer; }
+        inline int width() const { return DISPLAY_BUFFER_PIXEL_WIDTH; }
+        inline int height() const { return DISPLAY_BUFFER_PIXEL_HEIGHT; }
+        inline int bpp() const { return DISPLAY_BUFFER_PIXEL_BPP; }
+        inline uint8_t* buffer() const { return _display_buffer; }
         
         // 调试缓冲区，用于外部显示卷轴
         inline uint8_t* scrollBufferRGB() const { return _scrollBufferRGB; }
@@ -556,7 +562,7 @@ namespace ReNes {
             bool showBg  = this->_showBg;
             bool showSpr = this->_showSpr;
             
-            uint8_t* buffer = this->_buffer;
+            uint8_t* display_buffer = this->_display_buffer;
             
             const auto& v = _t;
             
@@ -604,7 +610,7 @@ namespace ReNes {
                 
                 // 宽度应该是256，刚好填满32个tile。但是如果发生错位的情况，是需要33个tile
                 //const static int LINE_X_MAX = 33*8; [瓦片扫描]
-                int line_x_max = fminf(_scanline_x+pixelCount-1, 256 - 1);
+                int line_x_max = fminf(_scanline_x+pixelCount-1, RENES_FRAME_VISIBLE_W - 1);
                 for (int line_x=_scanline_x; line_x <= line_x_max; line_x++)
                 {
                     int tx = (line_x+bg_t_x)%8; // [屏幕扫描] 对应当前瓦片上的index
@@ -784,7 +790,7 @@ namespace ReNes {
                             }
                         }
                         
-                        auto* pb = (RGB*)&buffer[pixelIndex*3];
+                        auto* pb = (RGB*)&display_buffer[pixelIndex*3];
                         if (systemPaletteUnitIndex != -1)
                         {
                             RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
@@ -800,8 +806,8 @@ namespace ReNes {
             
             _scanline_x += pixelCount;
             // 检查当前扫描线完成
-            int scanline_w = 341;
-            if (_scanline_x >= scanline_w)
+            RENES_ASSERT(_frame_w > 0 && _frame_h > 0);
+            if (_scanline_x >= _frame_w)
             {
                 // 绘制了最后一条可见扫描线，则设置VBlank标记
                 if (_scanline_y == 239)
@@ -814,7 +820,7 @@ namespace ReNes {
                 _scanline_y ++;
                 
                 // 检查换行扫描需求
-                int count = _scanline_x - scanline_w + 1;
+                int count = _scanline_x - _frame_w + 1;
                 _scanline_x = 0;
                 _drawScanline(vblankEvent, count);
             }
@@ -987,10 +993,10 @@ namespace ReNes {
         // 更新指定位置的tile
         void updateBackgroundTile(int nameTableIndex, int tile_x, int tile_y, int tile_x_count=1, int tile_y_count=1)
         {
-            int stride = BUFFER_PIXEL_WIDTH * 2;
+            int stride = DISPLAY_BUFFER_PIXEL_WIDTH * 2;
             const static int offset[] = {
-                0, BUFFER_PIXEL_WIDTH,
-                2*BUFFER_PIXEL_CONUT, 2*BUFFER_PIXEL_CONUT+BUFFER_PIXEL_WIDTH
+                0, DISPLAY_BUFFER_PIXEL_WIDTH,
+                2*DISPLAY_BUFFER_PIXEL_CONUT, 2*DISPLAY_BUFFER_PIXEL_CONUT+DISPLAY_BUFFER_PIXEL_WIDTH
             };
             
             drawBackground(_scrollBuffer + offset[nameTableIndex], stride, tile_x, tile_y, tile_x_count, tile_y_count, nameTableIndex, _bkPetternTableAddress(), _bkPaletteAddress());
@@ -1003,25 +1009,20 @@ namespace ReNes {
             {
                 int dst_y = y + ty;
                 
-                if (dst_y < 0)
-                    continue;
-                if (dst_y >= 240)
+                if (dst_y < 0 || dst_y >= RENES_FRAME_VISIBLE_H)
                     continue;
                 
-                //                    int ty_ = flipV ? 7-ty : ty;
+                // int ty_ = flipV ? 7-ty : ty;
                 int ty_ = ty;
                 
                 for (int tx=0; tx<8; tx++)
                 {
                     int dst_x = x + tx;
                     
-                    if (dst_x < 0)
+                    if (dst_x < 0 || dst_x >= RENES_FRAME_VISIBLE_W)
                         continue;
                     
-                    if (dst_x >= 256)
-                        continue;
-                    
-                    //                        int tx_ = flipH ? tx : 7-tx;
+                    // int tx_ = flipH ? tx : 7-tx;
                     int tx_ = 7-tx;
                     
                     // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（构成调色板下标[16]）
@@ -1032,20 +1033,7 @@ namespace ReNes {
                     // 4bit
                     int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号
                     
-                    // 缓冲区内的数据写入位置
-                    
-                    // old: RGB
-//                    int bpp = 3;
-//                    int pixelIndex = dst_y * stride + dst_x * bpp;
-//                    int systemPaletteUnitIndex = paletteAddr[paletteUnitIndex]; // 系统默认调色板颜色索引 [0,63]
-//
-//                    RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
-//
-//                    auto* pb = (RGB*)&buffer[pixelIndex];
-//
-//                    *pb = *rgb;
-                    
-                    // new: 调色表下标
+                    // 向缓冲区写入调色表下标
                     int bpp = 1;
                     int pixelIndex = dst_y * stride + dst_x * bpp;
                     auto* pb = (uint8_t*)&buffer[pixelIndex];
@@ -1060,20 +1048,16 @@ namespace ReNes {
             
             for (int ty=0; ty<8; ty++)
             {
-                if (y + ty < 0)
-                    continue;
-                
-                if (y + ty >= 240)
+                int dst_y = y + ty;
+                if (dst_y < 0 || dst_y >= RENES_FRAME_VISIBLE_H)
                     continue;
                 
                 int ty_ = flipV ? 7-ty : ty;
                 
                 for (int tx=0; tx<8; tx++)
                 {
-                    if (x + tx < 0)
-                        continue;
-                    
-                    if (x + tx >= 256)
+                    int dst_x = x + tx;
+                    if (dst_x < 0 || dst_x >= RENES_FRAME_VISIBLE_W)
                         continue;
                     
                     int tx_ = flipH ? tx : 7-tx;
@@ -1092,7 +1076,7 @@ namespace ReNes {
                         continue;
                     }
                     
-                    int pixelIndex = (NES_MIN(y + ty, 239) * 32*8 + NES_MIN(x+tx, 255)); // 最低位是右边第一像素，所以渲染顺序要从右往左
+                    int pixelIndex = dst_y*32*8 + dst_x; // 最低位是右边第一像素，所以渲染顺序要从右往左
                     // 11 11 1111
                     // 高2bit: 第一精灵标记
                     // 中2bit: 前置精灵标记
@@ -1103,46 +1087,6 @@ namespace ReNes {
                 }
             }
         };
-        
-        // 背景图案表地址
-        // 图案表：256*16(4KB)的空间
-        const uint8_t* _bkPetternTableAddress() const
-        {
-            // 第4bit决定背景图案表地址 0x0000或0x1000
-            return _vram->petternTableAddress(io_regs[0].get(4));
-        }
-        
-        // 精灵图案表地址
-        // 图案表：256*16(4KB)的空间
-        const uint8_t* _sprPetternTableAddress() const
-        {
-            // 第3bit决定精灵图案表地址 0x0000或0x1000
-            return _vram->petternTableAddress(io_regs[0].get(3));
-        }
-        
-        // 背景调色板地址
-        const uint8_t* _bkPaletteAddress() const
-        {
-            return _vram->bkPaletteAddress();
-        }
-        
-        // 精灵调色板地址
-        const uint8_t* _sprPaletteAddress() const
-        {
-            return _vram->sprPaletteAddress();
-        }
-        
-        // 名称表地址
-        const uint8_t* _nameTableAddress(int index) const
-        {
-            return _vram->nameTableAddress(index);
-        }
-        
-        // 属性表地址
-        const uint8_t* _attributeTableAddress(int index) const
-        {
-            return _vram->attributeTableAddress(index);
-        }
         
         // 从第nameTableIndex个名称表开始绘制（竖直镜像）
         void drawBackground(uint8_t* buffer, int stride, int tile_x_start, int tile_y_start, int tile_x_count, int tile_y_count, int tableIndex, const uint8_t* bkPetternTableAddr, const uint8_t* bkPaletteAddr){
@@ -1188,12 +1132,52 @@ namespace ReNes {
             }
         };
         
-        const static int BUFFER_PIXEL_WIDTH = 256;
-        const static int BUFFER_PIXEL_HEIGHT = 240;
-        const static int BUFFER_PIXEL_BPP = 3;
-        const static int BUFFER_PIXEL_CONUT = BUFFER_PIXEL_WIDTH * BUFFER_PIXEL_HEIGHT;
+        // 背景图案表地址
+        // 图案表：256*16(4KB)的空间
+        const uint8_t* _bkPetternTableAddress() const
+        {
+            // 第4bit决定背景图案表地址 0x0000或0x1000
+            return _vram->petternTableAddress(io_regs[0].get(4));
+        }
         
-        const static int RGB_BUFFER_LENGTH = BUFFER_PIXEL_CONUT * 3;
+        // 精灵图案表地址
+        // 图案表：256*16(4KB)的空间
+        const uint8_t* _sprPetternTableAddress() const
+        {
+            // 第3bit决定精灵图案表地址 0x0000或0x1000
+            return _vram->petternTableAddress(io_regs[0].get(3));
+        }
+        
+        // 背景调色板地址
+        const uint8_t* _bkPaletteAddress() const
+        {
+            return _vram->bkPaletteAddress();
+        }
+        
+        // 精灵调色板地址
+        const uint8_t* _sprPaletteAddress() const
+        {
+            return _vram->sprPaletteAddress();
+        }
+        
+        // 名称表地址
+        const uint8_t* _nameTableAddress(int index) const
+        {
+            return _vram->nameTableAddress(index);
+        }
+        
+        // 属性表地址
+        const uint8_t* _attributeTableAddress(int index) const
+        {
+            return _vram->attributeTableAddress(index);
+        }
+        
+        const static int DISPLAY_BUFFER_PIXEL_WIDTH = RENES_FRAME_VISIBLE_W;
+        const static int DISPLAY_BUFFER_PIXEL_HEIGHT = RENES_FRAME_VISIBLE_H;
+        const static int DISPLAY_BUFFER_PIXEL_BPP = 3;
+        const static int DISPLAY_BUFFER_PIXEL_CONUT = DISPLAY_BUFFER_PIXEL_WIDTH * DISPLAY_BUFFER_PIXEL_HEIGHT;
+        
+        const static int DISPLAY_BUFFER_LENGTH = DISPLAY_BUFFER_PIXEL_CONUT * 3;
         
         struct Sprite {
             
@@ -1240,11 +1224,11 @@ namespace ReNes {
         
         // 建立 w * h * 8 的缓冲区，每像素8字节，用来存储8个精灵的数据。
         // 如果该像素没有精灵，甚至没有叠加，则该位第一字节为0
-        const int SPR_BUFFER_LENGTH = BUFFER_PIXEL_CONUT;
+        const int SPR_BUFFER_LENGTH = DISPLAY_BUFFER_PIXEL_CONUT;
         
         uint8_t* _spr_buffer = 0;   // 精灵绘制缓冲区
         
-        uint8_t* _buffer = 0;       // 显示缓冲区
+        uint8_t* _display_buffer = 0;       // 显示缓冲区
         uint8_t* _scrollBuffer = 0; // 卷轴缓冲区
         uint8_t* _scrollBufferRGB = 0;
         
@@ -1253,5 +1237,13 @@ namespace ReNes {
         
         VRAM* _vram;
         Memory* _mem;
+        
+        bit8* io_regs;      // I/O 寄存器, 8 x 8bit
+        bit8* mask_regs;    // PPU屏蔽寄存器
+        bit8* status_regs;  // PPU状态寄存器
+        
+        int _frame_w;
+        int _frame_h;
+
     };
 }
