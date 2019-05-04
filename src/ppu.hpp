@@ -498,7 +498,54 @@ namespace ReNes {
         void drawScanline(bool* vblankEvent, int pixelCount)
         {
             *vblankEvent = false;
-
+            _drawScanline(vblankEvent, pixelCount);
+        }
+        
+        // 当前扫描线
+        inline
+        int currentScanline() const
+        {
+            return _scanline_y;
+        }
+        
+        // dump数据，给外部逻辑使用。index -> color
+        void dumpScrollToBuffer()
+        {
+            //const uint8_t* bkPetternTableAddr = _bkPetternTableAddress();
+            const uint8_t* bkPaletteAddr = _bkPaletteAddress();
+            
+            // convert to RGB buffer
+            int size = BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_HEIGHT*4;
+            for (int i=0; i<size; i++)
+            {
+                int systemPaletteUnitIndex = bkPaletteAddr[_scrollBuffer[i]]; // 系统默认调色板颜色索引 [0,63]
+                RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
+                ((RGB*)_scrollBufferRGB)[i] = *rgb;
+            }
+        }
+        
+        // 缓冲区信息
+        inline int width() const { return BUFFER_PIXEL_WIDTH; }
+        inline int height() const { return BUFFER_PIXEL_HEIGHT; }
+        inline int bpp() const { return BUFFER_PIXEL_BPP; }
+        inline uint8_t* buffer() const { return _buffer; }
+        
+        // 调试缓冲区，用于外部显示卷轴
+        inline uint8_t* scrollBufferRGB() const { return _scrollBufferRGB; }
+        
+        // 输出调色板
+        void petternTables(uint8_t p[32]) const
+        {
+            for (int i=0; i<32; i++)
+            {
+                p[i] = _vram->bkPaletteAddress()[i];
+            }
+        }
+        
+    private:
+        
+        void _drawScanline(bool* vblankEvent, int pixelCount)
+        {
             // 绘制背景
             const uint8_t* bkPetternTableAddr = _bkPetternTableAddress();
             const uint8_t* sprPetternTableAddr = _sprPetternTableAddress();
@@ -513,7 +560,7 @@ namespace ReNes {
             
             const auto& v = _t;
             
-            int line_y = this->_scanline_y ++; // 使用了再增加
+            int line_y = this->_scanline_y; // 使用了再增加
             if (line_y <= 239) // 只绘制可见扫描线
             {
                 // 从 _t 中取出tile坐标偏移，相当于表中的起始位置
@@ -526,7 +573,7 @@ namespace ReNes {
                 
                 // 起始名称表索引
                 int firstNameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
-
+                
                 
                 
 #ifdef DEBUG
@@ -535,11 +582,11 @@ namespace ReNes {
                 
                 
                 // 计算当前扫描线所在瓦片，瓦片偏移发生在相对当前屏幕的tile上，而不是指图案表相对屏幕左上角发生的偏移
-//                int bg_y = line_y/8 + bg_offset_y; [瓦片扫描]
+                //                int bg_y = line_y/8 + bg_offset_y; [瓦片扫描]
                 int bg_tile_y = (line_y + bg_t_y)/8 + bg_offset_y; // [屏幕扫描]
                 int tile_y = bg_tile_y % 30; // 30个tile 垂直循环
                 
-//                int ty = line_y%8; // [瓦片扫描]
+                //                int ty = line_y%8; // [瓦片扫描]
                 int ty = (line_y+bg_t_y)%8; // [屏幕扫描]
                 int draw_line_y = line_y/8*8-bg_t_y;
                 int dst_y = draw_line_y + ty;
@@ -547,33 +594,32 @@ namespace ReNes {
                 // 瓦片坐标位于不可见的扫描线
                 
                 // [瓦片扫描]
-//                if (dst_y >= 240)
-//                    return;
-//
-//                if (dst_y < 0)
-//                    return;
+                //                if (dst_y >= 240)
+                //                    return;
+                //
+                //                if (dst_y < 0)
+                //                    return;
                 
                 // 需要将计算模式设计为屏幕点扫描
                 
                 // 宽度应该是256，刚好填满32个tile。但是如果发生错位的情况，是需要33个tile
                 //const static int LINE_X_MAX = 33*8; [瓦片扫描]
-                const static int LINE_X_MAX = 32*8; // [屏幕扫描]
-
-                for (int line_x=0; line_x<LINE_X_MAX; line_x++)
+                int line_x_max = fminf(_scanline_x+pixelCount-1, 256 - 1);
+                for (int line_x=_scanline_x; line_x <= line_x_max; line_x++)
                 {
                     int tx = (line_x+bg_t_x)%8; // [屏幕扫描] 对应当前瓦片上的index
-//                    int tx = line_x%8; // [瓦片扫描] 对应当前瓦片上的index
+                    //                    int tx = line_x%8; // [瓦片扫描] 对应当前瓦片上的index
                     int draw_line_x = line_x/8*8-bg_t_x; // 背景绘制的整体起始点
                     int dst_x = draw_line_x + tx; // 屏幕上的坐标
                     
                     // [瓦片扫描]
-//                    if (dst_x >= 256)
-//                        continue;
-//
-//                    if (dst_x < 0)
-//                    {
-//                        continue;
-//                    }
+                    //                    if (dst_x >= 256)
+                    //                        continue;
+                    //
+                    //                    if (dst_x < 0)
+                    //                    {
+                    //                        continue;
+                    //                    }
                     
                     // 背景不支持tile翻转，精灵才支持，这里作差别提示
                     bool flipV = false;
@@ -593,8 +639,8 @@ namespace ReNes {
                     int bg_systemPaletteUnitIndex;
                     
                     int bg_peletteIndex;
-//                    #define RENES_BG_MODE_0
-                    #ifdef RENES_BG_MODE_0
+                    //                    #define RENES_BG_MODE_0
+#ifdef RENES_BG_MODE_0
                     {
                         /*
                          调色板
@@ -671,7 +717,7 @@ namespace ReNes {
                         }
                         bg_peletteIndex = peletteIndex.merge();
                     }
-                    #else
+#else
                     {
                         // 瓦片绝对坐标 = 屏幕坐标 + 瓦片偏移(含精细偏移)
                         // 当前模式：名称表分屏
@@ -687,7 +733,7 @@ namespace ReNes {
                         
                         bg_peletteIndex = _scrollBuffer[map_pos_y*512 + map_pos_x];
                     }
-                    #endif
+#endif
                     
                     bg_systemPaletteUnitIndex = bkPaletteAddr[bg_peletteIndex]; // 系统默认调色板颜色索引 [0,63]
                     {
@@ -746,63 +792,33 @@ namespace ReNes {
                         }
                         else
                         {
-                            memset(pb, 0, 3);
+                            *(RGB*)pb = {0}; // memset(pb, 0, 3);
                         }
                     }
                 }
-                
+            }
+            
+            _scanline_x += pixelCount;
+            // 检查当前扫描线完成
+            int scanline_w = 341;
+            if (_scanline_x >= scanline_w)
+            {
                 // 绘制了最后一条可见扫描线，则设置VBlank标记
-                if (line_y == 239)
+                if (_scanline_y == 239)
                 {
                     status_regs->set(7, 1);
                     // 设置vblank事件
                     *vblankEvent = true;
                 }
+                
+                _scanline_y ++;
+                
+                // 检查换行扫描需求
+                int count = _scanline_x - scanline_w + 1;
+                _scanline_x = 0;
+                _drawScanline(vblankEvent, count);
             }
         }
-        
-        // 当前扫描线
-        inline
-        int currentScanline() const
-        {
-            return _scanline_y;
-        }
-        
-        // dump数据，给外部逻辑使用。index -> color
-        void dumpScrollToBuffer()
-        {
-            //const uint8_t* bkPetternTableAddr = _bkPetternTableAddress();
-            const uint8_t* bkPaletteAddr = _bkPaletteAddress();
-            
-            // convert to RGB buffer
-            int size = BUFFER_PIXEL_WIDTH*BUFFER_PIXEL_HEIGHT*4;
-            for (int i=0; i<size; i++)
-            {
-                int systemPaletteUnitIndex = bkPaletteAddr[_scrollBuffer[i]]; // 系统默认调色板颜色索引 [0,63]
-                RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
-                ((RGB*)_scrollBufferRGB)[i] = *rgb;
-            }
-        }
-        
-        // 缓冲区信息
-        inline int width() const { return BUFFER_PIXEL_WIDTH; }
-        inline int height() const { return BUFFER_PIXEL_HEIGHT; }
-        inline int bpp() const { return BUFFER_PIXEL_BPP; }
-        inline uint8_t* buffer() const { return _buffer; }
-        
-        // 调试缓冲区，用于外部显示卷轴
-        inline uint8_t* scrollBufferRGB() const { return _scrollBufferRGB; }
-        
-        // 输出调色板
-        void petternTables(uint8_t p[32]) const
-        {
-            for (int i=0; i<32; i++)
-            {
-                p[i] = _vram->bkPaletteAddress()[i];
-            }
-        }
-        
-    private:
         
         void _vramDidUpdated(uint16_t addr)
         {
@@ -1217,6 +1233,7 @@ namespace ReNes {
         uint16_t _dstAddr2004 = 0;
 
         // 绘图
+        int _scanline_x = 0; // 当前扫描线上的扫描点坐标
         int _scanline_y = 0;
         bool _showBg;
         bool _showSpr;

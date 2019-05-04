@@ -237,8 +237,7 @@ namespace ReNes {
                 const int FPS = 60; // 包含vblank时间
                 
                 uint32_t cpuCyclesCountForFrame = 0;            // 每一帧内：cpu周期数计数器
-                uint32_t cpuCyclesCountForScanline = 0;         // 每一条扫描线绘制期间：cpu周期数计数器
-                const uint32_t NumCyclesPerScanline = NumPixelsPerScanline / 3;  // 每条扫描线需要的cpu周期数(每个像素需要1/3 CPU周期，由CPU和PPU的频率算得，见ppu.hpp)
+                const uint32_t NumScanpointPerCpuCycle = 3;     // 每个cpu周期能绘制的点数(每个像素需要1/3 CPU周期，由CPU和PPU的频率算得，见ppu.hpp)
                 const uint32_t TimePerFrame = 1.0 / FPS * 1e9; // 每帧需要的时间(纳秒)
                 
                 // 主循环
@@ -260,45 +259,37 @@ namespace ReNes {
                         break;
                     
                     // 当前CPU指令周期内，可以绘制多少个点
-//                    int pixelNum = cycles * 3;
-                    
                     cpuCyclesCountForFrame += cycles;
-                    cpuCyclesCountForScanline += cycles;
-                    
+
                     // 满足一次扫描线所经过的CPU周期，执行下面代码，模拟这段时间内，PPU发生的工作
                     // 写在一个线程，而不是模拟PPU线程的同步工作，同步需要开销
-                    if (cpuCyclesCountForScanline >= NumCyclesPerScanline)
+                    bool vblankEvent;
+                    _ppu.drawScanline(&vblankEvent, cycles * NumScanpointPerCpuCycle);
+                    
+                    if (vblankEvent)
                     {
-                        cpuCyclesCountForScanline -= NumCyclesPerScanline;
+                        // vblank发生的时候，设置NMI中断
+                        _cpu.interrupts(CPU::InterruptTypeNMI);
                         
-                        bool vblankEvent;
-                        _ppu.drawScanline(&vblankEvent);
+                        // 刷新视图(异步) 刷新率由UI决定
+                        ppu_displayCallback(&_ppu);
+                    }
+                    
+                    // 最后一条扫描线完成(第261条扫描线，scanline+1 == 262)
+                    if (_ppu.currentScanline() == NumScanline)
+                    {
+                        // 模拟等待，模拟每一帧完整时间花费
+                        auto currentFrameTime = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒
+                        _perFrameTime = currentFrameTime;
+                        _cpuCycleTime  = currentFrameTime / cpuCyclesCountForFrame;
                         
-                        if (vblankEvent)
-                        {
-                            // vblank发生的时候，设置NMI中断
-                            _cpu.interrupts(CPU::InterruptTypeNMI);
-                            
-                            // 刷新视图(异步) 刷新率由UI决定
-                            ppu_displayCallback(&_ppu);
-                        }
+                        // 计数器重置
+                        cpuCyclesCountForFrame  = 0;
+                        isFirstCPUCycleForFrame = true;
                         
-                        // 最后一条扫描线完成(第261条扫描线，scanline+1 == 262)
-                        if (_ppu.currentScanline() == NumScanline)
-                        {
-                            // 模拟等待，模拟每一帧完整时间花费
-                            auto currentFrameTime = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒
-                            _perFrameTime = currentFrameTime;
-                            _cpuCycleTime  = currentFrameTime / cpuCyclesCountForFrame;
-                            
-                            // 计数器重置
-                            cpuCyclesCountForFrame -= NumCyclesPerScanline * NumScanline;
-                            isFirstCPUCycleForFrame = true;
-                            
-                            // 检查是否需要等待
-                            if ( currentFrameTime < TimePerFrame )
-                                usleep( (uint32_t)(TimePerFrame - currentFrameTime) / 1000 );
-                        }
+                        // 检查是否需要等待
+                        if ( currentFrameTime < TimePerFrame )
+                            usleep( (uint32_t)(TimePerFrame - currentFrameTime) / 1000 );
                     }
                     
                 }while(cpu_callback(&_cpu) && !_stoped);
