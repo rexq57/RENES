@@ -553,9 +553,6 @@ namespace ReNes {
         void _drawScanline(bool* vblankEvent, int pixelCount)
         {
             // 绘制背景
-            const uint8_t* bkPetternTableAddr = _bkPetternTableAddress();
-            const uint8_t* sprPetternTableAddr = _sprPetternTableAddress();
-            
             const uint8_t* bkPaletteAddr = _bkPaletteAddress();
             const uint8_t* sprPaletteAddr = _sprPaletteAddress();
             
@@ -570,12 +567,12 @@ namespace ReNes {
             if (line_y <= 239) // 只绘制可见扫描线
             {
                 // 从 _t 中取出tile坐标偏移，相当于表中的起始位置
-                int bg_offset_x = v & 0x1F;         // tile整体偏移[0,31]
-                int bg_offset_y = (v >> 5) & 0x1F;
+                int bk_offset_x = v & 0x1F;         // tile整体偏移[0,31]
+                int bk_offset_y = (v >> 5) & 0x1F;
                 
-                int bg_t_x = _x;                    // tile精细偏移[0,7]
-                int bg_t_y = (v >> 12) & 0x7;
-                //            int bg_base = (v >> 10) & 0x3;
+                int bk_t_x = _x;                    // tile精细偏移[0,7]
+                int bk_t_y = (v >> 12) & 0x7;
+                //            int bk_base = (v >> 10) & 0x3;
                 
                 // 起始名称表索引
                 int firstNameTableIndex = io_regs[0].get(0) | (io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
@@ -583,19 +580,19 @@ namespace ReNes {
                 
                 
 #ifdef DEBUG
-                testLog = std::to_string(firstNameTableIndex) + ": " + std::to_string(bg_offset_x) + "-" + std::to_string(bg_t_x);
+                testLog = std::to_string(firstNameTableIndex) + ": " + std::to_string(bk_offset_x) + "-" + std::to_string(bk_t_x);
 #endif
                 
                 
                 // 计算当前扫描线所在瓦片，瓦片偏移发生在相对当前屏幕的tile上，而不是指图案表相对屏幕左上角发生的偏移
-                //                int bg_y = line_y/8 + bg_offset_y; [瓦片扫描]
-                int bg_tile_y = (line_y + bg_t_y)/8 + bg_offset_y; // [屏幕扫描]
-                int tile_y = bg_tile_y % 30; // 30个tile 垂直循环
+                //                int bk_y = line_y/8 + bk_offset_y; [瓦片扫描]
+                int bk_tile_y = (line_y + bk_t_y)/8 + bk_offset_y; // [屏幕扫描]
+                int tile_y = bk_tile_y % 30; // 30个tile 垂直循环
                 
                 //                int ty = line_y%8; // [瓦片扫描]
-                int ty = (line_y+bg_t_y)%8; // [屏幕扫描]
-                int draw_line_y = line_y/8*8-bg_t_y;
-                int dst_y = draw_line_y + ty;
+                int ty = (line_y+bk_t_y)%8; // [屏幕扫描]
+                // int draw_line_y = line_y/8*8-bk_t_y;
+                // int dst_y = draw_line_y + ty;
                 
                 // 瓦片坐标位于不可见的扫描线
                 
@@ -613,11 +610,10 @@ namespace ReNes {
                 int line_x_max = fminf(_scanline_x+pixelCount-1, RENES_FRAME_VISIBLE_W - 1);
                 for (int line_x=_scanline_x; line_x <= line_x_max; line_x++)
                 {
-                    int tx = (line_x+bg_t_x)%8; // [屏幕扫描] 对应当前瓦片上的index
+                    int tx = (line_x+bk_t_x)%8; // [屏幕扫描] 对应当前瓦片上的index
                     //                    int tx = line_x%8; // [瓦片扫描] 对应当前瓦片上的index
-                    int draw_line_x = line_x/8*8-bg_t_x; // 背景绘制的整体起始点
-                    int dst_x = draw_line_x + tx; // 屏幕上的坐标
-                    
+                    /// int draw_line_x = line_x/8*8-bk_t_x; // 背景绘制的整体起始点
+                    // int dst_x = draw_line_x + tx; // 屏幕上的坐标
                     // [瓦片扫描]
                     //                    if (dst_x >= 256)
                     //                        continue;
@@ -628,25 +624,25 @@ namespace ReNes {
                     //                    }
                     
                     // 背景不支持tile翻转，精灵才支持，这里作差别提示
-                    bool flipV = false;
-                    bool flipH = false;
-                    int tx_ = flipH ? tx : 7-tx;
-                    int ty_ = flipV ? 7-ty : ty;
+                    // bool flipV = false;
+                    // bool flipH = false;
+                    // int tx_ = flipH ? tx : 7-tx;
+                    // int ty_ = flipV ? 7-ty : ty;
                     
-                    int first_tile_x = (line_x + bg_t_x)/8 + bg_offset_x; // [屏幕扫描]
+                    int first_tile_x = (line_x + bk_t_x)/8 + bk_offset_x; // [屏幕扫描]
                     
                     // 从基础名称表开始绘制，并根据tile偏移+瓦片索引
                     int nameTableIndex = ((firstNameTableIndex + first_tile_x/32) % 2);
                     
-                    // int bg_tile_x = line_x/8 + bg_offset_x; // [瓦片扫描] 当前位置的tile
+                    // int bk_tile_x = line_x/8 + bk_offset_x; // [瓦片扫描] 当前位置的tile
                     // 32个tile 水平循环在屏幕上的对应瓦片坐标，用来定位在对应（当前/下一个）名称表里的位置，确定tileIndex
                     int tile_x = first_tile_x % 32;
                     
-                    int bg_systemPaletteUnitIndex;
+                    int bk_systemPaletteUnitIndex;
                     
-                    int bg_peletteIndex;
-                    //                    #define RENES_BG_MODE_0
-#ifdef RENES_BG_MODE_0
+                    int bk_peletteIndex;
+                    //                    #define RENES_BK_MODE_0
+#ifdef RENES_BK_MODE_0
                     {
                         /*
                          调色板
@@ -721,7 +717,7 @@ namespace ReNes {
                                 peletteIndex.high2bit = (attributeAddrFor4x4Tile >> bit) & 0x3;
                             }
                         }
-                        bg_peletteIndex = peletteIndex.merge();
+                        bk_peletteIndex = peletteIndex.merge();
                     }
 #else
                     {
@@ -737,11 +733,11 @@ namespace ReNes {
                         int map_pos_x = map_table_pos[0] + tile_x*8 + tx;
                         int map_pos_y = map_table_pos[1] + tile_y*8 + ty;
                         
-                        bg_peletteIndex = _scrollBuffer[map_pos_y*512 + map_pos_x];
+                        bk_peletteIndex = _scrollBuffer[map_pos_y*512 + map_pos_x];
                     }
 #endif
                     
-                    bg_systemPaletteUnitIndex = bkPaletteAddr[bg_peletteIndex]; // 系统默认调色板颜色索引 [0,63]
+                    bk_systemPaletteUnitIndex = bkPaletteAddr[bk_peletteIndex]; // 系统默认调色板颜色索引 [0,63]
                     {
                         //                            int pixelIndex = (dst_y * 32*8 + dst_x); // [瓦片扫描] 最低位是右边第一像素，所以渲染顺序要从右往左
                         int pixelIndex = (line_y * 32*8 + line_x); // [屏幕扫描] 最低位是右边第一像素，所以渲染顺序要从右往左
@@ -775,9 +771,9 @@ namespace ReNes {
                             if (showSpr && spr_systemPaletteUnitIndex != 0)
                             {
                                 // 判断前后
-                                if (showBg && !sprFront && bg_peletteIndex != 0)
+                                if (showBg && !sprFront && bk_peletteIndex != 0)
                                 {
-                                    systemPaletteUnitIndex = bg_systemPaletteUnitIndex;
+                                    systemPaletteUnitIndex = bk_systemPaletteUnitIndex;
                                 }
                                 else
                                 {
@@ -786,7 +782,7 @@ namespace ReNes {
                             }
                             else if (showBg)
                             {
-                                systemPaletteUnitIndex = bg_systemPaletteUnitIndex;
+                                systemPaletteUnitIndex = bk_systemPaletteUnitIndex;
                             }
                         }
                         
@@ -822,7 +818,8 @@ namespace ReNes {
                 // 检查换行扫描需求
                 int count = _scanline_x - _frame_w + 1;
                 _scanline_x = 0;
-                _drawScanline(vblankEvent, count);
+                if (_scanline_y < _frame_h) // 超出当前帧不调用补齐渲染
+                    _drawScanline(vblankEvent, count);
             }
         }
         
@@ -1092,20 +1089,20 @@ namespace ReNes {
         void drawBackground(uint8_t* buffer, int stride, int tile_x_start, int tile_y_start, int tile_x_count, int tile_y_count, int tableIndex, const uint8_t* bkPetternTableAddr, const uint8_t* bkPaletteAddr){
             
             // 背景的tile偏移（图案表中的tile偏移）
-            int bg_offset_x = 0;
-            int bg_offset_y = 0;
+            int bk_offset_x = 0;
+            int bk_offset_y = 0;
             
             int tile_x_max = tile_x_start + tile_x_count;
             int tile_y_max = tile_y_start + tile_y_count;
             
-            for (int bg_y=tile_y_start; bg_y<tile_y_max; bg_y++) // 只显示 30/30 行tile
+            for (int bk_y=tile_y_start; bk_y<tile_y_max; bk_y++) // 只显示 30/30 行tile
             {
-                int s_y = bg_y+bg_offset_y;
+                int s_y = bk_y+bk_offset_y;
                 int tile_y = s_y % 30; // 竖直第_y个tile，30个tile 垂直循环
                 
-                for (int bg_x=tile_x_start; bg_x<tile_x_max; bg_x++)
+                for (int bk_x=tile_x_start; bk_x<tile_x_max; bk_x++)
                 {
-                    int s_x = (bg_x+bg_offset_x);
+                    int s_x = (bk_x+bk_offset_x);
                     int tile_x = s_x % 32; // 水平第_x个tile，32个tile 水平循环
                     
                     // 实际名称表
@@ -1127,7 +1124,7 @@ namespace ReNes {
                     // 前8字节(8x8) + 后8字节(8x8)
                     const uint8_t* tileAddr = &bkPetternTableAddr[tileIndex * 16];
                     
-                    drawTile(buffer, stride, bg_x*8, bg_y*8, high2, tileAddr, bkPaletteAddr);
+                    drawTile(buffer, stride, bk_x*8, bk_y*8, high2, tileAddr, bkPaletteAddr);
                 }
             }
         };
