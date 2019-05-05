@@ -34,19 +34,45 @@ namespace ReNes {
             return _data;
         }
         
+        // 直接获取8bit数据，不走读写监听
+        inline
+        uint8_t get8bitData(uint16_t addr) const
+        {
+            auto data = *const_cast<Memory*>(this)->_getRealAddr(addr);
+            return data;
+        }
+        
+        // 直接获取16bit数据，不走读写监听
+        inline
+        uint16_t get16bitData(uint16_t addr) const
+        {
+            uint16_t data = *(uint16_t*)const_cast<Memory*>(this)->_getRealAddr(addr);
+            return data;
+        }
+        
         // 读取数据
         inline
         uint8_t read8bitData(uint16_t addr, bool event=false)
         {
-            auto data = *_getRealAddr(addr, READ);
+            // 只在debug模式下检查内存错误，以提高release速度
+#ifdef DEBUG
+            // 检查非法读取
+            {
+                // 该内存只写
+                const static uint16_t MEMORY_WRITE_ONLY[] = {
+                    0x2000, 0x2001, 0x2003, 0x2005, 0x2006, 0x4014
+                };
+                
+                if (RENES_ARRAY_FIND(MEMORY_WRITE_ONLY, addr))
+                {
+                    log("该内存只能写!\n");
+                    error = true;
+                    return (uint8_t*)0;
+                }
+            }
+#endif
             
-            // 处理2005,2006读取，每次读取之后重置bit7 ?
-//            switch (addr)
-//            {
-//                case 0x2005:
-//                case 0x2006:
-//                    ((bit8*)&_data[addr])->set(7, 0);
-//            }
+            auto data = *_getRealAddr(addr);
             
             if (event)
             {
@@ -60,18 +86,28 @@ namespace ReNes {
             return data;
         }
         
-        // 16bit读取访问属于直接访问，没有事件处理
-        inline
-        uint16_t read16bitData(uint16_t addr) const
-        {
-            uint16_t data = *(uint16_t*)const_cast<Memory*>(this)->_getRealAddr(addr, READ);
-            return data;
-        }
-        
         inline
         void write8bitData(uint16_t addr, uint8_t value)
         {
-            *_getRealAddr(addr, WRITE) = value;
+            // 只在debug模式下检查内存错误，以提高release速度
+#ifdef DEBUG
+            // 检查非法写入
+            {
+                // 该内存只读
+                const static uint16_t MEMORY_READ_ONLY[] = {
+                    0x2002
+                };
+                
+                if (RENES_ARRAY_FIND(MEMORY_READ_ONLY, addr))
+                {
+                    log("该内存只能读!\n");
+                    error = true;
+                    return (uint8_t*)0;
+                }
+            }
+#endif
+            
+            *_getRealAddr(addr) = value;
             
 //            for test
 //            if ((addr == 0x0100 + 0xfe || addr == 0x0100 + 0xff))
@@ -101,16 +137,10 @@ namespace ReNes {
         bool error = false;
 
     private:
-        
-        enum ACCESS{
-            READ,
-            WRITE,
-            MASTER
-        };
 
         // 得到实际内存地址
         inline
-        uint8_t* _getRealAddr(uint16_t addr, ACCESS access)
+        uint8_t* _getRealAddr(uint16_t addr)
         {
             // 对访问地址做镜像修正
             if (addr >= 0x2008 && addr <= 0x3FFF)       // 处理I/O寄存器镜像
@@ -121,38 +151,6 @@ namespace ReNes {
             {
                 addr = addr % 0x0800;
             }
-            
-            // 只在debug模式下检查内存错误，以提高release速度
-#ifdef DEBUG
-            if (access == READ) // 检查非法读取
-            {
-                // 该内存只写
-                const static uint16_t MEMORY_WRITE_ONLY[] = {
-                    0x2000, 0x2001, 0x2003, 0x2005, 0x2006, 0x4014
-                };
-                
-                if (RENES_ARRAY_FIND(MEMORY_WRITE_ONLY, addr))
-                {
-                    log("该内存只能写!\n");
-                    error = true;
-                    return (uint8_t*)0;
-                }
-            }
-            else if (access == WRITE) // 检查非法写入
-            {
-                // 该内存只读
-                const static uint16_t MEMORY_READ_ONLY[] = {
-                    0x2002
-                };
-                
-                if (RENES_ARRAY_FIND(MEMORY_READ_ONLY, addr))
-                {
-                    log("该内存只能读!\n");
-                    error = true;
-                    return (uint8_t*)0;
-                }
-            }
-#endif
 
             return _data + addr;
         }

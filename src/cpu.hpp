@@ -206,54 +206,53 @@ namespace ReNes {
                 case RELATIVE:
                 case IMMIDIATE:
                 {
-                    immidiate_value = mem->read8bitData(dataAddr);
+                    immidiate_value = mem->get8bitData(dataAddr);
                     immidiate = true;
                     break;
                 }
                 case ZERO_PAGE:
                 {
-                    res = int_to_hex(mem->read8bitData(dataAddr));
+                    res = int_to_hex(mem->get8bitData(dataAddr));
                     break;
                 }
                 case ZERO_PAGE_X:
                 {
-                    res = int_to_hex(mem->read8bitData(dataAddr)) + ",X";
+                    res = int_to_hex(mem->get8bitData(dataAddr)) + ",X";
                     break;
                 }
                 case ZERO_PAGE_Y:
                 {
-                    res = int_to_hex(mem->read8bitData(dataAddr)) + ",Y";
+                    res = int_to_hex(mem->get8bitData(dataAddr)) + ",Y";
                     break;
                 }
                 case INDEXED_ABSOLUTE:
                 {
-                    res = int_to_hex(mem->read16bitData(dataAddr));
-                    //                    addr = readMem16bit();
+                    res = int_to_hex(mem->get16bitData(dataAddr));
                     break;
                 }
                 case INDEXED_ABSOLUTE_X:
                 {
-                    res = int_to_hex(mem->read16bitData(dataAddr)) + ",X";
+                    res = int_to_hex(mem->get16bitData(dataAddr)) + ",X";
                     break;
                 }
                 case INDEXED_ABSOLUTE_Y:
                 {
-                    res = int_to_hex(mem->read16bitData(dataAddr)) + ",Y";
+                    res = int_to_hex(mem->get16bitData(dataAddr)) + ",Y";
                     break;
                 }
                 case INDIRECT:
                 {
-                    res = "(" + int_to_hex(mem->read16bitData(dataAddr)) + ")";
+                    res = "(" + int_to_hex(mem->get16bitData(dataAddr)) + ")";
                     break;
                 }
                 case INDIRECT_X_INDEXED:
                 {
-                    res = "(" + int_to_hex(mem->read8bitData(dataAddr)) + ", X)";
+                    res = "(" + int_to_hex(mem->get8bitData(dataAddr)) + ", X)";
                     break;
                 }
                 case INDIRECT_INDEXED_Y:
                 {
-                    res = "(" + int_to_hex(mem->read8bitData(dataAddr)) + "),Y";
+                    res = "(" + int_to_hex(mem->get8bitData(dataAddr)) + "),Y";
                     break;
                 }
                 case IMPLIED:
@@ -1396,22 +1395,22 @@ namespace ReNes {
                 }
                 case INDEXED_ABSOLUTE:
                 {
-                    addr = _mem->read16bitData(dataAddr);
+                    addr = _mem->get16bitData(dataAddr);
                     break;
                 }
                 case INDEXED_ABSOLUTE_X:
                 {
-                    addr = _mem->read16bitData(dataAddr) + regs.X;
+                    addr = _mem->get16bitData(dataAddr) + regs.X;
                     break;
                 }
                 case INDEXED_ABSOLUTE_Y:
                 {
-                    addr = _mem->read16bitData(dataAddr) + regs.Y;
+                    addr = _mem->get16bitData(dataAddr) + regs.Y;
                     break;
                 }
                 case INDIRECT:
                 {
-                    auto oper = _mem->read16bitData(dataAddr);
+                    auto oper = _mem->get16bitData(dataAddr);
                     
                     // 6502 JMP Indirect bug
                     if ((oper & 0xff) == 0xff && _mem->masterData()[regs.PC] == 0x6C) // 低字节是0xFF，高位就从当前页读取
@@ -1420,19 +1419,19 @@ namespace ReNes {
                     }
                     else
                     {
-                        addr = _mem->read16bitData(oper);
+                        addr = _mem->get16bitData(oper);
                     }
                     
                     break;
                 }
                 case INDIRECT_X_INDEXED:
                 {
-                    addr = _mem->read16bitData((_mem->read8bitData(dataAddr) + regs.X) % 0x100);
+                    addr = _mem->get16bitData((_mem->read8bitData(dataAddr) + regs.X) % 0x100);
                     break;
                 }
                 case INDIRECT_INDEXED_Y:
                 {
-                    addr = _mem->read16bitData(_mem->read8bitData(dataAddr)) + regs.Y;
+                    addr = _mem->get16bitData(_mem->read8bitData(dataAddr)) + regs.Y;
                     break;
                 }
                 default:
