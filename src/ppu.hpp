@@ -37,9 +37,16 @@
 namespace ReNes {
     
     /*
-     未完成：
+     未完成:
      1、0x2000第5bit开启8x16精灵
-     2、未确定OAM里精灵的坐标y
+     
+     不确定的解决方案:
+     1、在readyOnFirstLine里清除了0x2000的低2bit来防止《超级玛丽》移动到第二名称表的时候，精灵0碰撞前间歇性名称表为1的情况，导致顶部无法显示第一名称里的状态栏的情况
+     
+     未知问题：
+    1、《超级玛丽》运动到一段画面后，精灵0出现错位闪烁
+    2、未确定OAM里精灵的坐标y
+    3、《超级玛丽》下管子
      */
     
     // 系统调色板，网上有多种颜色风格
@@ -144,6 +151,7 @@ namespace ReNes {
             
             // 精灵缓冲区
             _spr_buffer = (uint8_t*)malloc(SPR_BUFFER_LENGTH);
+            _spr0buffer = (uint8_t*)malloc(SPR_BUFFER_LENGTH);
             
             // 卷轴缓冲区
             _scrollBuffer = (uint8_t*)malloc(DISPLAY_BUFFER_LENGTH*4);
@@ -161,6 +169,9 @@ namespace ReNes {
             
             if (_spr_buffer != 0)
                 free(_spr_buffer);
+            
+            if (_spr0buffer != 0)
+                free(_spr0buffer);
             
             if (_scrollBuffer != 0)
                 free(_scrollBuffer);
@@ -180,10 +191,10 @@ namespace ReNes {
             _status_regs = (bit8*)&_io_regs[2];
             
             std::function<void(uint16_t, uint8_t)> writtingObserver = [this](uint16_t addr, uint8_t value){
-                // 接收来自2007的数据
                 switch (addr) {
                     case 0x2000:
                     {
+                        // t: ...BA.. ........ = d: ......BA
                         _t &= ~(0x3 << 10);
                         _t |= ((value & 0x3) << 10);
                         break;
@@ -336,13 +347,16 @@ namespace ReNes {
             mem->addWritingObserver(0x4014, writtingObserver);
         }
         
+        // 预渲染
         void readyOnFirstLine()
         {
             _status_regs->set(7, 0); // 清除 vblank
-            _status_regs->set(6, 0);
+            _status_regs->set(6, 0); // hit标记清零
             
             // 准备当前帧的OAM
             memcpy(_OAM, _sprram, 256);
+            _io_regs[0].set(0, 0);
+            _io_regs[0].set(1, 0);
             
             // 设置背景色
             
@@ -436,6 +450,9 @@ namespace ReNes {
 
             // 绘制精灵到缓冲区，用来给扫描线使用
             memset(_spr_buffer, 0, SPR_BUFFER_LENGTH);
+            memset(_spr0buffer, 0, SPR_BUFFER_LENGTH);
+            
+            // 精灵0必须在最上面以供碰撞检测
             for (int i=0; i<64; i++)
             {
                 Sprite* spr = (Sprite*)&_OAM[i*4];
@@ -452,6 +469,10 @@ namespace ReNes {
 //                printf("[%d] %d,%d\n", i, spr->x, spr->y);
                 
                 drawSprBuffer(_spr_buffer, spr->x, spr->y+1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
+                
+                // 缓存精灵0
+                if (i == 0)
+                    drawSprBuffer(_spr0buffer, spr->x, spr->y+1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
             }
             
             // test 暂时全部绘制
@@ -737,11 +758,6 @@ namespace ReNes {
                         int map_pos_y = map_table_pos[1] + tile_y*8 + ty;
                         
                         bk_peletteIndex = _scrollBuffer[map_pos_y*512 + map_pos_x];
-                        
-//                        if (line_x == 11*8 && line_y == 3*8)
-//                        {
-//                            printf("firstNameTableIndex %d\n", firstNameTableIndex);
-//                        }
                     }
 #endif
                     
@@ -762,11 +778,19 @@ namespace ReNes {
                                 sprFront = (spr_data & 32) == 0;
                                 spr_systemPaletteUnitIndex = sprPaletteAddr[spr_data & 15];
                                 
+                                // 碰撞检测 (必须同时显示背景和精灵的情况下)
+                                if (showSpr && showBg)
                                 {
-                                    bool isFirstSprite = spr_data > 63;
+//                                    bool isFirstSprite = spr_data > 63;
+                                    // 精灵0单独使用一个全屏buffer
+                                    uint8_t& spr0data = _spr0buffer[pixelIndex];
+                                    bool isFirstSprite = spr0data > 63;
+                                    
+                                     // 使用精灵0来检测碰撞
+                                    int paletteIndex = sprPaletteAddr[_spr0buffer[pixelIndex] & 15];
                                     
                                     // 碰撞条件，第一精灵 & 非0调色板第一位（透明色）& 允许碰撞
-                                    if (isFirstSprite && spr_systemPaletteUnitIndex != sprPaletteAddr[0] && _status_regs->get(6) == 0)
+                                    if (isFirstSprite && paletteIndex != sprPaletteAddr[0] && _status_regs->get(6) == 0)
                                     {
                                         _status_regs->set(6, 1);
                                     }
@@ -1214,6 +1238,7 @@ namespace ReNes {
         
         uint8_t _sprram[256]; // 精灵内存, 64 个，每个4字节
         uint8_t _OAM[256];    // 每帧的OAM
+        uint8_t* _spr0buffer;  // 0号精灵缓存
         
         VRAM* _vram;
         Memory* _mem;
