@@ -95,13 +95,9 @@ namespace ReNes {
         CF_STA, CF_STX, CF_STY,
         CF_TAX, CF_TAY, CF_TXA, CF_TSX, CF_TXS, CF_TYA,
         
-        
         CF_BRK,
-//        CF_LD,
+        
         CF_ST,
-//        CF_IN,
-//        CF_CP,
-//        CF_B,
         CF_RTI,
         CF_JSR,
         CF_RTS,
@@ -146,10 +142,6 @@ namespace ReNes {
         DST_REGS_P_V,
         DST_REGS_P_N,
         
-        //            C = 0,
-        //            Z,I,D,B,_,V,N
-        
-        
         DST_M,
     };
     
@@ -164,7 +156,6 @@ namespace ReNes {
         
         std::string name;
         CF cf;
-//        DST dst; // 寄存器目标
         AddressingMode mode;
         
         int bytes;
@@ -273,7 +264,6 @@ namespace ReNes {
             {
                 // 将跳转地址计算出来
                 int addr = 0;
-//                const static std::vector<const char*> JMP_STR = {
                 const static char* JMP_STR[] = {
                     "BCC",
                     "BCS",
@@ -284,7 +274,6 @@ namespace ReNes {
                     "BVC",
                     "BVS"
                 };
-//                if (VECTOR_FIND(JMP_STR, cmd))
                 if (RENES_ARRAY_FIND(JMP_STR, cmd))
                 {
                     addr = pc + info.bytes;
@@ -306,6 +295,7 @@ namespace ReNes {
         //            log("%s %s\n", cmd.c_str(),  oper.c_str());
     }
     
+    // 以下指令从
     // 定义指令长度、CPU周期
     std::map<uint8_t, CmdInfo> CMD_LIST = {
 
@@ -649,9 +639,6 @@ namespace ReNes {
                 }
             }
             _interrupt_mtx.unlock();
-            
-            
-            
             
             // 从内存里面取出一条8bit指令，将PC移动到下一个内存地址
             uint8_t cmd = _mem->read8bitData(regs.PC);

@@ -16,8 +16,6 @@
 
 using namespace ReNes;
 
-
-
 @interface ViewController()<NSTabViewDelegate>
 {
     Nes* _nes;
@@ -228,6 +226,7 @@ using namespace ReNes;
 //        }
 //    });
     
+    _logView.editable = NO;
     _logView.font = [NSFont fontWithName:@"Courier" size:12];
     _memView.font = [NSFont fontWithName:@"Courier" size:12];
     _vramView.font = [NSFont fontWithName:@"Courier" size:12];

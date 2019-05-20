@@ -47,6 +47,7 @@ namespace ReNes {
     1、《超级玛丽》运动到一段画面后，精灵0出现错位闪烁
     2、未确定OAM里精灵的坐标y
     3、《超级玛丽》下管子
+    4、《超级玛丽》死完之后，无法重新开始，按键无效
      */
     
     // 系统调色板，网上有多种颜色风格
@@ -186,7 +187,8 @@ namespace ReNes {
         void init(Memory* mem)
         {
             _mem = mem;
-            _io_regs = (bit8*)mem->getIORegsAddr(); // 直接映射地址，不走mem请求，因为mem读写请求模拟了内存访问限制，那部分是留给cpu访问的
+            // 直接映射地址，不走mem请求，因为mem读写请求模拟了内存访问限制，那部分是留给cpu访问的
+            _io_regs = (bit8*)mem->getIORegsAddr();
             _mask_regs = (bit8*)&_io_regs[1];
             _status_regs = (bit8*)&_io_regs[2];
             
