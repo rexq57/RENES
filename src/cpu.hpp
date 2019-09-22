@@ -531,21 +531,20 @@ namespace ReNes {
             InterruptTypeReset  // 重置
         };
         
-        std::mutex _interrupt_mtx;
-        
         // 中断
         void interrupts(InterruptType type)
         {
-            std::lock_guard<std::mutex> lock(_interrupt_mtx);
-            
             bool hasInterrupts = false;
             {
                 // 检查中断是否允许被执行
                 switch(type)
                 {
                     case InterruptTypeNMI:
+                    {
                         // NMI中断可以被0x2000的第7位屏蔽，== 0 就是屏蔽，这里不通过read访问
-                        if (((bit8*)&_mem->masterData()[0x2000])->get(7) == 0) break;
+                        uint8_t data = get8bitData(0x2000);
+                        if (((bit8*)&data)->get(7) == 0) break;
+                    }
                     case InterruptTypeReset:
                         // 不可屏蔽中断
                         hasInterrupts = true;
@@ -578,7 +577,6 @@ namespace ReNes {
             RENES_REGS
             
             // 检查中断和处理中断
-            _interrupt_mtx.lock();
             {
                 // 处理中断
                 if (_currentInterruptType != InterruptTypeNone)
@@ -638,10 +636,9 @@ namespace ReNes {
                     }
                 }
             }
-            _interrupt_mtx.unlock();
             
             // 从内存里面取出一条8bit指令，将PC移动到下一个内存地址
-            uint8_t cmd = _mem->read8bitData(regs.PC);
+            uint8_t cmd = get8bitData(regs.PC);
             
             
             log("[%ld][%04X] cmd: %x => ", execCmdLine, regs.PC, cmd);
@@ -696,7 +693,7 @@ namespace ReNes {
         inline void SET_SIGN(int8_t src) { regs.P.set(__registers::N, src & 0x80 ? 1 : 0); };
         inline void SET_ZERO(int8_t src) { regs.P.set(__registers::Z, src == 0 ? 1 : 0); };
         inline void SET_OVERFLOW(bool src) { regs.P.set(__registers::V, src); };
-        inline void STORE(uint16_t addr, int8_t src) { _mem->write8bitData(addr, src); };
+        inline void STORE(uint16_t addr, int8_t src) { write8bitData(addr, src); };
         inline uint16_t REL_ADDR(uint16_t addr, int8_t src) const { return addr + src; };
         inline bool IF_CARRY() const { return regs.P.get(__registers::C); };
         inline bool IF_DECIMAL() const { return regs.P.get(__registers::D); };
@@ -1276,7 +1273,7 @@ namespace ReNes {
                     
                     if (!RENES_ARRAY_FIND(_noSrcAccess, info.cf))
                     {
-                        *src = (uint8_t)_mem->read8bitData(*address, true);
+                        *src = (uint8_t)read8bitData(*address);
                     }
                     
                     *dst = DST_M;
@@ -1310,7 +1307,7 @@ namespace ReNes {
                     break;
                 case DST_M:
                     // 如果写入目标是一个内存地址，就需要进行寻址
-                    _mem->write8bitData(address, value);
+                    write8bitData(address, value);
                     break;
                 default:
                     assert(!"error!");
@@ -1322,21 +1319,15 @@ namespace ReNes {
         inline
         uint16_t _getInterruptHandlerAddr(InterruptType interruptType) const
         {
-            // 函数地址是一个16bit数值，分别存储在两个8bit的内存上，这里定义一个结构体表示内存地址偏移
-            struct ADDR2{
-                uint16_t low;
-                uint16_t high;
+            const static std::map<int, uint16_t> handler = {
+                {InterruptTypeNMI, 0xFFFA},
+                {InterruptTypeReset, 0xFFFC},
+                {InterruptTypeIRQs, 0xFFFE},
+                {InterruptTypeBreak, 0xFFFE},
             };
             
-            const static std::map<int, ADDR2> handler = {
-                {InterruptTypeNMI, {0xFFFA, 0xFFFB}},
-                {InterruptTypeReset, {0xFFFC, 0xFFFD}},
-                {InterruptTypeIRQs, {0xFFFE, 0xFFFF}},
-                {InterruptTypeBreak, {0xFFFE, 0xFFFF}},
-            };
-            
-            const ADDR2& addr2 = handler.at(interruptType);
-            uint16_t interruptHandlerAddr = (_mem->read8bitData(addr2.high) << 8) + _mem->read8bitData(addr2.low);
+            const uint16_t& addr = handler.at(interruptType);
+            uint16_t interruptHandlerAddr = get16bitData(addr);
             return interruptHandlerAddr;
         }
         
@@ -1367,58 +1358,58 @@ namespace ReNes {
                 }
                 case ZERO_PAGE:
                 {
-                    addr = _mem->read8bitData(dataAddr);
+                    addr = get8bitData(dataAddr);
                     break;
                 }
                 case ZERO_PAGE_X:
                 {
-                    addr = (_mem->read8bitData(dataAddr) + regs.X) % 0x100; // [0, 255] 循环
+                    addr = (get8bitData(dataAddr) + regs.X) % 0x100; // [0, 255] 循环
                     break;
                 }
                 case ZERO_PAGE_Y:
                 {
-                    addr = (_mem->read8bitData(dataAddr) + regs.Y) % 0x100;
+                    addr = (get8bitData(dataAddr) + regs.Y) % 0x100;
                     break;
                 }
                 case INDEXED_ABSOLUTE:
                 {
-                    addr = _mem->get16bitData(dataAddr);
+                    addr = get16bitData(dataAddr);
                     break;
                 }
                 case INDEXED_ABSOLUTE_X:
                 {
-                    addr = _mem->get16bitData(dataAddr) + regs.X;
+                    addr = get16bitData(dataAddr) + regs.X;
                     break;
                 }
                 case INDEXED_ABSOLUTE_Y:
                 {
-                    addr = _mem->get16bitData(dataAddr) + regs.Y;
+                    addr = get16bitData(dataAddr) + regs.Y;
                     break;
                 }
                 case INDIRECT:
                 {
-                    auto oper = _mem->get16bitData(dataAddr);
+                    auto oper = get16bitData(dataAddr);
                     
                     // 6502 JMP Indirect bug
-                    if ((oper & 0xff) == 0xff && _mem->masterData()[regs.PC] == 0x6C) // 低字节是0xFF，高位就从当前页读取
+                    if ((oper & 0xff) == 0xff && get8bitData(regs.PC) == 0x6C) // 低字节是0xFF，高位就从当前页读取
                     {
-                        addr = _mem->read8bitData(oper) | (_mem->read8bitData(oper-0xff) << 8);
+                        addr = get8bitData(oper) | (get8bitData(oper-0xff) << 8);
                     }
                     else
                     {
-                        addr = _mem->get16bitData(oper);
+                        addr = get16bitData(oper);
                     }
                     
                     break;
                 }
                 case INDIRECT_X_INDEXED:
                 {
-                    addr = _mem->get16bitData((_mem->read8bitData(dataAddr) + regs.X) % 0x100);
+                    addr = get16bitData((get8bitData(dataAddr) + regs.X) % 0x100);
                     break;
                 }
                 case INDIRECT_INDEXED_Y:
                 {
-                    addr = _mem->get16bitData(_mem->read8bitData(dataAddr)) + regs.Y;
+                    addr = get16bitData(get8bitData(dataAddr)) + regs.Y;
                     break;
                 }
                 default:
@@ -1428,21 +1419,45 @@ namespace ReNes {
             
             if (dataAddr == addr)
             {
-                uint8_t* d = &_mem->masterData()[addr];
                 int dd;
                 if (data16bit)
-                    dd = (int)*((uint16_t*)d);
+                    dd = (int)get16bitData(addr);
                 else
-                    dd = (int)*d;
+                    dd = (int)get8bitData(addr);
                 
                 log("立即数 %X 值 %d\n", addr, dd);
             }
             else
             {
-                log("间接寻址 %X 值 %d\n", addr, (int)_mem->masterData()[addr]);
+                log("间接寻址 %X 值 %d\n", addr, (int)get8bitData(addr));
             }
             
             return addr;
+        }
+        
+        // 封装内存读写
+        inline
+        void write8bitData(uint16_t addr, uint8_t value)
+        {
+            _mem->write8bitData(addr, value);
+        }
+        
+        inline
+        uint8_t read8bitData(uint16_t addr)
+        {
+            return _mem->read8bitData(addr);
+        }
+        
+        inline
+        uint16_t get16bitData(uint16_t addr) const
+        {
+            return _mem->get16bitData(addr);
+        }
+        
+        inline
+        uint8_t get8bitData(uint16_t addr) const
+        {
+            return _mem->get8bitData(addr);
         }
         
         // 入栈
@@ -1450,7 +1465,7 @@ namespace ReNes {
         void push(uint8_t value)
         {
             uint16_t stack_addr = STACK_ADDR_OFFSET + regs.SP;
-            _mem->write8bitData(stack_addr, value);
+            write8bitData(stack_addr, value);
             regs.SP --;
         }
         
@@ -1459,7 +1474,7 @@ namespace ReNes {
         uint8_t pop()
         {
             regs.SP ++;
-            return _mem->read8bitData(STACK_ADDR_OFFSET + regs.SP);
+            return get8bitData(STACK_ADDR_OFFSET + regs.SP);
         }
 
         Memory* _mem;

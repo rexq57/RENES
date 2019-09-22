@@ -113,35 +113,35 @@ namespace ReNes {
         {
             RENES_ASSERT(index == 0 || index == 1);
             return const_cast<VRAM*>(this)->_getRealAddr(0x1000 * index);
-//            return &_data[0x1000 * index]; // 第3bit决定精灵图案表地址 0x0000或0x1000
+            // return &_data[0x1000 * index]; // 第3bit决定精灵图案表地址 0x0000或0x1000
         }
         
         // 背景调色板地址
         const uint8_t* bkPaletteAddress() const
         {
             return const_cast<VRAM*>(this)->_getRealAddr(0x3F00);
-//            return &_data[0x3F00];
+            // return &_data[0x3F00];
         }
         
         // 精灵调色板地址
         const uint8_t* sprPaletteAddress() const
         {
             return const_cast<VRAM*>(this)->_getRealAddr(0x3F10);
-//            return &_data[0x3F10];
+            // return &_data[0x3F10];
         }
         
         // 名称表地址
         const uint8_t* nameTableAddress(int index) const
         {
             return const_cast<VRAM*>(this)->_getRealAddr(0x2000 + index*0x0400);
-//            return &_data[0x2000 + index*0x0400];
+            //  return &_data[0x2000 + index*0x0400];
         }
         
         // 属性表地址
         const uint8_t* attributeTableAddress(int index) const
         {
             return const_cast<VRAM*>(this)->_getRealAddr(0x23C0 + index*0x0400);
-//            return &_data[0x23C0 + index*0x0400];
+            // return &_data[0x23C0 + index*0x0400];
         }
         
         // 得到名称表镜像index，支持检测互为镜像index

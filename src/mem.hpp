@@ -31,6 +31,7 @@ namespace ReNes {
         inline
         uint8_t* masterData()
         {
+//            return const_cast<Memory*>(this)->_getRealAddr(addr);
             return _data;
         }
         
@@ -52,7 +53,7 @@ namespace ReNes {
         
         // 读取数据
         inline
-        uint8_t read8bitData(uint16_t addr, bool event=false)
+        uint8_t read8bitData(uint16_t addr)
         {
             // 只在debug模式下检查内存错误，以提高release速度
 #ifdef DEBUG
@@ -74,13 +75,10 @@ namespace ReNes {
             
             auto data = *_getRealAddr(addr);
             
-            if (event)
+            // 检查地址监听
+            if (RENES_SET_FIND(addr8bitReadingObserver, addr))
             {
-                // 检查地址监听
-                if (RENES_SET_FIND(addr8bitReadingObserver, addr))
-                {
-                    addr8bitReadingObserver.at(addr)(addr, &data);
-                }
+                addr8bitReadingObserver.at(addr)(addr, &data);
             }
 
             return data;

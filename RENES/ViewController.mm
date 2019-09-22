@@ -364,7 +364,7 @@ using namespace ReNes;
         Memory* mem = _nes->mem();
         
         // 从内存里面取出一条8bit指令，将PC移动到下一个内存地址
-        cmd = mem->read8bitData(pc);
+        cmd = mem->get8bitData(pc);
         
         //    log("[%ld][%04X] cmd: %x => ", execCmdLine, pc, cmd);
         
