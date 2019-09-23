@@ -3531,7 +3531,7 @@ PPUTest
 .PPUError2
    jsr   WriteError
 ;-----------------------------
-.PPUTest3
+.PPUTest3		;在0x2081位置写入 30 31 32 33 34 35 36 37 38
    lda   #$20		;0xA79D
    sta   $2006
    lda   #$81
@@ -3544,7 +3544,7 @@ PPUTest
    cpx   #$39
    bne   .PPUWriteLoop3
 
-   ldx   $2007		;0xA7B1
+   ldx   $2007		;0xA7B1 x <= read[2007] 第一次应该无效
    lda   #$20
    sta   $2006
    lda   #$8a

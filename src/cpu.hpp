@@ -145,11 +145,7 @@ namespace ReNes {
         DST_M,
     };
     
-    const std::map<DST, std::string> REGS_NAME = {
-        {DST_REGS_A, "A"},
-        {DST_REGS_X, "X"},
-        {DST_REGS_Y, "Y"},
-    };
+    
     
     // 执行指令
     struct CmdInfo {
@@ -177,6 +173,13 @@ namespace ReNes {
         //            DST dst = info.dst;
         
         std::function<std::string(DST)> dstCode = [](DST dst){
+            
+            const std::map<DST, std::string> REGS_NAME = {
+                {DST_REGS_A, "A"},
+                {DST_REGS_X, "X"},
+                {DST_REGS_Y, "Y"},
+            };
+            
             if (RENES_SET_FIND(REGS_NAME, dst))
             {
                 return REGS_NAME.at(dst);
@@ -297,7 +300,7 @@ namespace ReNes {
     
     // 以下指令从
     // 定义指令长度、CPU周期
-    std::map<uint8_t, CmdInfo> CMD_LIST = {
+    const std::map<uint8_t, CmdInfo> CMD_LIST = {
 
         /* (immidiate) ADC #oper */ {0x69, {"ADC", CF_ADC, IMMIDIATE, 2, 2, 195}},
         /* (zeropage) ADC oper */ {0x65, {"ADC", CF_ADC, ZERO_PAGE, 2, 3, 195}},
@@ -491,8 +494,6 @@ namespace ReNes {
             
         }regs;
         
-        std::set<std::string> usedCmds;
-        
         // 错误标记
         bool error;
         
@@ -531,7 +532,7 @@ namespace ReNes {
             InterruptTypeReset  // 重置
         };
         
-        // 中断
+        // 触发中断
         void interrupts(InterruptType type)
         {
             bool hasInterrupts = false;
@@ -568,6 +569,69 @@ namespace ReNes {
             if (hasInterrupts) _currentInterruptType = type;
         }
         
+        // 处理中断
+        void process_interrupts()
+        {
+            RENES_REGS
+            
+            // 处理中断
+            if (_currentInterruptType != InterruptTypeNone)
+            {
+                // 获取中断处理函数地址
+                uint16_t interruptHandlerAddr = _getInterruptHandlerAddr(_currentInterruptType);
+                {
+                    log("中断函数地址: %04X\n", interruptHandlerAddr);
+                    
+                    // 地址修正
+                    if (interruptHandlerAddr == 0)
+                        interruptHandlerAddr = 0x8000;
+                }
+                
+                // 跳转到中断向量指向的处理函数地址
+                {
+                    // Reset 不需要保存现场
+                    if (_currentInterruptType != InterruptTypeReset)
+                    {
+                        if (_currentInterruptType == InterruptTypeBreak)
+                        {
+                            PC ++; // break 返回地址会+1，所以这里先增加
+                            //                                printf("break 入栈PC %x\n", PC);
+                        }
+                        
+                        push((PC >> 8) & 0xff);    /* Push return address onto the stack. */
+                        push(PC & 0xff);
+                        SET_BREAK((1));             /* Set BFlag before pushing */
+                        
+                        // 在推入之前修改状态
+                        switch(_currentInterruptType)
+                        {
+                            case InterruptTypeBreak:
+                            {
+                                push(SR | 0x30); // 4,5 = 1
+                                break;
+                            }
+                            case InterruptTypeNMI:
+                            case InterruptTypeIRQs:
+                            {
+                                push(SR | 0x10); // 4 = 1
+                                break;
+                            }
+                            default:
+                                break;
+                        }
+                    }
+                    
+                    // 设置中断屏蔽标志(I)防止新的中断进来
+                    SET_INTERRUPT((1));
+                    
+                    // 取消中断标记
+                    _currentInterruptType = InterruptTypeNone;
+                    
+                    PC = interruptHandlerAddr;
+                }
+            }
+        }
+        
         // 执行指令，返回当前指令所需的cpu周期数（周期数来自CMD_LIST定义）
         int exec()
         {
@@ -577,80 +641,23 @@ namespace ReNes {
             RENES_REGS
             
             // 检查中断和处理中断
-            {
-                // 处理中断
-                if (_currentInterruptType != InterruptTypeNone)
-                {
-                    // 获取中断处理函数地址
-                    uint16_t interruptHandlerAddr = _getInterruptHandlerAddr(_currentInterruptType);
-                    {
-                        log("中断函数地址: %04X\n", interruptHandlerAddr);
-                        
-                        // 地址修正
-                        if (interruptHandlerAddr == 0)
-                            interruptHandlerAddr = 0x8000;
-                    }
-                    
-                    // 跳转到中断向量指向的处理函数地址
-                    {
-                        // Reset 不需要保存现场
-                        if (_currentInterruptType != InterruptTypeReset)
-                        {
-                            if (_currentInterruptType == InterruptTypeBreak)
-                            {
-                                PC ++; // break 返回地址会+1，所以这里先增加
-//                                printf("break 入栈PC %x\n", PC);
-                            }
-                            
-                            push((PC >> 8) & 0xff);    /* Push return address onto the stack. */
-                            push(PC & 0xff);
-//                            push(*(uint8_t*)&regs.P);
-//                            SET_BREAK((1));             /* Set BFlag before pushing */
-                            
-                            // 在推入之前修改状态
-                            switch(_currentInterruptType)
-                            {
-                                case InterruptTypeBreak:
-                                {
-                                    push(SR | 0x30); // 4,5 = 1
-                                    break;
-                                }
-                                case InterruptTypeNMI:
-                                case InterruptTypeIRQs:
-                                {
-                                    push(SR | 0x10); // 4 = 1
-                                    break;
-                                }
-                                default:
-                                    break;
-                            }
-                        }
-                        
-                        // 设置中断屏蔽标志(I)防止新的中断进来
-                        regs.P.set(__registers::I, 1);
-                        
-                        // 取消中断标记
-                        _currentInterruptType = InterruptTypeNone;
-                        
-                        PC = interruptHandlerAddr;
-                    }
-                }
-            }
+            process_interrupts();
             
             // 从内存里面取出一条8bit指令，将PC移动到下一个内存地址
             uint8_t cmd = get8bitData(regs.PC);
             
-            
             log("[%ld][%04X] cmd: %x => ", execCmdLine, regs.PC, cmd);
             
+#ifdef RENES_DEBUG
             if (!RENES_SET_FIND(CMD_LIST, cmd))
             {
                 log("未知的指令！");
                 error = true;
                 return 0;
             }
+#endif
             
-            auto& info = CMD_LIST.at(cmd);
+            const auto& info = CMD_LIST.at(cmd);
             
             if (this->debug)
             {
@@ -663,7 +670,7 @@ namespace ReNes {
             // 检查内存错误
             error = _mem->error;
 
-#ifdef DEBUG
+#ifdef RENES_DEBUG
             log("A: %d X: %d Y: %d P: %d - ", regs.A, regs.X, regs.Y, regs.P);
             for (int i=0; i<8; i++)
             {
@@ -701,6 +708,8 @@ namespace ReNes {
         inline bool IF_SIGN() const { return regs.P.get(__registers::N); };
         inline bool IF_OVERFLOW() const { return regs.P.get(__registers::V); };
         
+        inline void SET_BREAK(int src) { regs.P.set(__registers::B, src != 0 ? 1 : 0); };
+        
         //////////////////////////////////////////////////////////////////
         
         inline
@@ -714,7 +723,10 @@ namespace ReNes {
             uint16_t address = 0;
             
             // 发生错误的话（可能由部分监听器阻止）, 这里检测实现错误
-            _addressing(info, &dst, &src, &address);
+            bool valid;
+            _addressing(info, &dst, &src, &address, &valid);
+            if (!valid)
+                return;
             
             switch(info.cf)
             {
@@ -1036,7 +1048,7 @@ namespace ReNes {
                 }
                 case CF_PHP:
                 {
-                    //                                push(*(uint8_t*)&SR);
+                    // push(*(uint8_t*)&SR);
                     src = SR | 0x30; // P入栈需要设置副本第4、5bit为1，而自身不变(https://wiki.nesdev.com/w/index.php/CPU_status_flag_behavior)
                     push(src);
                     break;
@@ -1246,7 +1258,7 @@ namespace ReNes {
         
         // 寻址操作，得到 目标、源数据、地址
         inline
-        void _addressing(const CmdInfo& info, DST* dst, unsigned int* src, uint16_t* address)
+        void _addressing(const CmdInfo& info, DST* dst, unsigned int* src, uint16_t* address, bool* valid)
         {
             RENES_REGS
             
@@ -1273,7 +1285,7 @@ namespace ReNes {
                     
                     if (!RENES_ARRAY_FIND(_noSrcAccess, info.cf))
                     {
-                        *src = (uint8_t)read8bitData(*address);
+                        *src = (uint8_t)read8bitData(*address, valid);
                     }
                     
                     *dst = DST_M;
@@ -1331,10 +1343,7 @@ namespace ReNes {
             return interruptHandlerAddr;
         }
         
-        void SET_BREAK(int src)
-        {
-            regs.P.set(__registers::B, src != 0 ? 1 : 0);
-        };
+        
 
         // 内存寻址，得到操作数所在的地址
         inline
@@ -1443,9 +1452,9 @@ namespace ReNes {
         }
         
         inline
-        uint8_t read8bitData(uint16_t addr)
+        uint8_t read8bitData(uint16_t addr, bool* valid)
         {
-            return _mem->read8bitData(addr);
+            return _mem->read8bitData(addr, valid);
         }
         
         inline

@@ -9,6 +9,7 @@ namespace ReNes {
     
 #ifdef DEBUG
 #define RENES_ASSERT(...) assert(__VA_ARGS__)
+#define RENES_DEBUG
 #else
 #define RENES_ASSERT(...)
 #endif
@@ -42,8 +43,6 @@ namespace ReNes {
         
         return true;
     }
-    
-#define RENES_DEBUG
     
 #ifdef RENES_DEBUG
     #define log(...) _log(__VA_ARGS__)
