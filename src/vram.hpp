@@ -238,7 +238,7 @@ namespace ReNes {
                 }
             }
 
-            return &_data[addr];
+            return &_data[addr % 0x4000];
         }
         
         uint8_t* _data = 0;

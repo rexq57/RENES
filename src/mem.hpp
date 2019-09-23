@@ -154,7 +154,8 @@ namespace ReNes {
                 addr = addr % 0x0800;
             }
 
-            return _data + addr;
+//            return _data + addr;
+            return &_data[addr % 0x10000];
         }
         
         
