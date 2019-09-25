@@ -6,14 +6,16 @@
 
 
 namespace ReNes {
-
+    
     struct Memory{
+        
+        const static int DEFUALT_SIZE = 0x10000;
 
         Memory()
         {
             // 申请内存
-            _data = (uint8_t*)malloc(0x10000);
-            memset(_data, 0, 0x10000);
+            _data = (uint8_t*)malloc(DEFUALT_SIZE);
+            memset(_data, 0, DEFUALT_SIZE);
         }
         
         ~Memory()
@@ -155,7 +157,7 @@ namespace ReNes {
             }
 
 //            return _data + addr;
-            return &_data[addr % 0x10000];
+            return &_data[addr % DEFUALT_SIZE];
         }
         
         

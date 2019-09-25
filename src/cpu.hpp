@@ -19,8 +19,10 @@ namespace ReNes {
     #define PRG_ROM_LOWER_BANK_OFFSET 0x8000
     #define PRG_ROM_UPPER_BANK_OFFSET 0xC000
     
+    // 栈偏移地址
     #define STACK_ADDR_OFFSET 0x0100
     
+    // 寄存器引用
     #define RENES_REGS auto& AC = regs.A;auto& XR = regs.X;auto& YR = regs.Y;auto& SP = regs.SP;auto& PC = regs.PC;auto& SR = *(uint8_t*)&regs.P;(void)AC;(void)XR;(void)YR;(void)SP;(void)PC;(void)SR;
 
     // 寻址模式
@@ -52,18 +54,6 @@ namespace ReNes {
         DATA_VALUE,
     };
     
-    enum InsParam {
-        
-        PARAM_NONE,
-        
-        PARAM_0,
-        PARAM_1,
-        
-        PARAM_REGS_A,
-        PARAM_REGS_X,
-        PARAM_REGS_Y,
-    };
-    
     template< typename T >
     std::string int_to_hex( T i )
     {
@@ -74,6 +64,7 @@ namespace ReNes {
         return stream.str();
     }
     
+    // 指令标记
     enum CF{
         
         CF_NON,
@@ -122,7 +113,7 @@ namespace ReNes {
         CF_ROR,
     };
     
-    
+    // 操作数目标
     enum DST{
         
         DST_NONE,
@@ -150,27 +141,20 @@ namespace ReNes {
     // 执行指令
     struct CmdInfo {
         
-        std::string name;
+        const char* name; // std::string name;
         CF cf;
         AddressingMode mode;
         
-        int bytes;
-        int cycles;
-        
-        int flags; // 寄存器影响标签，用于检查执行错误
+        int bytes;  // 长度
+        int cycles; // CPU周期
+        int flags;  // 寄存器影响标签，用于检查执行错误
     };
     
-    /**
-     根据目标打印指令日志
-     
-     @param info 目标
-     */
+    // 根据目标打印指令日志
     std::string cmd_str(CmdInfo info, uint16_t pc, Memory* mem)
     {
         const std::string& cmd = info.name;
         AddressingMode mode = info.mode;
-        
-        //            DST dst = info.dst;
         
         std::function<std::string(DST)> dstCode = [](DST dst){
             
@@ -298,8 +282,6 @@ namespace ReNes {
         //            log("%s %s\n", cmd.c_str(),  oper.c_str());
     }
     
-    // 以下指令从
-    // 定义指令长度、CPU周期
     const std::map<uint8_t, CmdInfo> CMD_LIST = {
 
         /* (immidiate) ADC #oper */ {0x69, {"ADC", CF_ADC, IMMIDIATE, 2, 2, 195}},
@@ -459,8 +441,8 @@ namespace ReNes {
     struct CPU {
         
         // 标准
-        constexpr const static double StandardFrequency = 1.789773; // 标准频率 1.79Mhz
-        const static uint32_t TimePerCpuCycle = (1.0/(1024*1000*StandardFrequency)) * 1e9 ; // 每个CPU时钟为 572 ns
+        // constexpr const static double StandardFrequency = 1.789773; // 标准频率 1.79Mhz
+        // const static uint32_t TimePerCpuCycle = (1.0/(1024*1000*StandardFrequency)) * 1e9 ; // 每个CPU时钟为 572 ns
         
         // 用于调试
         bool debug = false;
@@ -569,7 +551,7 @@ namespace ReNes {
             if (hasInterrupts) _currentInterruptType = type;
         }
         
-        // 处理中断
+        // 处理中断信号
         void process_interrupts()
         {
             RENES_REGS
@@ -589,7 +571,7 @@ namespace ReNes {
                 
                 // 跳转到中断向量指向的处理函数地址
                 {
-                    // Reset 不需要保存现场
+                    // 保存现场(Reset不需要)
                     if (_currentInterruptType != InterruptTypeReset)
                     {
                         if (_currentInterruptType == InterruptTypeBreak)
@@ -624,11 +606,12 @@ namespace ReNes {
                     // 设置中断屏蔽标志(I)防止新的中断进来
                     SET_INTERRUPT((1));
                     
-                    // 取消中断标记
-                    _currentInterruptType = InterruptTypeNone;
-                    
+                    // PC指针设置到中断函数地址
                     PC = interruptHandlerAddr;
                 }
+                
+                // 中断信号处理完成，取消中断标记
+                _currentInterruptType = InterruptTypeNone;
             }
         }
         
@@ -723,9 +706,7 @@ namespace ReNes {
             uint16_t address = 0;
             
             // 发生错误的话（可能由部分监听器阻止）, 这里检测实现错误
-            bool valid;
-            _addressing(info, &dst, &src, &address, &valid);
-            if (!valid)
+            if (!_addressing(info, &dst, &src, &address))
                 return;
             
             switch(info.cf)
@@ -1257,10 +1238,13 @@ namespace ReNes {
         }
         
         // 寻址操作，得到 目标、源数据、地址
+        // 返回是否有效
         inline
-        void _addressing(const CmdInfo& info, DST* dst, unsigned int* src, uint16_t* address, bool* valid)
+        bool _addressing(const CmdInfo& info, DST* dst, unsigned int* src, uint16_t* address)
         {
             RENES_REGS
+            
+            bool valid = true;
             
             auto mode = info.mode;
             switch(mode)
@@ -1285,7 +1269,7 @@ namespace ReNes {
                     
                     if (!RENES_ARRAY_FIND(_noSrcAccess, info.cf))
                     {
-                        *src = (uint8_t)read8bitData(*address, valid);
+                        *src = (uint8_t)read8bitData(*address, &valid);
                     }
                     
                     *dst = DST_M;
@@ -1295,6 +1279,8 @@ namespace ReNes {
             
             // 由于读取操作码会变更PC，读取操作数也会变更PC，所以这里统一移动PC指针到下一条指令位置
             PC += info.bytes;
+            
+            return valid;
         }
         
         // 将值写入目标

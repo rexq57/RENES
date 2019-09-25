@@ -286,16 +286,27 @@ namespace ReNes {
                         *value = _sprram[_dstAddr2004++ % 256];
                         break;
                     case 0x2007:
-                        // 据说第一次读取的值是无效的，会缓冲到下一次读取才返回
-                        if (_2007ReadingStep == 0)
+                        // (从调色板之前的地址读取 [0, 3EFF] )第一次读取的值是无效的，会缓冲到下一次读取才返回
+                        if (_v <= 0x3EFF)
                         {
-                            *valid = false;
+                            if (_2007ReadingStep == 0)
+                            {
+                                *valid = false;
+                            }
+                            else
+                            {
+                                *value = _2007ReadingCache;
+                            }
+                            
+                            _2007ReadingCache = _vram->read8bitData(_v);
                         }
                         else
                         {
+                            _2007ReadingCache = _vram->read8bitData(_v);
+//                            printf("addr: %x %d\n", _v, _2007ReadingCache);
                             *value = _2007ReadingCache;
                         }
-                        _2007ReadingCache = _vram->read8bitData(_v);
+                        
                         _v += _io_regs[0].get(2) == 0 ? 1 : 32;
                         _2007ReadingStep = 1;
                         break;
@@ -360,6 +371,9 @@ namespace ReNes {
             memcpy(_OAM, _sprram, 256);
             _io_regs[0].set(0, 0);
             _io_regs[0].set(1, 0);
+            
+            // 更新调色板镜像
+            _vram->updatePaletteMirror();
             
             // 设置背景色
             

@@ -25,11 +25,13 @@ namespace ReNes {
     
     struct VRAM{
         
+        const static int DEFUALT_SIZE = 0x4000;
+        
         VRAM()
         {
             // 申请内存 16KB
-            _data = (uint8_t*)malloc(0x4000);
-            memset(_data, 0, 0x4000);
+            _data = (uint8_t*)malloc(DEFUALT_SIZE);
+            memset(_data, 0, DEFUALT_SIZE);
             
             // 设置镜像
             addMirroring(&_data[0x2000], 0x3000, 0x3EFF); // 名称表镜像
@@ -64,37 +66,49 @@ namespace ReNes {
             return data;
         }
         
+        inline
+        void updatePaletteMirror()
+        {
+            _data[0x3F00] = _data[0x3F10];
+            
+            // 当写入精灵调色板第一位时，设置好其他镜像
+            for (int i=0; i<8; i++)
+            {
+                if (i != 0 && i != 4)
+                    _data[0x3F00 + i*4] = _data[0x3F10];
+            }
+        }
+        
         // 写入数据
         inline
         void write8bitData(uint16_t addr, uint8_t value)
         {
             *_getRealAddr(addr) = value;
             
-            // 处理调色板第一位的镜像
-//            if (access == WRITE)
-            {
-                // 可能需要一个物理地址监控。设置镜像写入关联 -> 物理地址监控.写入事件
-                if (addr >= 0x3F00 && addr < 0x3F20)
-                {
-                    // 第一组调色板的0号颜色被作为整个屏幕背景的默认颜色，其他每组的第0号颜色都会跟背景颜色一样，也可以说这些颜色是透明的，所以会显示背景颜色（图中也可以见到），因此实际上调色板最多可标示颜色25种。
-                    //                    if (addr != 0x3F00 || addr != 0x3F10) ?
-                    
-                    if (addr == 0x3F10)
-                        _updateBkColor = true;
-                    
-                    if (_updateBkColor)
-                    {
-                        _data[0x3F00] = _data[0x3F10];
-                    }
-                    
-                    // 当写入精灵调色板第一位时，设置好其他镜像
-                    for (int i=0; i<8; i++)
-                    {
-                        if (i != 0 && i != 4)
-                            _data[0x3F00 + i*4] = _data[0x3F10];
-                    }
-                }
-            }
+//            // 处理调色板镜像
+//            {
+//                // 可能需要一个物理地址监控。设置镜像写入关联 -> 物理地址监控.写入事件
+//                if (addr >= 0x3F00 && addr < 0x3F20)
+//                {
+//                    // 第一组调色板的0号颜色被作为整个屏幕背景的默认颜色，其他每组的第0号颜色都会跟背景颜色一样，也可以说这些颜色是透明的，所以会显示背景颜色（图中也可以见到），因此实际上调色板最多可标示颜色25种。
+//                    //                    if (addr != 0x3F00 || addr != 0x3F10) ?
+//
+//                    if (addr == 0x3F10)
+//                        _updateBkColor = true;
+//
+//                    if (_updateBkColor)
+//                    {
+//                        _data[0x3F00] = _data[0x3F10];
+//                    }
+//
+//                    // 当写入精灵调色板第一位时，设置好其他镜像
+//                    for (int i=0; i<8; i++)
+//                    {
+//                        if (i != 0 && i != 4)
+//                            _data[0x3F00 + i*4] = _data[0x3F10];
+//                    }
+//                }
+//            }
         }
         
         void loadPetternTable(const uint8_t* addr)
@@ -238,7 +252,7 @@ namespace ReNes {
                 }
             }
 
-            return &_data[addr % 0x4000];
+            return &_data[addr % DEFUALT_SIZE];
         }
         
         uint8_t* _data = 0;

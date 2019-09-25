@@ -3825,7 +3825,7 @@ PPUTest
    jsr   WriteError
 ;-----------------------------
 .PPUTest8
-   lda   #$3F
+   lda   #$3F		; 0xAA4C 在3F05写入 33 34 35 36 37 38
    sta   $2006
    lda   #$05
    sta   $2006
@@ -3837,24 +3837,24 @@ PPUTest
    cpx   #$3A
    bne   .PPUWriteLoop8
 
-   lda   #$3F
+   lda   #$3F		; [0x2006] = 3F25(3F05)
    sta   $2006
    lda   #$25
    sta   $2006
 
-   ldx   #$33
-   stx   $04
-   ldy   #7
+   ldx   #$33		; x = 0x33
+   stx   $04		; [0x4] = x
+   ldy   #7		; y = 7
 
    lda   #$22		; Where the msg prints.
    sta   $02
    lda   #$FB
    sta   $03
 .PPUReadLoop8
-   lda   $2007
-   cmp   $04
+   lda   $2007		; 0xAA78 a = [0x2007]
+   cmp   $04		; if a != 0x33: goto PPUPalNES8
    bne   .PPUPalNES8
-   inc   $04
+   inc   $04		; [0x4] ++
    dey
    bne   .PPUReadLoop8
 
