@@ -85,7 +85,7 @@ namespace ReNes {
             const uint8_t* vromBase = romBase + bankSize*rom16kB_count;
             
             // 将PRG ROM载入内存
-            for (int i=0; i<rom16kB_count; i++)
+            for (int i=0; i<2; i++)
             {
                 // 获取rom地址
                 const uint8_t* romAddrs[2] = {romBase, romBase + bankSize}; {
