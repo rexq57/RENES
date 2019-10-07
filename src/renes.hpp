@@ -36,19 +36,30 @@ namespace ReNes {
         void stop()
         {
             _stoped = true;
-            
-            //            _stopedCallback = stopedCallback;
         }
         
         // 加载rom
         void loadRom(const uint8_t* rom, size_t length)
         {
-            // 解析头文件
-            int rom16kB_count = rom[4];
-            int vrom8kB_count = rom[5];
+            /*
+            // iNES格式 https://wiki.nesdev.com/w/index.php/INES
+             iNES file format
+             An iNES file consists of the following sections, in order:
+
+             1. Header (16 bytes)
+             2. Trainer, if present (0 or 512 bytes)
+             3. PRG ROM data (16384 * x bytes)
+             4. CHR ROM data, if present (8192 * y bytes)
+             5. PlayChoice INST-ROM, if present (0 or 8192 bytes)
+             6. PlayChoice PROM, if present (16 bytes Data, 16 bytes CounterOut) (this is often missing, see PC10 ROM-Images for details)
+             */
             
-            bit8 b8_6 = *(bit8*)&rom[6];
-            bit8 b8_7 = *(bit8*)&rom[7];
+            // 解析头文件 (16字节，前3字节是"NES"字符)
+            int rom16kB_count = rom[4];
+            int vrom8kB_count = rom[5]; // 如果为0，表明主板将使用板载CHR内存
+            
+            bit8 flags6 = *(bit8*)&rom[6];
+            bit8 flags7 = *(bit8*)&rom[7];
             
             printf("文件长度 %zu\n", length);
             
@@ -58,58 +69,50 @@ namespace ReNes {
                    [7] 保留0: %d %d %d %d ROM Mapper高4位: %d %d %d %d\n\
                    [8-F] 保留8字节0: %d %d %d %d %d %d %d %d\n\
                    [16]\n",
-                   rom16kB_count, rom[5],
-                   b8_6.get(0), b8_6.get(1), b8_6.get(2), b8_6.get(3), b8_6.get(4), b8_6.get(5), b8_6.get(6), b8_6.get(7),
-                   b8_7.get(0), b8_7.get(1), b8_7.get(2), b8_7.get(3), b8_7.get(4), b8_7.get(5), b8_7.get(6), b8_7.get(7),
+                   rom[4], rom[5],
+                   flags6.get(0), flags6.get(1), flags6.get(2), flags6.get(3), flags6.get(4), flags6.get(5), flags6.get(6), flags6.get(7),
+                   flags7.get(0), flags7.get(1), flags7.get(2), flags7.get(3), flags7.get(4), flags7.get(5), flags7.get(6), flags7.get(7),
                    rom[8], rom[9], rom[10], rom[11], rom[12], rom[13], rom[14], rom[15]);
             
-            // 将rom载入内存
-            //            for (int i=0; i<rom16kB_count; i++)
-            //            {
-            //                const uint8_t* romAddr = &rom[16];
-            //
-            //                memcpy(_mem.masterData() + PRG_ROM_LOWER_BANK_OFFSET, romAddr, 1024*16);
-            //
-            //                // 如果只有1个16kB的bank，则需要再复制一份到0xC000处，让中断向量能够在0xFFFA出现
-            //                if (rom16kB_count == 1)
-            //                {
-            //                    memcpy(_mem.masterData() + PRG_ROM_UPPER_BANK_OFFSET, romAddr, 1024*16);
-            //                }
-            //            }
-            if (rom16kB_count == 1)
-            {
-                const uint8_t* romAddr = &rom[16];
-                
-                memcpy(_mem.masterData() + PRG_ROM_LOWER_BANK_OFFSET, romAddr, 1024*16);
-                
-                // 如果只有1个16kB的bank，则需要再复制一份到0xC000处，让中断向量能够在0xFFFA出现
-                memcpy(_mem.masterData() + PRG_ROM_UPPER_BANK_OFFSET, romAddr, 1024*16);
-            }
-            else
-            {
-                for (int i=0; i<rom16kB_count && i < 2; i++)
-                {
-                    const uint8_t* romAddr = &rom[16 + 1024*16*i];
-                    
-                    memcpy(_mem.masterData() + PRG_ROM_LOWER_BANK_OFFSET + 1024*16*i, romAddr, 1024*16);
-                }
-            }
+            // 只支持 1 or 2 个16kB rom
+            RENES_ASSERT(rom16kB_count > 0 && rom16kB_count <= 2);
             
+            // 每个bank尺寸是16kB
+            const int bankSize = 1024*16;
+            const int vromSize = 1024*8;
+            
+            const uint8_t* romBase = &rom[16];
+            const uint8_t* vromBase = romBase + bankSize*rom16kB_count;
+            
+            // 将PRG ROM载入内存
+            for (int i=0; i<rom16kB_count; i++)
+            {
+                // 获取rom地址
+                const uint8_t* romAddrs[2] = {romBase, romBase + bankSize}; {
+                    // 如果只有1个16kB的bank，则需要再复制一份（第二份出现在0xC000处，中断向量在每个RPG ROM最后，这里0xFFFA）
+                    if (rom16kB_count == 1)
+                        romAddrs[1] = romBase;
+                }
+                
+                _mem.loadPRGRom(romAddrs, i);
+            }
             
             // 将图案表数据载入VRAM
             for (int i=0; i<vrom8kB_count; i++)
             {
-                const uint8_t* vromAddr = &rom[16+1024*16*rom16kB_count + 1024*8*i];
-                
+                const uint8_t* vromAddr = vromBase + vromSize*i;
                 _ppu.loadPetternTable(vromAddr);
             }
+            
+            // 设置镜像模式
+            _ppu.initMirroring((PPU::MIRRORING_MODE)flags6.get(0));
         }
         
         
         // 执行当前指令
         void run() {
             
-            _runningThread = std::thread(runWrapper, this);
+            _runningThread = std::thread(_runWrapper, this);
         }
         
         void setDebug(bool debug)
@@ -126,47 +129,32 @@ namespace ReNes {
         float cmd_interval = 0;
         
         
-        CPU* cpu()
-        {
-            return &_cpu;
-        }
+        inline CPU* cpu() { return &_cpu; }
         
-        PPU* ppu()
-        {
-            return &_ppu;
-        }
+        inline PPU* ppu() { return &_ppu; }
         
-        Memory* mem()
-        {
-            return &_mem;
-        }
+        inline Memory* mem() { return &_mem; }
+
+        inline Control* ctr() { return &_ctr; }
         
-        Control* ctr()
-        {
-            return &_ctr;
-        }
+        inline long cpuCycleTime() const { return _cpuCycleTime; }
         
-        inline
-        long cpuCycleTime() const { return _cpuCycleTime; }
-        
-        inline
-        long renderTime() const { return _renderTime; }
+        inline long renderTime() const { return _renderTime; }
         
         // 每帧花费时间: 纳秒
-        inline
-        long perFrameTime() const { return _perFrameTime; }
+        inline long perFrameTime() const { return _perFrameTime; }
+        
+        inline bool isRunning() const {return _isRunning;};
         
         // 回调函数
         std::function<bool(CPU*)> cpu_callback;
         std::function<bool(PPU*)> ppu_displayCallback;
         std::function<void()> willRunning;
         
-        bool isRunning() const {return _isRunning;};
-        
     private:
         
         static
-        void runWrapper(Nes* nes) {
+        void _runWrapper(Nes* nes) {
             
             nes->_run();
         }
@@ -225,8 +213,9 @@ namespace ReNes {
             });
             //-----------------------------------
             
-            // CPU周期线程
-            std::thread cpu_thread = std::thread([this](){
+            // CPU周期线程 (不用创建线程)
+//            std::thread cpu_thread = std::thread([this](){
+            {
                 
                 bool isFirstCPUCycleForFrame = true;
                 std::chrono::steady_clock::time_point firstTime;
@@ -295,10 +284,11 @@ namespace ReNes {
                     
                 }while(cpu_callback(&_cpu) && !_stoped);
                 
-            });
+//            });
+            }
             
             // 等待线程结束
-            cpu_thread.join();
+//            cpu_thread.join();
             
             if (_cpu.error)
             {
@@ -308,13 +298,7 @@ namespace ReNes {
             {
                 log("模拟器正常退出!\n");
             }
-            
-            if (_stopedCallback != 0)
-            {
-                _stopedCallback();
-            }
         }
-        
         
         bool _isRunning = false;
         
@@ -329,7 +313,6 @@ namespace ReNes {
         long _perFrameTime;
         
         bool _stoped;
-        std::function<void()> _stopedCallback;
         
         std::thread _runningThread;
     };

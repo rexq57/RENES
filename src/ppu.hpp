@@ -4,6 +4,9 @@
 #include "vram.hpp"
 #include "mem.hpp"
 
+// 优化的显示模式
+#define RENES_BK_MODE_OPT
+
 /*
  NTSC（2C02）
  主时钟周期是 21.477272 MHz±40 Hz
@@ -118,6 +121,11 @@ namespace ReNes {
         
     public:
         
+        enum MIRRORING_MODE{
+            MIRRORING_MODE_HORIZONTAL = VRAM::MIRRORING_MODE_HORIZONTAL,
+            MIRRORING_MODE_VERTICAL = VRAM::MIRRORING_MODE_HORIZONTAL
+        };
+        
         std::string testLog;
         
         const uint8_t* sprram() const
@@ -155,8 +163,8 @@ namespace ReNes {
             _spr0buffer = (uint8_t*)malloc(SPR_BUFFER_LENGTH);
             
             // 卷轴缓冲区
-            _scrollBuffer = (uint8_t*)malloc(DISPLAY_BUFFER_LENGTH*4);
-            _scrollBufferRGB = (uint8_t*)malloc(DISPLAY_BUFFER_LENGTH*4);
+            _scrollBuffer = (uint8_t*)malloc(DISPLAY_BUFFER_PIXEL_CONUT*4); // 4个表，像素单位是1字节，存储4bit的调色板下标
+            _scrollBufferRGB = (uint8_t*)malloc(DISPLAY_BUFFER_LENGTH*4); // 4个表，像素单位是4字节，前3字节存储RGB
             
             _vram = new VRAM();
             
@@ -286,7 +294,7 @@ namespace ReNes {
                         *value = _sprram[_dstAddr2004++ % 256];
                         break;
                     case 0x2007:
-                        // (从调色板之前的地址读取 [0, 3EFF] )第一次读取的值是无效的，会缓冲到下一次读取才返回
+                        // (从调色板之前的地址读取 [0, 3EFF] ) 第一次读取的值是无效的，会缓冲到下一次读取才返回
                         if (_v <= 0x3EFF)
                         {
                             if (_2007ReadingStep == 0)
@@ -359,6 +367,11 @@ namespace ReNes {
             
             // DMA拷贝监听
             mem->addWritingObserver(0x4014, writtingObserver);
+        }
+        
+        void initMirroring(MIRRORING_MODE mode)
+        {
+            _vram->initMirroring((VRAM::MIRRORING_MODE)mode);
         }
         
         // 预渲染
@@ -492,8 +505,7 @@ namespace ReNes {
                     drawSprBuffer(_spr0buffer, spr->x, spr->y+1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
             }
             
-            // test 暂时全部绘制
-            if (true)
+            // 绘制全部名称表到_scrollBuffer，可用于 to RGB buffer，以及优化的显示模式下的像素叠加
             {
                 // 设置帧空白
                 memset(_display_buffer, 0, DISPLAY_BUFFER_LENGTH);
@@ -512,11 +524,11 @@ namespace ReNes {
                     if (updatedNameTableIndex[i])
                         continue;
                     
-                    // 遍历里面32x30字节，更新其中 == index 的项目
+                    // 遍历里面32x30字节，更新其中 == index 的项目（这里等于全部刷新）
                     updateBackgroundTile(i, 0, 0, 32, 30);
                     updatedNameTableIndex[i] = true;
                     
-                    // 检查其镜像，有，则加入
+                    // 检查其镜像，有，则进行数据拷贝
                     int mirroringIndex = _vram->nameTableMirroring(i);
                     if (mirroringIndex != i)
                     {
@@ -537,6 +549,7 @@ namespace ReNes {
                     }
                 }
             }
+
 
             _scanline_y = 0;
         }
@@ -664,11 +677,7 @@ namespace ReNes {
                     //                        continue;
                     //                    }
                     
-                    // 背景不支持tile翻转，精灵才支持，这里作差别提示
-                    // bool flipV = false;
-                    // bool flipH = false;
-                    // int tx_ = flipH ? tx : 7-tx;
-                    // int ty_ = flipV ? 7-ty : ty;
+
                     
                     int first_tile_x = (line_x + bk_t_x)/8 + bk_offset_x; // [屏幕扫描]
                     
@@ -682,9 +691,17 @@ namespace ReNes {
                     int bk_systemPaletteUnitIndex;
                     
                     int bk_peletteIndex;
-                    //                    #define RENES_BK_MODE_0
-#ifdef RENES_BK_MODE_0
+                    
+#ifndef RENES_BK_MODE_OPT
                     {
+                        const uint8_t* bkPetternTableAddr = _bkPetternTableAddress();
+                        
+                        // 背景不支持tile翻转，精灵才支持，这里作差别提示
+                         bool flipV = false;
+                         bool flipH = false;
+                         int tx_ = flipH ? tx : 7-tx;
+                         int ty_ = flipV ? 7-ty : ty;
+                        
                         /*
                          调色板
                          0x3F00 16字节
@@ -761,6 +778,7 @@ namespace ReNes {
                         bk_peletteIndex = peletteIndex.merge();
                     }
 #else
+                    // 优化模式：直接使用_scrollBuffer已经计算好的调色表下标数据
                     {
                         // 瓦片绝对坐标 = 屏幕坐标 + 瓦片偏移(含精细偏移)
                         // 当前模式：名称表分屏
@@ -1035,7 +1053,7 @@ namespace ReNes {
         // 更新指定位置的tile
         void updateBackgroundTile(int nameTableIndex, int tile_x, int tile_y, int tile_x_count=1, int tile_y_count=1)
         {
-            int stride = DISPLAY_BUFFER_PIXEL_WIDTH * 2;
+            int stride = DISPLAY_BUFFER_PIXEL_WIDTH * 2; // 水平是两个缓冲区排列的，所以这里要 x2
             const static int offset[] = {
                 0, DISPLAY_BUFFER_PIXEL_WIDTH,
                 2*DISPLAY_BUFFER_PIXEL_CONUT, 2*DISPLAY_BUFFER_PIXEL_CONUT+DISPLAY_BUFFER_PIXEL_WIDTH
@@ -1228,7 +1246,7 @@ namespace ReNes {
         
         uint16_t _t; // 临时 VRAM 地址
         uint16_t _v; // 当前 VRAM 地址
-        int _w = 0;
+        int _w = 0;  // 地址锁寄存器
         int _x; // 3bit 精细 x 滚动
         
         
@@ -1249,8 +1267,8 @@ namespace ReNes {
         
         uint8_t* _spr_buffer = 0;   // 精灵绘制缓冲区
         
-        uint8_t* _display_buffer = 0;       // 显示缓冲区
-        uint8_t* _scrollBuffer = 0; // 卷轴缓冲区
+        uint8_t* _display_buffer = 0;   // 显示缓冲区
+        uint8_t* _scrollBuffer = 0;     // 卷轴缓冲区，每个像素存储4bit数[0,15]，用来定位背景调色板。数据单位：每个像素1字节。
         uint8_t* _scrollBufferRGB = 0;
         
         uint8_t _sprram[256]; // 精灵内存, 64 个，每个4字节

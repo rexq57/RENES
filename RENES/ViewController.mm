@@ -108,7 +108,7 @@ using namespace ReNes;
             _nes->cpu_callback = [self](CPU* cpu){
                 
                 // 手动中断
-                //            @synchronized ((__bridge id)_nes)
+                // @synchronized ((__bridge id)_nes)
                 {
                     if (cpu == _nes->cpu())
                     {
@@ -130,32 +130,14 @@ using namespace ReNes;
             
             _nes->ppu_displayCallback = [self](PPU* ppu){
                 
-                if (ppu == _nes->ppu())
-                {
-                    {
-                        // 显示图片
-                        int width  = ppu->width();
-                        int height = ppu->height();
-                        uint8_t* srcBuffer = ppu->buffer();
-                        
-                        [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
-                        
-                    }
-                    
-                    {
-                        if ([_memTabView.selectedTabViewItem.identifier isEqualToString:@"scroll"])
-                        {
-                            ppu->dumpScrollToBuffer();
-                            
-                            // 显示图片
-                            int width  = _nes->ppu()->width()*2;
-                            int height = _nes->ppu()->height()*2;
-                            uint8_t* srcBuffer = ppu->scrollBufferRGB();
-                            
-                            [_scrollMirroringView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
-                        }
-                    }
-                }
+                // 显示图片
+                int width  = ppu->width();
+                int height = ppu->height();
+                uint8_t* srcBuffer = ppu->buffer();
+                
+                [self.displayView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+                
+                // 在这里更新卷轴的话，不会有花屏的情况。但是我们放到了dumpMemToView，只是为了查看而已
                 
                 return true;
             };
@@ -303,7 +285,14 @@ using namespace ReNes;
                 }
                 case 4:
                 {
+                    _nes->ppu()->dumpScrollToBuffer();
                     
+                    // 显示图片
+                    int width  = _nes->ppu()->width()*2;
+                    int height = _nes->ppu()->height()*2;
+                    uint8_t* srcBuffer = _nes->ppu()->scrollBufferRGB();
+                    
+                    [_scrollMirroringView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
                     return;
                     break;
                 }

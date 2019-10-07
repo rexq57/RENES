@@ -15,10 +15,6 @@
 
 namespace ReNes {
     
-    // RAM内存结构的偏移地址
-    #define PRG_ROM_LOWER_BANK_OFFSET 0x8000
-    #define PRG_ROM_UPPER_BANK_OFFSET 0xC000
-    
     // 栈偏移地址
     #define STACK_ADDR_OFFSET 0x0100
     

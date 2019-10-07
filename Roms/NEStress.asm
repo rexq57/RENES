@@ -4003,22 +4003,22 @@ PPUTest_2			; ! Test Sprites !
    lda   #$F4
    sta   $03
 
-   ldx   #$00
+   ldx   #$00		; [0x2001] = 0x18 (00011000 背景、精灵显示)
    lda   #$18
    sta   $2001		; Sprite & Display On
 
 .WaitV0C
    lda $2002
-   bpl .WaitV0C     ;Wait for vertical blanking interval
+   bpl .WaitV0C     ; Wait for vertical blanking interval (bpl: 第7位是0的时候，跳转。也就是说状态寄存器表示vblank没发生的时候，等待。)
 
 .WaitV0D
    lda $2002
-   bmi .WaitV0D     ; Stupid fix for bad emus.
+   bmi .WaitV0D     ; Stupid fix for bad emus. (如果未能正确实现bpl，这里尝试bmi。即当vblank发生的时候，等待。)
 
 .PPUTestLoop21
-   lda   $2002
-   tay
-   and   #$20
+   lda   $2002      ; A = [$2002]
+   tay              ; Y = A
+   and   #$20       ; A = A & #$20 (检查第5位是1 or 0)
    bne   .PPUError21
    tya
    bpl   .PPUTestLoop21     ; Loop for one whole frame

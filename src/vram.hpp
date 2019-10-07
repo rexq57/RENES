@@ -25,6 +25,11 @@ namespace ReNes {
     
     struct VRAM{
         
+        enum MIRRORING_MODE{
+            MIRRORING_MODE_HORIZONTAL,
+            MIRRORING_MODE_VERTICAL
+        };
+        
         const static int DEFUALT_SIZE = 0x4000;
         
         VRAM()
@@ -32,24 +37,40 @@ namespace ReNes {
             // 申请内存 16KB
             _data = (uint8_t*)malloc(DEFUALT_SIZE);
             memset(_data, 0, DEFUALT_SIZE);
-            
-            // 设置镜像
-            addMirroring(&_data[0x2000], 0x3000, 0x3EFF); // 名称表镜像
-            addMirroring(&_data[0x3F00], 0x3F20, 0x3FFF); // 调色板镜像
-            
-            // 名称表垂直镜像
-            addMirroring(&_data[0x2000], 0x2800, 0x2BFF);
-            addMirroring(&_data[0x2400], 0x2C00, 0x2FFF);
-            
-            // 水平镜像
-//            addMirroring(&_data[0x2000], 0x2400, 0x27FF);
-//            addMirroring(&_data[0x2800], 0x2C00, 0x2FFF);
         }
         
         ~VRAM()
         {
             if (_data)
                 free(_data);
+        }
+        
+        void initMirroring(MIRRORING_MODE mode)
+        {
+            // 设置镜像
+            addMirroring(&_data[0x2000], 0x3000, 0x3EFF); // 名称表镜像
+            addMirroring(&_data[0x3F00], 0x3F20, 0x3FFF); // 调色板镜像
+            
+            // 名称表镜像
+            switch (mode) {
+                case MIRRORING_MODE_HORIZONTAL:
+                    // 水平镜像，竖直排列
+                    // 0, 0
+                    // 1, 1
+                    addMirroring(&_data[0x2000], 0x2400, 0x27FF);
+                    addMirroring(&_data[0x2800], 0x2C00, 0x2FFF);
+                    break;
+                case MIRRORING_MODE_VERTICAL:
+                    // 垂直镜像，水平排列
+                    // 0, 1
+                    // 0, 1
+                    addMirroring(&_data[0x2000], 0x2800, 0x2BFF);
+                    addMirroring(&_data[0x2400], 0x2C00, 0x2FFF);
+                    break;
+                default:
+                    assert(!"error");
+                    break;
+            }
         }
         
         inline
@@ -84,33 +105,9 @@ namespace ReNes {
         void write8bitData(uint16_t addr, uint8_t value)
         {
             *_getRealAddr(addr) = value;
-            
-//            // 处理调色板镜像
-//            {
-//                // 可能需要一个物理地址监控。设置镜像写入关联 -> 物理地址监控.写入事件
-//                if (addr >= 0x3F00 && addr < 0x3F20)
-//                {
-//                    // 第一组调色板的0号颜色被作为整个屏幕背景的默认颜色，其他每组的第0号颜色都会跟背景颜色一样，也可以说这些颜色是透明的，所以会显示背景颜色（图中也可以见到），因此实际上调色板最多可标示颜色25种。
-//                    //                    if (addr != 0x3F00 || addr != 0x3F10) ?
-//
-//                    if (addr == 0x3F10)
-//                        _updateBkColor = true;
-//
-//                    if (_updateBkColor)
-//                    {
-//                        _data[0x3F00] = _data[0x3F10];
-//                    }
-//
-//                    // 当写入精灵调色板第一位时，设置好其他镜像
-//                    for (int i=0; i<8; i++)
-//                    {
-//                        if (i != 0 && i != 4)
-//                            _data[0x3F00 + i*4] = _data[0x3F10];
-//                    }
-//                }
-//            }
         }
         
+        // 加载图案表
         void loadPetternTable(const uint8_t* addr)
         {
             // 8KB

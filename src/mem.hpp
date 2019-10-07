@@ -4,6 +4,9 @@
 #include "type.hpp"
 #include <vector>
 
+// RAM内存结构的偏移地址
+#define PRG_ROM_LOWER_BANK_OFFSET 0x8000
+// #define PRG_ROM_UPPER_BANK_OFFSET 0xC000 (0x8000 + 16kB)
 
 namespace ReNes {
     
@@ -34,6 +37,14 @@ namespace ReNes {
         uint8_t* masterData()
         {
             return _data;
+        }
+        
+        void loadPRGRom(const uint8_t** romAddrs, int index)
+        {
+            const int bankSize = 1024*16;
+            
+            int offset = bankSize*index;
+            memcpy(_data + PRG_ROM_LOWER_BANK_OFFSET + offset, romAddrs[index], bankSize);
         }
         
         // 直接获取8bit数据，不走读写监听
