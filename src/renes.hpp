@@ -235,7 +235,6 @@ namespace ReNes {
 //            std::thread cpu_thread = std::thread([this](){
             {
                 
-                bool isFirstCPUCycleForFrame = true;
                 std::chrono::steady_clock::time_point firstTime;
                 
                 // 显示器制式数据: NTSC
@@ -250,14 +249,9 @@ namespace ReNes {
                 const uint32_t TimePerFrame = 1.0 / FPS * 1e9; // 每帧需要的时间(纳秒)
                 
                 // 主循环
+                bool quit;
+                firstTime = std::chrono::steady_clock::now();
                 do {
-                    
-                    // 第一帧开始进行初始化
-                    if (isFirstCPUCycleForFrame)
-                    {
-                        firstTime = std::chrono::steady_clock::now();
-                        isFirstCPUCycleForFrame = false;
-                    }
                     
                     // 执行指令
                     int cycles = _cpu.exec();
@@ -282,24 +276,34 @@ namespace ReNes {
                         ppu_displayCallback(&_ppu);
                     }
                     
+                    quit = !cpu_callback(&_cpu);
+                    
                     // 最后一条扫描线完成(第261条扫描线，scanline+1 == 262)
                     if (_ppu.currentFrameOver())
                     {
                         // 模拟等待，模拟每一帧完整时间花费
-                        auto currentFrameTime = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒
+                        auto now = std::chrono::steady_clock::now();
+                        auto currentFrameTime = (now - firstTime).count(); // 纳秒
                         _perFrameTime = currentFrameTime;
                         _cpuCycleTime  = currentFrameTime / cpuCyclesCountForFrame;
                         
                         // 计数器重置
                         cpuCyclesCountForFrame  = 0;
-                        isFirstCPUCycleForFrame = true;
                         
                         // 检查是否需要等待
-                        if ( currentFrameTime < TimePerFrame )
-                            usleep( (uint32_t)(TimePerFrame - currentFrameTime) / 1000 );
+                        int needDelay = (int)(TimePerFrame - currentFrameTime); // 需要等待的纳秒数
+                        if ( needDelay > 0)
+                        {
+                            usleep( needDelay / 1000);
+                            firstTime = now + std::chrono::nanoseconds(needDelay);
+                        }
+                        else
+                        {
+                            firstTime = now;
+                        }
                     }
                     
-                }while(cpu_callback(&_cpu) && !_stoped);
+                }while(!quit && !_stoped);
                 
 //            });
             }
