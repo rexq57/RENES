@@ -47,11 +47,29 @@ namespace ReNes {
              An iNES file consists of the following sections, in order:
 
              1. Header (16 bytes)
-             2. Trainer, if present (0 or 512 bytes)
+             2. Trainer, if present (0 or 512 bytes) // 由Flags6中的第2bit指出
              3. PRG ROM data (16384 * x bytes)
              4. CHR ROM data, if present (8192 * y bytes)
              5. PlayChoice INST-ROM, if present (0 or 8192 bytes)
              6. PlayChoice PROM, if present (16 bytes Data, 16 bytes CounterOut) (this is often missing, see PC10 ROM-Images for details)
+            
+             iNES、iNES2.0，是人们发现不同游戏卡带中的硬件控制系统，总结出来一个对应的格式，例如本身8-F保留字在2.0中被利用来存储这些发现的卡带通用信息。
+             使用最老版本的iNES格式的游戏中，例如超级马里奥、坦卡大战，ROM格式为：
+             1. 16字节头文件
+             2. 16kB PRG ROM (1个或2个)
+             2. 8kB CHR ROM
+             
+             16字节头文件中:
+             Flags 6
+             76543210
+             ||||||||
+             |||||||+- Mirroring: 0: horizontal (vertical arrangement) (CIRAM A10 = PPU A11)
+             |||||||              1: vertical (horizontal arrangement) (CIRAM A10 = PPU A10)
+             ||||||+-- 1: Cartridge contains battery-backed PRG RAM ($6000-7FFF) or other persistent memory
+             |||||+--- 1: 512-byte trainer at $7000-$71FF (stored before PRG data) // (iNES2.0) 指定是否存在一个trainer，需要顺序加载512字节到$7000-$71FF内存，再加载16kB的PRG ROM
+             ||||+---- 1: Ignore mirroring control or above mirroring bit; instead provide four-screen VRAM
+             ++++----- Lower nybble of mapper number
+             
              */
             
             // 解析头文件 (16字节，前3字节是"NES"字符)
@@ -84,8 +102,8 @@ namespace ReNes {
             const uint8_t* romBase = &rom[16];
             const uint8_t* vromBase = romBase + bankSize*rom16kB_count;
             
-            // 将PRG ROM载入内存
-            for (int i=0; i<rom16kB_count; i++)
+            // 将PRG ROM载入内存（2个16kB rom）
+            for (int i=0; i<2; i++)
             {
                 // 获取rom地址
                 const uint8_t* romAddrs[2] = {romBase, romBase + bankSize}; {
@@ -266,7 +284,7 @@ namespace ReNes {
                     }
                     
                     // 最后一条扫描线完成(第261条扫描线，scanline+1 == 262)
-                    if (_ppu.currentScanline() == frame_h)
+                    if (_ppu.currentFrameOver())
                     {
                         // 模拟等待，模拟每一帧完整时间花费
                         auto currentFrameTime = (std::chrono::steady_clock::now() - firstTime).count(); // 纳秒

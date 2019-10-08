@@ -420,12 +420,12 @@ using namespace ReNes;
     [self dumpMemToView];
     
     // 输出log
-    @synchronized (self) {
+//    @synchronized (self) {
         NSString* sbuffer = [NSString stringWithUTF8String:_logStringCache.c_str()];
         [self log:sbuffer];
         
         _logStringCache = "";
-    }
+//    }
 }
 
 - (void) updateRegisters

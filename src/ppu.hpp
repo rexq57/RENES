@@ -550,22 +550,36 @@ namespace ReNes {
                 }
             }
 
-
             _scanline_y = 0;
+            
+            if (_currentFrameOver)
+            {
+                int count = _scanline_x - _frame_w + 1;
+                _scanline_x = 0;
+                _drawScanline(0, count); // 这里执行后 _scanline_x = count
+            }
+            _currentFrameOver = false;
         }
         
         // 在当前扫描线执行 pixelCount 次像素渲染
         void drawScanline(bool* vblankEvent, int pixelCount)
         {
-            *vblankEvent = false;
+            if (vblankEvent)
+                *vblankEvent = false;
             _drawScanline(vblankEvent, pixelCount);
         }
         
         // 当前扫描线
+//        inline
+//        int currentScanline() const
+//        {
+//            return _scanline_y;
+//        }
+        
         inline
-        int currentScanline() const
+        bool currentFrameOver() const
         {
-            return _scanline_y;
+            return _currentFrameOver;
         }
         
         // dump数据，给外部逻辑使用。index -> color
@@ -864,6 +878,10 @@ namespace ReNes {
             }
             
             _scanline_x += pixelCount;
+            
+            // 奇数帧，跳过最后一条扫描的最后一个点
+//            if (_frameCount % 2 == 1 && _scanline_y == _frame_h-1 && _scanline_x >= _frame_w-1) _scanline_x ++;
+            
             // 检查当前扫描线完成
             RENES_ASSERT(_frame_w > 0 && _frame_h > 0);
             if (_scanline_x >= _frame_w)
@@ -873,16 +891,27 @@ namespace ReNes {
                 {
                     _status_regs->set(7, 1);
                     // 设置vblank事件
-                    *vblankEvent = true;
+                    if (vblankEvent)
+                        *vblankEvent = true;
                 }
                 
                 _scanline_y ++;
                 
                 // 检查换行扫描需求
-                int count = _scanline_x - _frame_w + 1;
-                _scanline_x = 0;
                 if (_scanline_y < _frame_h) // 超出当前帧不调用补齐渲染
-                    _drawScanline(vblankEvent, count);
+                {
+                    int count = _scanline_x - _frame_w + 1;
+                    _scanline_x = 0;
+                    _drawScanline(vblankEvent, count); // 这里执行后 _scanline_x = count
+                }
+                else if (_scanline_y == _frame_h)
+                {
+                    _currentFrameOver = true; // 在readyOnFirstLine的时候处理该标记
+                }
+                else
+                {
+                    assert(!"error");
+                }
             }
         }
         
@@ -1234,6 +1263,8 @@ namespace ReNes {
 
         void reset()
         {
+            _frameCount = 0;
+            
             _w = 0;
             _t = 0;
             _v = 0;
@@ -1285,5 +1316,7 @@ namespace ReNes {
         int _frame_w;
         int _frame_h;
 
+        uint32_t _frameCount;
+        bool _currentFrameOver;
     };
 }
