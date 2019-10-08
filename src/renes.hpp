@@ -256,7 +256,6 @@ namespace ReNes {
                     if (isFirstCPUCycleForFrame)
                     {
                         firstTime = std::chrono::steady_clock::now();
-                        _ppu.readyOnFirstLine();
                         isFirstCPUCycleForFrame = false;
                     }
                     

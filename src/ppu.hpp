@@ -148,6 +148,9 @@ namespace ReNes {
         {
             _frame_w = w;
             _frame_h = h;
+            
+            // 设置为预渲染线
+            _scanline_y = _frame_h-1;
         }
         
         PPU()
@@ -549,16 +552,6 @@ namespace ReNes {
                     }
                 }
             }
-
-            _scanline_y = 0;
-            
-            if (_currentFrameOver)
-            {
-                int count = _scanline_x - _frame_w + 1;
-                _scanline_x = 0;
-                _drawScanline(0, count); // 这里执行后 _scanline_x = count
-            }
-            _currentFrameOver = false;
         }
         
         // 在当前扫描线执行 pixelCount 次像素渲染
@@ -620,6 +613,17 @@ namespace ReNes {
         
         void _drawScanline(bool* vblankEvent, int pixelCount)
         {
+            RENES_ASSERT(_scanline_y >= 0 && _scanline_y < _frame_h);
+            
+            bool isPreRenderLine = _scanline_y == _frame_h-1 && _scanline_x == 0;
+            if (isPreRenderLine)
+            {
+                readyOnFirstLine();
+            }
+            
+            if (_scanline_y == 0)
+                _currentFrameOver = false;
+            
             // 绘制背景
             const uint8_t* bkPaletteAddr = _bkPaletteAddress();
             const uint8_t* sprPaletteAddr = _sprPaletteAddress();
@@ -896,22 +900,18 @@ namespace ReNes {
                 }
                 
                 _scanline_y ++;
+                _scanline_y %= _frame_h;
                 
-                // 检查换行扫描需求
-                if (_scanline_y < _frame_h) // 超出当前帧不调用补齐渲染
-                {
-                    int count = _scanline_x - _frame_w + 1;
-                    _scanline_x = 0;
-                    _drawScanline(vblankEvent, count); // 这里执行后 _scanline_x = count
-                }
-                else if (_scanline_y == _frame_h)
-                {
-                    _currentFrameOver = true; // 在readyOnFirstLine的时候处理该标记
-                }
-                else
-                {
-                    assert(!"error");
-                }
+                int count = _scanline_x - _frame_w + 1;
+                _scanline_x = 0;
+                _drawScanline(vblankEvent, count); // 这里执行后 _scanline_x = count
+                
+                // 发生了一次扫描线循环，设置当前帧完成标记（外部执行等待）
+                // 由于PPU初始扫描线是从-1开始，我们设置为261，也就是最后一根扫描线纳入下一帧的范畴。当跳到最后一根扫描线的时候，标记当前帧结束
+                if (_scanline_y == 0)
+                    _currentFrameOver = true;
+                
+//                printf("%d\n", _scanline_y);
             }
         }
         
