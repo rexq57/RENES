@@ -1004,6 +1004,25 @@
                                             </constraints>
                                         </view>
                                     </tabViewItem>
+                                    <tabViewItem label="精灵" identifier="5" id="BSO-PH-USQ">
+                                        <view key="view" id="6yA-si-4mz">
+                                            <rect key="frame" x="10" y="7" width="454" height="230"/>
+                                            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                            <subviews>
+                                                <openGLView wantsLayer="YES" useAuxiliaryDepthBufferStencil="NO" allowOffline="YES" translatesAutoresizingMaskIntoConstraints="NO" id="gHK-qg-lhc" customClass="MyOpenGLView">
+                                                    <rect key="frame" x="0.0" y="0.0" width="245" height="230"/>
+                                                    <constraints>
+                                                        <constraint firstAttribute="width" secondItem="gHK-qg-lhc" secondAttribute="height" multiplier="256:240" id="gNN-ba-iTQ"/>
+                                                    </constraints>
+                                                </openGLView>
+                                            </subviews>
+                                            <constraints>
+                                                <constraint firstItem="gHK-qg-lhc" firstAttribute="top" secondItem="6yA-si-4mz" secondAttribute="top" id="ZgO-Bd-a8I"/>
+                                                <constraint firstAttribute="bottom" secondItem="gHK-qg-lhc" secondAttribute="bottom" id="bla-h3-ETc"/>
+                                                <constraint firstItem="gHK-qg-lhc" firstAttribute="leading" secondItem="6yA-si-4mz" secondAttribute="leading" id="oBG-gH-eLk"/>
+                                            </constraints>
+                                        </view>
+                                    </tabViewItem>
                                 </tabViewItems>
                                 <connections>
                                     <outlet property="delegate" destination="XfG-lQ-9wD" id="FYp-1X-N7O"/>
@@ -1046,6 +1065,7 @@
                         <outlet property="petternTableView" destination="TIy-FB-mZg" id="fas-Ih-a0E"/>
                         <outlet property="registersView" destination="my7-70-8J6" id="aT9-Af-lcO"/>
                         <outlet property="scrollMirroringView" destination="jZg-Q1-4iA" id="VNx-xh-p6P"/>
+                        <outlet property="spriteView" destination="gHK-qg-lhc" id="Bh3-Fa-ACU"/>
                         <outlet property="sprramView" destination="aix-nH-EPa" id="bCW-Tp-hVW"/>
                         <outlet property="stopedCmdAddrField" destination="i9o-DB-KkO" id="BRe-ss-Ghf"/>
                         <outlet property="stopedCmdLineField" destination="auG-AK-Y5h" id="PgX-OR-M9E"/>

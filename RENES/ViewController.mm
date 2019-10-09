@@ -41,6 +41,7 @@ using namespace ReNes;
 @property (nonatomic) IBOutlet NSTextView* sprramView;
 @property (nonatomic) IBOutlet PetternTableView* petternTableView;
 @property (nonatomic) IBOutlet MyOpenGLView* scrollMirroringView;
+@property (nonatomic) IBOutlet MyOpenGLView* spriteView;
 
 @property (nonatomic) IBOutlet NSTextField* stopedCmdAddrField;
 @property (nonatomic) IBOutlet NSTextField* stopedCmdLineField;
@@ -285,14 +286,22 @@ using namespace ReNes;
                 }
                 case 4:
                 {
-                    _nes->ppu()->dumpScrollToBuffer();
+                    _nes->ppu()->dumpScrollToBufferRGB();
                     
                     // 显示图片
-                    int width  = _nes->ppu()->width()*2;
-                    int height = _nes->ppu()->height()*2;
-                    uint8_t* srcBuffer = _nes->ppu()->scrollBufferRGB();
+                    const RGB_Buffer* srcBuffer = _nes->ppu()->scrollBufferRGB();
                     
-                    [_scrollMirroringView updateRGBData:srcBuffer size:CGSizeMake(width, height)];
+                    [_scrollMirroringView updateRGBData:srcBuffer->data size:CGSizeMake(srcBuffer->width, srcBuffer->height)];
+                    return;
+                    break;
+                }
+                case 5:
+                {
+                    _nes->ppu()->dumpSpriteToBufferRGB();
+                    
+                    const RGB_Buffer* srcBuffer = _nes->ppu()->spriteBufferRGB();
+                    
+                    [_spriteView updateRGBData:srcBuffer->data size:CGSizeMake(srcBuffer->width, srcBuffer->height)];
                     return;
                     break;
                 }

@@ -249,8 +249,9 @@ namespace ReNes {
                 const uint32_t TimePerFrame = 1.0 / FPS * 1e9; // 每帧需要的时间(纳秒)
                 
                 // 主循环
-                bool quit;
+                bool exitFromCPU;
                 firstTime = std::chrono::steady_clock::now();
+                
                 do {
                     
                     // 执行指令
@@ -269,21 +270,22 @@ namespace ReNes {
                     
                     if (vblankEvent)
                     {
-                        // vblank发生的时候，设置NMI中断
+                        // vblank发生的时候，需要设置NMI中断
                         _cpu.interrupts(CPU::InterruptTypeNMI);
                         
-                        // 刷新视图(异步) 刷新率由UI决定
+                        // 当前可见区域已经绘制完成
+                        // 通知PPU回调: 刷新视图(异步) 刷新率由UI决定
                         ppu_displayCallback(&_ppu);
                     }
                     
-                    quit = !cpu_callback(&_cpu);
+                    exitFromCPU = !cpu_callback(&_cpu);
                     
                     // 最后一条扫描线完成(第261条扫描线，scanline+1 == 262)
                     if (_ppu.currentFrameOver())
                     {
                         // 模拟等待，模拟每一帧完整时间花费
                         auto now = std::chrono::steady_clock::now();
-                        auto currentFrameTime = (now - firstTime).count(); // 纳秒
+                        auto currentFrameTime = (now - firstTime).count(); // 当前帧完结时所需纳秒时间
                         _perFrameTime = currentFrameTime;
                         _cpuCycleTime  = currentFrameTime / cpuCyclesCountForFrame;
                         
@@ -294,7 +296,15 @@ namespace ReNes {
                         int needDelay = (int)(TimePerFrame - currentFrameTime); // 需要等待的纳秒数
                         if ( needDelay > 0)
                         {
+                            // 等待微秒
                             usleep( needDelay / 1000);
+                            
+                            // 将等待的时间通过累加的方式得到精确的时间，从now到usleep代码段的时间误差纳入下一帧中
+                            // 再次通过 std::chrono::steady_clock::now() 获取当前时间的话，会容纳误差
+//                            firstTime = std::chrono::steady_clock::now();
+//                            auto test = now + std::chrono::nanoseconds(needDelay);
+//                            printf("帧花费 %f 实际误差(比直接计算)多 %lld 纳秒\n", (double)_perFrameTime / 1e9, (firstTime-test).count());
+                            
                             firstTime = now + std::chrono::nanoseconds(needDelay);
                         }
                         else
@@ -303,7 +313,7 @@ namespace ReNes {
                         }
                     }
                     
-                }while(!quit && !_stoped);
+                }while(!exitFromCPU && !_stoped);
                 
 //            });
             }
@@ -319,6 +329,8 @@ namespace ReNes {
             {
                 log("模拟器正常退出!\n");
             }
+            
+            _isRunning = false;
         }
         
         bool _isRunning = false;

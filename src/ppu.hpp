@@ -116,6 +116,22 @@ namespace ReNes {
         160,162,160, 0,0,0, 0,0,0,
     };
 
+    // 一个提供给外部使用的显示缓冲区
+    class RGB_Buffer {
+    public:
+        RGB_Buffer(int width, int height) {
+            data = (uint8_t*)malloc(width * height * 3);
+            this->width = width;
+            this->height = height;
+        }
+        ~RGB_Buffer() {
+            free(data);
+        }
+        uint8_t* data;
+        int width;
+        int height;
+    };
+
     // 2C02
     class PPU {
         
@@ -164,10 +180,12 @@ namespace ReNes {
             // 精灵缓冲区
             _spr_buffer = (uint8_t*)malloc(SPR_BUFFER_LENGTH);
             _spr0buffer = (uint8_t*)malloc(SPR_BUFFER_LENGTH);
+            _spr_bufferRGB = new RGB_Buffer(DISPLAY_BUFFER_PIXEL_WIDTH, DISPLAY_BUFFER_PIXEL_HEIGHT); // 像素单位是3字节，前3字节存储RGB
             
             // 卷轴缓冲区
             _scrollBuffer = (uint8_t*)malloc(DISPLAY_BUFFER_PIXEL_CONUT*4); // 4个表，像素单位是1字节，存储4bit的调色板下标
-            _scrollBufferRGB = (uint8_t*)malloc(DISPLAY_BUFFER_LENGTH*4); // 4个表，像素单位是4字节，前3字节存储RGB
+            _scrollBufferRGB = new RGB_Buffer(DISPLAY_BUFFER_PIXEL_WIDTH*2, DISPLAY_BUFFER_PIXEL_HEIGHT*2); // 4个表，像素单位是3字节，前3字节存储RGB
+            
             
             _vram = new VRAM();
             
@@ -176,23 +194,18 @@ namespace ReNes {
         
         ~PPU()
         {
-            if (_display_buffer != 0)
-                free(_display_buffer);
+            free(_display_buffer);
             
-            if (_spr_buffer != 0)
-                free(_spr_buffer);
+            free(_spr_buffer);
             
-            if (_spr0buffer != 0)
-                free(_spr0buffer);
+            free(_spr0buffer);
             
-            if (_scrollBuffer != 0)
-                free(_scrollBuffer);
+            free(_scrollBuffer);
             
-            if (_scrollBufferRGB != 0)
-                free(_scrollBufferRGB);
+            delete _spr_bufferRGB;
+            delete _scrollBufferRGB;
             
-            if (_vram)
-                delete _vram;
+            delete _vram;
         }
         
         void init(Memory* mem)
@@ -503,7 +516,7 @@ namespace ReNes {
                 
                 drawSprBuffer(_spr_buffer, spr->x, spr->y+1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
                 
-                // 缓存精灵0
+                // 精灵0再额外存储到一个buffer，用于检测
                 if (i == 0)
                     drawSprBuffer(_spr0buffer, spr->x, spr->y+1, high2, tileAddr, sprPaletteAddr, flipH, flipV, i == 0, sprFront);
             }
@@ -562,13 +575,6 @@ namespace ReNes {
             _drawScanline(vblankEvent, pixelCount);
         }
         
-        // 当前扫描线
-//        inline
-//        int currentScanline() const
-//        {
-//            return _scanline_y;
-//        }
-        
         inline
         bool currentFrameOver() const
         {
@@ -576,9 +582,8 @@ namespace ReNes {
         }
         
         // dump数据，给外部逻辑使用。index -> color
-        void dumpScrollToBuffer()
+        void dumpScrollToBufferRGB()
         {
-            //const uint8_t* bkPetternTableAddr = _bkPetternTableAddress();
             const uint8_t* bkPaletteAddr = _bkPaletteAddress();
             
             // convert to RGB buffer
@@ -587,7 +592,21 @@ namespace ReNes {
             {
                 int systemPaletteUnitIndex = bkPaletteAddr[_scrollBuffer[i]]; // 系统默认调色板颜色索引 [0,63]
                 RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
-                ((RGB*)_scrollBufferRGB)[i] = *rgb;
+                ((RGB*)_scrollBufferRGB->data)[i] = *rgb;
+            }
+        }
+        
+        void dumpSpriteToBufferRGB()
+        {
+            const uint8_t* sprPaletteAddr = _sprPaletteAddress();
+            
+            // convert to RGB buffer
+            int size = DISPLAY_BUFFER_PIXEL_WIDTH*DISPLAY_BUFFER_PIXEL_HEIGHT;
+            for (int i=0; i<size; i++)
+            {
+                int systemPaletteUnitIndex = sprPaletteAddr[_spr_buffer[i]]; // 系统默认调色板颜色索引 [0,63]
+                RGB* rgb = (RGB*)&DEFAULT_PALETTE[systemPaletteUnitIndex*3];
+                ((RGB*)_spr_bufferRGB->data)[i] = *rgb;
             }
         }
         
@@ -598,7 +617,8 @@ namespace ReNes {
         inline uint8_t* buffer() const { return _display_buffer; }
         
         // 调试缓冲区，用于外部显示卷轴
-        inline uint8_t* scrollBufferRGB() const { return _scrollBufferRGB; }
+        inline const RGB_Buffer* scrollBufferRGB() const { return _scrollBufferRGB; }
+        inline const RGB_Buffer* spriteBufferRGB() const { return _spr_bufferRGB; }
         
         // 输出调色板
         void petternTables(uint8_t p[32]) const
@@ -611,18 +631,54 @@ namespace ReNes {
         
     private:
         
+        bool _spriteOverflow(int scanline)
+        {
+            int count = 0;
+            
+            // 扫描所有精灵
+            for (int i=0; i<64; i++)
+            {
+                Sprite* spr = (Sprite*)&_OAM[i*4];
+                if (*(int*)spr == 0) // 没有精灵数据
+                    continue;
+                
+                if (spr->y-1 == scanline) {
+                    if (count++ > 8)
+                        return true;
+                }
+            }
+            
+            return false;
+        }
+        
         void _drawScanline(bool* vblankEvent, int pixelCount)
         {
             RENES_ASSERT(_scanline_y >= 0 && _scanline_y < _frame_h);
             
-            bool isPreRenderLine = _scanline_y == _frame_h-1 && _scanline_x == 0;
+            bool isPreRenderLine = _scanline_y == _frame_h-1;
             if (isPreRenderLine)
             {
-                readyOnFirstLine();
+                if (_scanline_x == 0) {
+                    readyOnFirstLine();
+                }
+                else if (_scanline_x == 1) {
+                    // 在预渲染线上的第二个点清理$2002的第5bit（精灵溢出）标记
+                    _status_regs->set(5, 0);
+                }
             }
             
             if (_scanline_y == 0)
                 _currentFrameOver = false;
+            
+            if (_scanline_x == 0)
+            {
+                // 检查精灵溢出
+                if (_spriteOverflow(_scanline_y))
+                {
+//                    printf("精灵溢出\n");
+                    _status_regs->set(5, 1);
+                }
+            }
             
             // 绘制背景
             const uint8_t* bkPaletteAddr = _bkPaletteAddress();
@@ -827,8 +883,7 @@ namespace ReNes {
                             
                             if (spr_data != 0)
                             {
-                                // spr_systemPaletteUnitIndex = spr_data & 63;
-                                sprFront = (spr_data & 32) == 0;
+                                sprFront = (spr_data & 0x10) == 0; // 即第4bit为0
                                 spr_systemPaletteUnitIndex = sprPaletteAddr[spr_data & 15];
                                 
                                 // 碰撞检测 (必须同时显示背景和精灵的情况下)
@@ -837,7 +892,7 @@ namespace ReNes {
 //                                    bool isFirstSprite = spr_data > 63;
                                     // 精灵0单独使用一个全屏buffer
                                     uint8_t& spr0data = _spr0buffer[pixelIndex];
-                                    bool isFirstSprite = spr0data > 63;
+                                    bool isFirstSprite = spr0data > 31; // 即第5bit非0
                                     
                                      // 使用精灵0来检测碰撞
                                     int paletteIndex = sprPaletteAddr[_spr0buffer[pixelIndex] & 15];
@@ -1167,10 +1222,11 @@ namespace ReNes {
                     
                     int pixelIndex = dst_y*32*8 + dst_x; // 最低位是右边第一像素，所以渲染顺序要从右往左
                     // 11 11 1111
-                    // 高2bit: 第一精灵标记
-                    // 中2bit: 前置精灵标记
+                    // 6、7bit: 未使用
+                    // 5 bit: 第一精灵标记
+                    // 4 bit: 前置精灵标记
                     // 低4bit: [16]调色板下标
-                    int spr_data = (isFirstSprite ? (3 << 6) : 0) | (priority << 5) | paletteUnitIndex;
+                    int spr_data = (isFirstSprite ? (3 << 5) : 0) | (priority << 4) | paletteUnitIndex;
                     
                     buffer[pixelIndex] = spr_data;
                 }
@@ -1296,15 +1352,16 @@ namespace ReNes {
         // 如果该像素没有精灵，甚至没有叠加，则该位第一字节为0
         const int SPR_BUFFER_LENGTH = DISPLAY_BUFFER_PIXEL_CONUT;
         
-        uint8_t* _spr_buffer = 0;   // 精灵绘制缓冲区
-        
         uint8_t* _display_buffer = 0;   // 显示缓冲区
         uint8_t* _scrollBuffer = 0;     // 卷轴缓冲区，每个像素存储4bit数[0,15]，用来定位背景调色板。数据单位：每个像素1字节。
-        uint8_t* _scrollBufferRGB = 0;
+        RGB_Buffer* _scrollBufferRGB = 0;
+        
         
         uint8_t _sprram[256]; // 精灵内存, 64 个，每个4字节
         uint8_t _OAM[256];    // 每帧的OAM
-        uint8_t* _spr0buffer;  // 0号精灵缓存
+        uint8_t* _spr_buffer = 0;   // 精灵绘制缓冲区
+        uint8_t* _spr0buffer;       // 0号精灵缓冲区
+        RGB_Buffer* _spr_bufferRGB = 0;
         
         VRAM* _vram;
         Memory* _mem;
