@@ -41,16 +41,15 @@ namespace ReNes {
     
     /*
      未完成:
-     1、0x2000第5bit开启8x16精灵
+     ...
      
      不确定的解决方案:
      1、在readyOnFirstLine里清除了0x2000的低2bit来防止《超级玛丽》移动到第二名称表的时候，精灵0碰撞前间歇性名称表为1的情况，导致顶部无法显示第一名称里的状态栏的情况
      
      未知问题：
     1、《超级玛丽》运动到一段画面后，精灵0出现错位闪烁
-    2、未确定OAM里精灵的坐标y
-    3、《超级玛丽》下管子
-    4、《超级玛丽》死完之后，无法重新开始，按键无效
+    2、《超级玛丽》死完之后，无法重新开始，按键无效
+    3、精灵可以到屏幕上的任何地方。然而，他们并不擅长平滑地离开屏幕的左侧。有一个选项（PPU掩码2001位XXXX X11X），如果为零，则关闭屏幕的左8个像素，然后您可以顺利地离开屏幕的左侧。
      */
     
     // 系统调色板，网上有多种颜色风格
@@ -213,6 +212,7 @@ namespace ReNes {
             _mem = mem;
             // 直接映射地址，不走mem请求，因为mem读写请求模拟了内存访问限制，那部分是留给cpu访问的
             _io_regs = (bit8*)mem->getIORegsAddr();
+            _control_regs = (bit8*)&_io_regs[0];
             _mask_regs = (bit8*)&_io_regs[1];
             _status_regs = (bit8*)&_io_regs[2];
             
@@ -284,7 +284,7 @@ namespace ReNes {
 //                        _vramDidUpdasted(_v);
                         
                         // 自动增加
-                        _v += _io_regs[0].get(2) == 0 ? 1 : 32;
+                        _v += _control_regs->get(2) == 0 ? 1 : 32;
                         
                         break;
                     }
@@ -331,7 +331,7 @@ namespace ReNes {
                             *value = _2007ReadingCache;
                         }
                         
-                        _v += _io_regs[0].get(2) == 0 ? 1 : 32;
+                        _v += _control_regs->get(2) == 0 ? 1 : 32;
                         _2007ReadingStep = 1;
                         break;
                     default:
@@ -393,13 +393,10 @@ namespace ReNes {
         // 预渲染
         void readyOnFirstLine()
         {
-            _status_regs->set(7, 0); // 清除 vblank
-            _status_regs->set(6, 0); // hit标记清零
-            
             // 准备当前帧的OAM
             memcpy(_OAM, _sprram, 256);
-            _io_regs[0].set(0, 0);
-            _io_regs[0].set(1, 0);
+            _control_regs->set(0, 0);
+            _control_regs->set(1, 0);
             
             // 更新调色板镜像
             _vram->updatePaletteMirror();
@@ -428,7 +425,7 @@ namespace ReNes {
              */
             
             // 绘制背景
-            const uint8_t* sprPetternTableAddr = _sprPetternTableAddress(); // 第3bit决定精灵图案表地址 0x0000或0x1000
+//            const uint8_t* sprPetternTableAddr = _sprPetternTableAddress();
             const uint8_t* sprPaletteAddr = _sprPaletteAddress();  // 精灵调色板地址
             
             //            const static RGB* pTRANSPARENT_RGB = (RGB*)&DEFAULT_PALETTE[bkPaletteAddr[0]*3];
@@ -505,7 +502,8 @@ namespace ReNes {
                 if (*(int*)spr == 0) // 没有精灵数据
                     continue;
                 
-                const uint8_t* tileAddr = &sprPetternTableAddr[spr->tileIndex * 16];
+//                const uint8_t* tileAddr = &sprPetternTableAddr[spr->tileIndex * 16];
+                const uint8_t* tileAddr = _sprPetternTableAddress(spr->tileIndex);
                 
                 int high2 = spr->info.get(0) | (spr->info.get(1) << 1);
                 bool sprFront = spr->info.get(5); // 优先级，0 - 在背景上 1 - 在背景下
@@ -631,9 +629,11 @@ namespace ReNes {
         
     private:
         
+        // 精灵溢出检测：当某条扫描线上出现8个以上精灵时，设置精灵溢出标记
         bool _spriteOverflow(int scanline)
         {
             int count = 0;
+            int sprHeight = _control_regs->get(5) ? 15 : 7;
             
             // 扫描所有精灵
             for (int i=0; i<64; i++)
@@ -642,7 +642,10 @@ namespace ReNes {
                 if (*(int*)spr == 0) // 没有精灵数据
                     continue;
                 
-                if (spr->y-1 == scanline) {
+                // 需要判断范围
+                const int start = spr->y-1;
+                const int end   = start + sprHeight;
+                if (scanline >= start && scanline <= end) {
                     if (count++ > 8)
                         return true;
                 }
@@ -659,18 +662,21 @@ namespace ReNes {
             if (isPreRenderLine)
             {
                 if (_scanline_x == 0) {
+                    // 在预渲染线上的第二个点清理$2002的第5bit（精灵溢出）标记
+                    _status_regs->set(5, 0);
+                    _status_regs->set(6, 0); // hit标记清零
+                    _status_regs->set(7, 0); // 清除 vblank
                     readyOnFirstLine();
                 }
                 else if (_scanline_x == 1) {
-                    // 在预渲染线上的第二个点清理$2002的第5bit（精灵溢出）标记
-                    _status_regs->set(5, 0);
+                    
                 }
             }
             
             if (_scanline_y == 0)
                 _currentFrameOver = false;
             
-            if (_scanline_x == 0)
+            if (_scanline_x == 0 && _status_regs->get(5) == 0)
             {
                 // 检查精灵溢出
                 if (_spriteOverflow(_scanline_y))
@@ -703,7 +709,7 @@ namespace ReNes {
                 //            int bk_base = (v >> 10) & 0x3;
                 
                 // 起始名称表索引
-                int firstNameTableIndex = _io_regs[0].get(0) | (_io_regs[0].get(1) << 1); // 前2bit决定基础名称表地址
+                int firstNameTableIndex = _control_regs->get(0) | (_control_regs->get(1) << 1); // 前2bit决定基础名称表地址
                 
                 
                 
@@ -980,7 +986,7 @@ namespace ReNes {
                 // 单个图案是8x8 * 2的空间，可以根据地址得到影响的图案index in [256]
                 // 遍历名称表中使用了该图案index的tile，进行更新
                 // 只更新图案表，先确定图案表地址
-                int i = _io_regs[0].get(4);
+                int i = _control_regs->get(4);
                 
                 int offset = addr - i*0x1000;
                 int index = offset / 16; // 得到下标[0, 255]
@@ -1189,46 +1195,120 @@ namespace ReNes {
         // 绘制精灵到缓冲区
         void drawSprBuffer(uint8_t* buffer, int x, int y, int high2, const uint8_t* tileAddr, const uint8_t* paletteAddr, bool flipH, bool flipV, bool isFirstSprite, bool priority)
         {
+            bool mode8x16 = _control_regs->get(5);
             
-            for (int ty=0; ty<8; ty++)
+            if (!mode8x16)
             {
-                int dst_y = y + ty;
-                if (dst_y < 0 || dst_y >= RENES_FRAME_VISIBLE_H)
-                    continue;
-                
-                int ty_ = flipV ? 7-ty : ty;
-                
-                for (int tx=0; tx<8; tx++)
+                for (int ty=0; ty<8; ty++)
                 {
-                    int dst_x = x + tx;
-                    if (dst_x < 0 || dst_x >= RENES_FRAME_VISIBLE_W)
+                    int dst_y = y + ty; // 屏幕上的坐标y
+                    if (dst_y < 0 || dst_y >= RENES_FRAME_VISIBLE_H)
                         continue;
                     
-                    int tx_ = flipH ? tx : 7-tx;
+                    int ty_ = flipV ? 7-ty : ty; // 内部数据坐标转换
                     
-                    // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
-                    int low0 = ((const bit8*)&tileAddr[ty_])->get(tx_);
-                    int low1 = ((const bit8*)&tileAddr[ty_+8])->get(tx_);
-                    int low2 = low0 | (low1 << 1);
+                    const bit8* low0_tileAddr = (const bit8*)&tileAddr[ty_];
+                    const bit8* low1_tileAddr = low0_tileAddr+8;
                     
-                    int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号 [0, 15]
-                    
-                    // 如果绘制精灵，而且当前颜色引用到背景透明色（背景调色板第一位），就不绘制
-                    //                        if (systemPaletteUnitIndex == bkPaletteAddr[0])
-                    if (paletteUnitIndex % 4 == 0)
+                    for (int tx=0; tx<8; tx++)
                     {
-                        continue;
+                        int dst_x = x + tx; // 屏幕上的坐标x
+                        if (dst_x < 0 || dst_x >= RENES_FRAME_VISIBLE_W)
+                            continue;
+                        
+                        /*
+                         x (0-7)
+                                 像素 0123 4567
+                                 bit 7654 3210
+                         8bit: (高位) 1111 1111 (低位)
+                         8bit: (高位) 1111 1111 (低位)
+                         最低位是右边第一像素，所以内部数据坐标要颠倒
+                         */
+                        int tx_ = flipH ? tx : 7-tx;
+                        
+                        // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
+                        int low0 = low0_tileAddr->get(tx_);
+                        int low1 = low1_tileAddr->get(tx_);
+                        int low2 = low0 | (low1 << 1);
+                        
+                        int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号 [0, 15]
+                        
+                        // 如果绘制精灵，而且当前颜色引用到背景透明色（背景调色板第一位），就不绘制
+                        if (paletteUnitIndex % 4 == 0)
+                        {
+                            continue;
+                        }
+                        
+                        // 根据dst_y和dst_x来确定像素索引，缓冲区中表示的是 1字节/1像素
+                        // 所以stride是256
+                        int pixelIndex = dst_y*RENES_FRAME_VISIBLE_W + dst_x;
+                        // 11 11 1111
+                        // 6、7bit: 未使用
+                        // 5 bit: 第一精灵标记
+                        // 4 bit: 前置精灵标记
+                        // 低4bit: [16]调色板下标
+                        int spr_data = (isFirstSprite ? (3 << 5) : 0) | (priority << 4) | paletteUnitIndex;
+                        
+                        buffer[pixelIndex] = spr_data;
                     }
+                }
+            }
+            else
+            {
+                
+                for (int ty=0; ty<16; ty++)
+                {
+                    int dst_y = y + ty; // 屏幕上的坐标y
+                    if (dst_y < 0 || dst_y >= RENES_FRAME_VISIBLE_H)
+                        continue;
                     
-                    int pixelIndex = dst_y*32*8 + dst_x; // 最低位是右边第一像素，所以渲染顺序要从右往左
-                    // 11 11 1111
-                    // 6、7bit: 未使用
-                    // 5 bit: 第一精灵标记
-                    // 4 bit: 前置精灵标记
-                    // 低4bit: [16]调色板下标
-                    int spr_data = (isFirstSprite ? (3 << 5) : 0) | (priority << 4) | paletteUnitIndex;
+                    int ty_ = flipV ? 15-(ty%8) : ty; // 内部数据坐标转换
+                    int tileAddrOffset = ty_ >= 8 ? 16 : 0;
                     
-                    buffer[pixelIndex] = spr_data;
+                    const bit8* low0_tileAddr = (const bit8*)&tileAddr[tileAddrOffset + (ty_%8)];
+                    const bit8* low1_tileAddr = low0_tileAddr+8;
+                    
+                    for (int tx=0; tx<8; tx++)
+                    {
+                        int dst_x = x + tx; // 屏幕上的坐标x
+                        if (dst_x < 0 || dst_x >= RENES_FRAME_VISIBLE_W)
+                            continue;
+                        
+                        /*
+                         x (0-7)
+                                 像素 0123 4567
+                                 bit 7654 3210
+                         8bit: (高位) 1111 1111 (低位)
+                         8bit: (高位) 1111 1111 (低位)
+                         最低位是右边第一像素，所以内部数据坐标要颠倒
+                         */
+                        int tx_ = flipH ? tx : 7-tx;
+                        
+                        // tile 第一字节与第八字节对应的bit位，组成这一像素颜色的低2位（最后构成一个[0,63]的数，索引到系统默认的64种颜色）
+                        int low0 = low0_tileAddr->get(tx_);
+                        int low1 = low1_tileAddr->get(tx_);
+                        int low2 = low0 | (low1 << 1);
+                        
+                        int paletteUnitIndex = (high2 << 2) + low2; // 背景调色板单元索引号 [0, 15]
+                        
+                        // 如果绘制精灵，而且当前颜色引用到背景透明色（背景调色板第一位），就不绘制
+                        if (paletteUnitIndex % 4 == 0)
+                        {
+                            continue;
+                        }
+                        
+                        // 根据dst_y和dst_x来确定像素索引，缓冲区中表示的是 1字节/1像素
+                        // 所以stride是256
+                        int pixelIndex = dst_y*RENES_FRAME_VISIBLE_W + dst_x;
+                        // 11 11 1111
+                        // 6、7bit: 未使用
+                        // 5 bit: 第一精灵标记
+                        // 4 bit: 前置精灵标记
+                        // 低4bit: [16]调色板下标
+                        int spr_data = (isFirstSprite ? (3 << 5) : 0) | (priority << 4) | paletteUnitIndex;
+                        
+                        buffer[pixelIndex] = spr_data;
+                    }
                 }
             }
         };
@@ -1282,15 +1362,30 @@ namespace ReNes {
         const uint8_t* _bkPetternTableAddress() const
         {
             // 第4bit决定背景图案表地址 0x0000或0x1000
-            return _vram->petternTableAddress(_io_regs[0].get(4));
+            return _vram->petternTableAddress(_control_regs->get(4));
         }
         
         // 精灵图案表地址
         // 图案表：256*16(4KB)的空间
-        const uint8_t* _sprPetternTableAddress() const
+        const uint8_t* _sprPetternTableAddress(int spriteID) const
         {
-            // 第3bit决定精灵图案表地址 0x0000或0x1000
-            return _vram->petternTableAddress(_io_regs[0].get(3));
+            // 第3bit决定精灵图案表地址 0x0000或0x1000, 8x16模式下忽略，直接用0x0000
+            bool mode8x16 = _control_regs->get(5);
+            if (!mode8x16)
+            {
+                return _vram->petternTableAddress(_control_regs->get(3)) + spriteID*16;
+            }
+            else
+            {
+                if (spriteID % 2 == 0)
+                {
+                    return _vram->petternTableAddress(0) + spriteID/2*32;
+                }
+                else
+                {
+                    return _vram->petternTableAddress(1) + (spriteID-1)/2*32;
+                }
+            }
         }
         const uint8_t* _bkPaletteAddress() const { return _vram->bkPaletteAddress(); }
         const uint8_t* _sprPaletteAddress() const { return _vram->sprPaletteAddress(); }
@@ -1367,6 +1462,7 @@ namespace ReNes {
         Memory* _mem;
         
         bit8* _io_regs;      // I/O 寄存器, 8 x 8bit
+        bit8* _control_regs; // 控制寄存器
         bit8* _mask_regs;    // PPU屏蔽寄存器
         bit8* _status_regs;  // PPU状态寄存器
         
