@@ -179,6 +179,7 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
 
 - (void)drawRect:(NSRect)dirtyRect {
     
+    // 在此执行数据更新
     @synchronized (self) {
         if (self.updateData)
             self.updateData();
@@ -187,7 +188,11 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
     }
     
     // 必须设置，否则不能适应全视图显示（估计是参数没有更新，导致坐标点计算step不匹配）
-    glViewport(0, 0, self.bounds.size.width, self.bounds.size.height);
+    // 10.15以后gl支持了高分辨率，用以前的算法只能绘制1/4：glViewport(0, 0, self.bounds.size.width, self.bounds.size.height);
+    // 该算法支持高分辨率，画面更细腻，类似ios
+    int width = self.layer.bounds.size.width * self.layer.contentsScale;
+    int height = self.layer.bounds.size.height * self.layer.contentsScale;
+    glViewport(0, 0, width, height);
     
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -272,6 +277,7 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
             // 拷贝数据到显示缓冲区
             memcpy(_buffer, data, len);
             
+            // 设置数据更新回调block，在drawRect中执行并丢弃block
             if (self.updateData == nil)
             {
                 __weak MyOpenGLView* unsafe_self = self;
@@ -281,6 +287,7 @@ const GLchar* const kFragmentShaderString = CSHADER_STRING
                 };
             }
             
+            // 错误的代码
             // 在主线程调用视图渲染，会造成主线程卡顿，影响按键事件的检测
 //            dispatch_async(dispatch_get_main_queue(), ^{
 //                @autoreleasepool {
