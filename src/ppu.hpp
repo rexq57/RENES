@@ -40,16 +40,17 @@
 namespace ReNes {
     
     /*
-     未完成:
-     ...
+     未解决问题:
+     [问题1]、在渲染过程中完全忽略写入 ？？？？ https://wiki.nesdev.com/w/index.php/PPU_registers#Controller_.28.242000.29_.3E_write
      
      不确定的解决方案:
-     1、在readyOnFirstLine里清除了0x2000的低2bit来防止《超级玛丽》移动到第二名称表的时候，精灵0碰撞前间歇性名称表为1的情况，导致顶部无法显示第一名称里的状态栏的情况
+     1、在doPreRenderLine里清除了0x2000的低2bit来防止《超级玛丽》移动到第二名称表的时候，精灵0碰撞前间歇性名称表为1的情况，导致顶部无法显示第一名称里的状态栏的情况
      
      未知问题：
     1、《超级玛丽》运动到一段画面后，精灵0出现错位闪烁
     2、《超级玛丽》死完之后，无法重新开始，按键无效
-    3、精灵可以到屏幕上的任何地方。然而，他们并不擅长平滑地离开屏幕的左侧。有一个选项（PPU掩码2001位XXXX X11X），如果为零，则关闭屏幕的左8个像素，然后您可以顺利地离开屏幕的左侧。
+    3、《超级玛丽》选关下管子的时候不显示动画
+    4、精灵可以到屏幕上的任何地方。然而，他们并不擅长平滑地离开屏幕的左侧。有一个选项（PPU掩码2001位XXXX X11X），如果为零，则关闭屏幕的左8个像素，然后您可以顺利地离开屏幕的左侧。
      */
     
     // 系统调色板，网上有多种颜色风格
@@ -232,7 +233,9 @@ namespace ReNes {
                     }
                     case 0x2004:
                     {
-                        _sprram[_dstAddr2004++ % 256] = value;
+                        // 问题1
+//                        if (_status_regs->get(7) == 1)
+                            _sprram[_dstAddr2004++ % 256] = value;
                         break;
                     }
                     case 0x2005:
@@ -391,8 +394,13 @@ namespace ReNes {
         }
         
         // 预渲染
-        void readyOnFirstLine()
+        void doPreRenderLine()
         {
+            // 在预渲染线上的 dot 1 清理$2002的第5bit（精灵溢出）标记（但是不确定这个dot 1就是第一个像素，有个地方提到是第二个像素）
+            _status_regs->set(5, 0);
+            _status_regs->set(6, 0); // hit标记清零
+            _status_regs->set(7, 0); // 清除 vblank
+            
             // 准备当前帧的OAM
             memcpy(_OAM, _sprram, 256);
             _control_regs->set(0, 0);
@@ -662,11 +670,7 @@ namespace ReNes {
             if (isPreRenderLine)
             {
                 if (_scanline_x == 0) {
-                    // 在预渲染线上的第二个点清理$2002的第5bit（精灵溢出）标记
-                    _status_regs->set(5, 0);
-                    _status_regs->set(6, 0); // hit标记清零
-                    _status_regs->set(7, 0); // 清除 vblank
-                    readyOnFirstLine();
+                    doPreRenderLine();
                 }
                 else if (_scanline_x == 1) {
                     
@@ -878,7 +882,6 @@ namespace ReNes {
                     
                     bk_systemPaletteUnitIndex = bkPaletteAddr[bk_peletteIndex]; // 系统默认调色板颜色索引 [0,63]
                     {
-                        //                            int pixelIndex = (dst_y * 32*8 + dst_x); // [瓦片扫描] 最低位是右边第一像素，所以渲染顺序要从右往左
                         int pixelIndex = (line_y * 32*8 + line_x); // [屏幕扫描] 最低位是右边第一像素，所以渲染顺序要从右往左
                         
                         // 获取当前像素的精灵数据，并检测碰撞
@@ -895,16 +898,16 @@ namespace ReNes {
                                 // 碰撞检测 (必须同时显示背景和精灵的情况下)
                                 if (showSpr && showBg)
                                 {
-//                                    bool isFirstSprite = spr_data > 63;
                                     // 精灵0单独使用一个全屏buffer
-                                    uint8_t& spr0data = _spr0buffer[pixelIndex];
+                                    uint8_t spr0data = _spr0buffer[pixelIndex];
                                     bool isFirstSprite = spr0data > 31; // 即第5bit非0
+                                    int sprPaletteIndex = spr0data & 15;   // 前4bit
                                     
                                      // 使用精灵0来检测碰撞
-                                    int paletteIndex = sprPaletteAddr[_spr0buffer[pixelIndex] & 15];
+                                    int sysPaletteIndex = sprPaletteAddr[sprPaletteIndex];
                                     
                                     // 碰撞条件，第一精灵 & 非0调色板第一位（透明色）& 允许碰撞
-                                    if (isFirstSprite && paletteIndex != sprPaletteAddr[0] && _status_regs->get(6) == 0)
+                                    if (isFirstSprite && sysPaletteIndex != sprPaletteAddr[0] && _status_regs->get(6) == 0)
                                     {
                                         _status_regs->set(6, 1);
                                     }
@@ -952,7 +955,7 @@ namespace ReNes {
             if (_scanline_x >= _frame_w)
             {
                 // 绘制了最后一条可见扫描线，则设置VBlank标记
-                if (_scanline_y == 239)
+                if (_scanline_y == RENES_FRAME_VISIBLE_H-1) // 239
                 {
                     _status_regs->set(7, 1);
                     // 设置vblank事件
@@ -974,131 +977,6 @@ namespace ReNes {
                 
 //                printf("%d\n", _scanline_y);
             }
-        }
-        
-        void _vramDidUpdated(uint16_t addr)
-        {
-            // VRAM数据与内存的交互，通过2007最后来确定。在这里，可以确定哪部分VRAM内存被修改，进行tile更新
-            int nameTableIndex;
-            int tile_x, tile_y;
-            if (addr < 0x2000) // 图案表更新 [0x0000, 0x1FFF]
-            {
-                // 单个图案是8x8 * 2的空间，可以根据地址得到影响的图案index in [256]
-                // 遍历名称表中使用了该图案index的tile，进行更新
-                // 只更新图案表，先确定图案表地址
-                int i = _control_regs->get(4);
-                
-                int offset = addr - i*0x1000;
-                int index = offset / 16; // 得到下标[0, 255]
-                bool updatedNameTableIndex[4] = {false};
-                for (int i=0; i<4; i++)
-                {
-                    if (updatedNameTableIndex[i])
-                        continue;
-                    
-                    // 遍历里面32x30字节，更新其中 == index 的项目
-                    updateBackgroundTile(i, index);
-                    updatedNameTableIndex[i] = true;
-                    
-                    // 检查其镜像，有，则加入
-                    int mirroringIndex = _vram->nameTableMirroring(i);
-                    if (mirroringIndex != i)
-                    {
-                        updateBackgroundTile(mirroringIndex, index);
-                        updatedNameTableIndex[mirroringIndex] = true;
-                    }
-                }
-            }
-            //else if (addr < 0x3000) // 名称表更新 [0x2000, 0x2FFF]
-            else if (addr < 0x3F00) // [0x2000, 0x2EFF] 镜像，长度0x0F00
-            {
-                // 名称表 32x20 的空间
-                int offset = addr - 0x2000;
-                
-                if (addr < 0x3000)
-                    offset = addr - 0x2000;
-                else
-                    offset = addr - 0x3000; // 镜像
-                
-                nameTableIndex = offset / 0x0400;
-                
-                if (offset % 0x400 < 0x400 - 64) // 名称表范围 [0, 959]
-                {
-                    tile_y = (offset % 0x400) / 32;
-                    tile_x = (offset % 0x400) % 32;
-                    
-                    {
-                        updateBackgroundTile(nameTableIndex, tile_x, tile_y);
-                        
-                        // 更新镜像
-                        int mirroringIndex = _vram->nameTableMirroring(nameTableIndex);
-                        if (mirroringIndex != nameTableIndex)
-                        {
-                            updateBackgroundTile(mirroringIndex, tile_x, tile_y);
-                        }
-                    }
-                }
-                else
-                {
-                    // 得到[64]偏移
-                    int offset = addr % 0x400 - (0x400-64);
-                    int tile_group_y = offset / 8;
-                    int tile_group_x = offset % 8;
-                    int tile_x = tile_group_x * 4;
-                    int tile_y = tile_group_y * 4;
-                    
-                    updateBackgroundTile(nameTableIndex, tile_x, tile_y, 4, 4);
-                    
-                    // 更新镜像
-                    int mirroringIndex = _vram->nameTableMirroring(nameTableIndex);
-                    if (mirroringIndex != nameTableIndex)
-                    {
-                        updateBackgroundTile(mirroringIndex, tile_x, tile_y, 4, 4);
-                    }
-                }
-            }
-            else if (addr < 0x3F00) // [0x2000, 0x2EFF] 镜像
-            {
-                // 不知道会不会处理
-            }
-            else if (addr < 0x3F20) // 调色板 0,1
-            {
-                if (addr < 0x3F10) // 背景调色板
-                {
-                    // 遍历使用了该调色板下标的瓦片
-                    int offset = addr - 0x3F00; // [16]
-                    int paletteIndex = offset; // 得到下标[0, 15]
-                    bool updatedNameTableIndex[4] = {false};
-                    
-                    for (int i=0; i<4; i++)
-                    {
-                        if (updatedNameTableIndex[i])
-                            continue;
-                        
-                        // 遍历里面32x30字节，更新其中 == index 的项目
-                        updateBackgroundTile(i, paletteIndex);
-                        updatedNameTableIndex[i] = true;
-                        
-                        // 检查其镜像，有，则加入
-                        int mirroringIndex = _vram->nameTableMirroring(i);
-                        if (mirroringIndex != i)
-                        {
-                            updateBackgroundTile(mirroringIndex, paletteIndex);
-                            updatedNameTableIndex[mirroringIndex] = true;
-                        }
-                    }
-                }
-            }
-//            else if (addr < 0x4000) // 调色板镜像
-//            {
-//
-//            }
-//            else
-//            {
-//
-//            }
-            
-            
         }
         
         // 检查图案是否使用了该调色板下标

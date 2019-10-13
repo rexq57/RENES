@@ -179,13 +179,13 @@ namespace ReNes {
         
         void _run() {
             
+            _isRunning = true;
             _stoped = false;
             
             // 初始化cpu
             _cpu.init(&_mem);
             _ppu.init(&_mem);
             
-            _isRunning = true;
             if (willRunning)
                 willRunning();
             

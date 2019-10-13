@@ -4136,12 +4136,12 @@ PPUTest_2			; ! Test Sprites !
    lda   #$21		; Where the msg prints.
    sta   $02
    lda   #$54
-   sta   $03
+   sta   $03        ; 在[02] = $21 [03] = $54
 
    lda   #$24
-   sta   $2003
-   ldx   #$00
-   txa
+   sta   $2003      ; [2003] = $24
+   ldx   #$00       ; X = $00
+   txa              ; A = X
    clc
 .PPUWriteLoop24
    sta   $0500,X
