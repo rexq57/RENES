@@ -4142,20 +4142,20 @@ PPUTest_2			; ! Test Sprites !
    sta   $2003      ; [2003] = $24
    ldx   #$00       ; X = $00
    txa              ; A = X
-   clc
+   clc              ; C标记清零
 .PPUWriteLoop24
-   sta   $0500,X
-   adc   #$01
-   inx
-   bne   .PPUWriteLoop24
+   sta   $0500,X    ; A = [$0500 + X]
+   adc   #$01       ; A ++ if C == 1
+   inx              ; X ++
+   bne   .PPUWriteLoop24    ; 跳转 if X != 0
    lda   #$05
-   sta   $4014
+   sta   $4014      ; [$4014] = $05
 
    stx   $04
    lda   #$24
    sta   $2003
 .PPUReadLoop24
-   lda   $2004
+   lda   $2004      ; 比较 [2004] == $04 则 ok
    cmp   $04
    bne   .PPUError24
    inc   $04
@@ -4163,12 +4163,12 @@ PPUTest_2			; ! Test Sprites !
    bne   .PPUReadLoop24
 
 
-.PPUOk24
+.PPUOk24            ; ok
    jsr   WriteOk
-   inc   SCORE
+   inc   SCORE      ; 分数+1
    jmp   .PPUTest25
 
-.PPUError24
+.PPUError24         ; error
    jsr   WriteError
 ;-----------------------------
 .PPUTest25

@@ -898,10 +898,15 @@ namespace ReNes {
                 }
                 case CF_CMP:
                 {
+                    /*
+                     if A > src : A - src 范围 [0, FF]        正数范围
+                     if A < src : A - src 范围 [MAX-FE, MAX]  表示负数
+                     */
+                    
                     src = AC - src;
-                    SET_CARRY(src < 0x100);
-                    SET_SIGN(src);
-                    SET_ZERO(src &= 0xff);
+                    SET_CARRY(src < 0x100); // if A > src: C = 1
+                    SET_SIGN(src);          // uint32 -> int8 转换，会设置int8最高位的负数标记
+                    SET_ZERO(src &= 0xff);  // 只取8bit内有效位，当src 8bit存在有效位时，src &= 0xff 范围为[1, FF]，反之则为 [0, 0]
                     
                     break;
                 }
