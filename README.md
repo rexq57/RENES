@@ -17,6 +17,9 @@ AB Select Start: JK12
 
 #### 欢迎加QQ群交流经验: 1156216782
 
+#### 如何编写一个FC模拟器（推荐）
+http://rexq.me/2020/03/22/%E5%A6%82%E4%BD%95%E7%BC%96%E5%86%99%E4%B8%80%E4%B8%AAFC%E6%A8%A1%E6%8B%9F%E5%99%A8/
+
 #### NESASM教程：
 
 <http://blog.csdn.net/kkk584520/article/details/40375219>
